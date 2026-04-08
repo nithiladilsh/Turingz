@@ -1,0 +1,17 @@
+# Environment
+.env
+venv/
+__pycache__/
+*.pyc
+
+# Data and Models
+data/*
+!data/.gitkeep
+*.pt
+*.pth
+*.onnx
+
+# IDEs
+.vscode/
+.idea/
+.ipynb_checkpoints/

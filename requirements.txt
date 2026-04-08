@@ -1,0 +1,14 @@
+# Core ML & Math Engine
+torch==2.2.1
+numpy==1.26.4
+scipy==1.12.0
+
+# Module 3: Deployment & Profiling (Your Stack)
+fastapi==0.110.0
+uvicorn==0.27.1
+psutil==5.9.8
+pynvml==11.5.0
+
+# Visualization & Testing
+matplotlib==3.8.3
+pytest==8.1.1
