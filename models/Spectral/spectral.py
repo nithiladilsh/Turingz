@@ -49,8 +49,8 @@ class Config:
 
     # Output
     output_dir  = "models/Spectral/data"
-    pt_filename = "burgers_1d_highfidelity.pt"
-    csv_filename = "burgers_1d_highfidelity.csv"
+    pt_filename = "burgers_spectral_dataset.pt"
+    csv_filename = "burgers_spectral_dataset.csv"
     validate    = True          # Run PDE residual validation after generation
 
 

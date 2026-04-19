@@ -21,15 +21,14 @@ import sys
 # ─────────────────────────────────────────────────────────────
 # LOAD
 # ─────────────────────────────────────────────────────────────
-FILE_PATH = os.path.join(os.path.dirname(__file__), "../data/burgers_1d_highfidelity.pt")
-
+FILE_PATH = os.path.join(os.path.dirname(__file__), "data", "burgers_spectral_dataset.pt")
 print("=" * 60)
 print("  BURGERS DATASET VIEWER")
 print("=" * 60)
 
 if not os.path.exists(FILE_PATH):
     sys.exit(f"\n[ERROR] File not found: {FILE_PATH}\n"
-             f"Run generate_burgers_dataset.py first.\n")
+             f"Run spectral.py first.\n")
 
 data = torch.load(FILE_PATH, weights_only=False)
 
@@ -144,6 +143,6 @@ ax5.set_xlim(0, T)
 
 plt.savefig(os.path.join(os.path.dirname(FILE_PATH), "burgers_diagnostics.png"),
             dpi=150, bbox_inches="tight")
-print("\nDiagnostic figure saved: ../data/burgers_diagnostics.png")
+print("\nDiagnostic figure saved: models/Spectral/data/burgers_diagnostics.png")
 plt.show()
 print("\nDone.")
