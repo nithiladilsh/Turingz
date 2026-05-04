@@ -47,7 +47,7 @@ class Config:
     nu: float = 1.0 / (100.0 * np.pi)   # ν ≈ 0.00318
 
     # Dataset
-    N_samples: int = 4             # 4 × 200 × 512 = 409,600 CSV rows
+    N_samples: int = 8             # 4 × 200 × 512 = 409,600 CSV rows
     n_modes:   int = 4             # Fourier modes for random ICs
     ic_seed:   int = 42            # reproducibility seed
 
