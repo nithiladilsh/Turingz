@@ -4,18 +4,7 @@ venv/
 __pycache__/
 *.pyc
 
-# Data and Models
-data/*
-!data/.gitkeep
-*.pt
-*.pth
-*.onnx
-
 # IDEs
 .vscode/
 .idea/
 .ipynb_checkpoints/
-
-# Trained model weights — reproducible from train.py
-ml-models/**/checkpoints/**/model.pt
-ml-models/**/checkpoints/**/meta.npz

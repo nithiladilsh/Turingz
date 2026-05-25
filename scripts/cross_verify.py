@@ -13,13 +13,13 @@ _HERE     = os.path.dirname(os.path.abspath(__file__))
 _PROJECT  = os.path.dirname(_HERE)
 _DATA     = os.path.join(_PROJECT, "data")
 
-COLE_PT   = os.path.join(_DATA, "burgers_1d_cole_hopf.pt")
-COLE_CSV  = os.path.join(_DATA, "burgers_1d_cole_hopf.csv")
-SPEC_PT   = os.path.join(_DATA, "burgers_1d_spectral.pt")
-SPEC_CSV  = os.path.join(_DATA, "burgers_1d_spectral.csv")
+COLE_PT   = os.path.join(_DATA, "colehopf",  "burgers_1d_cole_hopf.pt")
+COLE_CSV  = os.path.join(_DATA, "colehopf",  "burgers_1d_cole_hopf.csv")
+SPEC_PT   = os.path.join(_DATA, "spectral",  "burgers_1d_spectral.pt")
+SPEC_CSV  = os.path.join(_DATA, "spectral",  "burgers_1d_spectral.csv")
 
-FIG_PATH  = os.path.join(_HERE, "cross_verification.png")
-JSON_PATH = os.path.join(_HERE, "cross_verification.json")
+FIG_PATH  = os.path.join(_PROJECT, "results", "cross_verification.png")
+JSON_PATH = os.path.join(_PROJECT, "results", "cross_verification.json")
 
 REPORT_TOL = 3.0e-6
 SHOCK_T_LO, SHOCK_T_HI = 0.25, 0.75
@@ -299,7 +299,7 @@ def main():
         }
 
     canonical = _windows_for_sample(0)
-    aggregate = {key: max(_windows_for_sample(i)[key] for i in range(N))
+    aggregate = {key: float(np.nanmax([_windows_for_sample(i)[key] for i in range(N)]))
                  for key in canonical}
 
     print(f"\n[4/5] Verdict — time-windowed analysis ───────────────────────")
@@ -340,22 +340,13 @@ def main():
 
     overall_pass = pass_canonical_final
 
-    pre_max     = aggregate["pre_shock"]
-    shock_max   = aggregate["shock_peak"]
-    post_max    = aggregate["post_shock"]
-    extrap_max  = aggregate["extrap_window_max"]
-    final_max   = aggregate["final_time"]
-    pass_final  = pass_canonical_final
-    pass_extrap = pass_canonical_extrap
-    strict, loose = pass_canonical_final, overall_pass
-
     print("\n[5/5] Producing figure & JSON summary ...")
     os.makedirs(_HERE, exist_ok=True)
+    os.makedirs(os.path.dirname(FIG_PATH), exist_ok=True)
     make_figure(ref["t"], ref["x"], u_ref_s, u_ver_s,
                 l2, linf, spec, per_sample_l2_max, canonical, FIG_PATH)
 
     summary = {
-        "report_section"        : "6.2.4",
         "report_tolerance"      : REPORT_TOL,
         "verdict_canonical_final" : bool(pass_canonical_final),
         "verdict_canonical_extrap": bool(pass_canonical_extrap),

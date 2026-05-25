@@ -1,5 +1,4 @@
 {
-  "report_section": "6.2.4",
   "report_tolerance": 3e-06,
   "verdict_canonical_final": true,
   "verdict_canonical_extrap": true,
@@ -69,8 +68,8 @@
     7.473332580048009e-05,
     0.00010216142141871388
   ],
-  "ref_source": "C:\\Users\\menilk\\OneDrive - IFS\\Documents\\GitHub\\Turingz\\data\\burgers_1d_cole_hopf.pt",
-  "ver_source": "C:\\Users\\menilk\\OneDrive - IFS\\Documents\\GitHub\\Turingz\\data\\burgers_1d_spectral.pt",
+  "ref_source": "C:\\Users\\Supun\\Downloads\\Research\\Turingz\\data\\colehopf\\burgers_1d_cole_hopf.pt",
+  "ver_source": "C:\\Users\\Supun\\Downloads\\Research\\Turingz\\data\\spectral\\burgers_1d_spectral.pt",
   "grid": {
     "nx": 512,
     "nt": 200,
