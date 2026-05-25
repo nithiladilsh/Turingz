@@ -1,0 +1,82 @@
+{
+  "report_section": "6.2.4",
+  "report_tolerance": 3e-06,
+  "verdict_canonical_final": true,
+  "verdict_canonical_extrap": true,
+  "verdict_smooth": true,
+  "verdict_aggregate_extrap": true,
+  "verdict_overall": true,
+  "canonical_windowed_max_l2": {
+    "pre_shock": 1.3646997103933245e-05,
+    "shock_peak": 0.0007950949366204441,
+    "post_shock": 0.00045036073424853384,
+    "extrap_window_max": 0.00015446508768945932,
+    "extrap_window_mean": 3.315652920264256e-05,
+    "final_time": 2.2198573788045906e-06
+  },
+  "aggregate_windowed_max_l2": {
+    "pre_shock": 0.0007697679102420807,
+    "shock_peak": 0.0007950949366204441,
+    "post_shock": 0.00045036073424853384,
+    "extrap_window_max": 0.00016922812210395932,
+    "extrap_window_mean": 0.0001618500282347668,
+    "final_time": 0.00015178468311205506
+  },
+  "windows": {
+    "shock_t_lo": 0.25,
+    "shock_t_hi": 0.75,
+    "t_train_end": 1.0
+  },
+  "focal_sample": 0,
+  "relative_l2": {
+    "mean": 0.0001695124792581737,
+    "max": 0.0007950949366204441,
+    "min": 0.0,
+    "final": 2.2198573788045906e-06,
+    "argmax_index": 53
+  },
+  "linf": {
+    "mean": 0.0006880467990413308,
+    "max": 0.003687620162963867,
+    "min": 0.0,
+    "final": 2.5331974029541016e-06,
+    "argmax_index": 51
+  },
+  "spectral_distance": {
+    "mean": 1.5506596341849904e-05,
+    "max": 5.474137262505454e-05,
+    "min": 0.0,
+    "final": 1.9568870299046046e-06,
+    "argmax_index": 52
+  },
+  "per_sample_max_l2": [
+    0.0007950949366204441,
+    0.0007697679102420807,
+    0.00044396959128789604,
+    0.00043709593592211604,
+    0.0002515039232093841,
+    0.00017409368592780083,
+    0.0002440946118440479,
+    0.0007618740783073008
+  ],
+  "per_sample_mean_l2": [
+    0.0001695124792581737,
+    0.0001001775290023943,
+    0.00015551829423202435,
+    9.720685169668286e-05,
+    8.167804360709852e-05,
+    7.97040029465279e-05,
+    7.473332580048009e-05,
+    0.00010216142141871388
+  ],
+  "ref_source": "C:\\Users\\menilk\\OneDrive - IFS\\Documents\\GitHub\\Turingz\\data\\burgers_1d_cole_hopf.pt",
+  "ver_source": "C:\\Users\\menilk\\OneDrive - IFS\\Documents\\GitHub\\Turingz\\data\\burgers_1d_spectral.pt",
+  "grid": {
+    "nx": 512,
+    "nt": 200,
+    "L": 2.0,
+    "T": 2.0,
+    "nu": 0.0031830988618379067,
+    "N_samples": 8
+  }
+}
