@@ -28,13 +28,12 @@ class Config:
     dt_target: float = 1.0e-4
     dealias:   bool  = True
 
-    data_dir:      str = os.path.normpath(os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), "..", "..", "data"
+    data_dir: str = os.path.normpath(os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "..", "..", "data", "spectral"
     ))
-    plot_dir:      str = os.path.dirname(os.path.abspath(__file__))
     pt_filename:   str = "burgers_1d_spectral.pt"
     csv_filename:  str = "burgers_1d_spectral.csv"
-    plot_filename: str = "burgers_diagnostics.png"
+    plot_filename: str = "burgers_spectral_diagnostics.png"
 
     validate: bool = True
 
@@ -52,7 +51,7 @@ def ic_sinpi(x: np.ndarray) -> np.ndarray:
 
 def ic_random_fourier(x: np.ndarray, L: float,
                       n_modes: int = 4,
-                      rng: np.random.Generator = None) -> np.ndarray:
+                      rng: np.random.Generator | None = None) -> np.ndarray:
     if rng is None:
         rng = np.random.default_rng()
     u = np.zeros_like(x)
@@ -70,9 +69,9 @@ def make_ic(x: np.ndarray, cfg: Config, sample_idx: int,
     return ic_random_fourier(x, cfg.L, n_modes=cfg.n_modes, rng=rng)
 
 def build_spectral_arrays(cfg: Config):
-    n     = np.arange(cfg.nx // 2 + 1)
-    k     = 2.0 * np.pi * n / cfg.L
-    mask  = n <= (cfg.nx // 3)
+    n    = np.arange(cfg.nx // 2 + 1)
+    k    = 2.0 * np.pi * n / cfg.L
+    mask = (n <= (cfg.nx // 3)) if cfg.dealias else np.ones(len(n), dtype=bool)
     return k, mask
 
 
@@ -107,11 +106,19 @@ def solve_burgers(x: np.ndarray, t_array: np.ndarray,
     U        = np.empty((len(t_array), nx))
     U[0]     = u_ic
 
+    step     = None
+    last_dt  = None
+
     for i in range(1, len(t_array)):
         dt_total   = t_array[i] - t_array[i - 1]
         n_substeps = max(1, int(round(dt_total / cfg.dt_target)))
         dt_step    = dt_total / n_substeps
-        step       = _make_step(k, mask, cfg.nu, nx, dt_step)
+
+        if dt_step != last_dt:
+            step    = _make_step(k, mask, cfg.nu, nx, dt_step)
+            last_dt = dt_step
+
+        assert step is not None
         for _ in range(n_substeps):
             u_hat = step(u_hat)
         U[i] = np.fft.irfft(u_hat * mask, n=nx)
@@ -233,7 +240,7 @@ def plot_sample(dataset: dict, cfg: Config) -> None:
     axes[0].legend(fontsize=8)
 
     snap_times = [0.0, 0.5, 1.0, 1.5, 2.0]
-    colors = plt.cm.viridis(np.linspace(0, 1, len(snap_times)))
+    colors = matplotlib.colormaps["viridis"](np.linspace(0, 1, len(snap_times)))
     for tt, col in zip(snap_times, colors):
         idx = int(np.argmin(np.abs(t - tt)))
         axes[1].plot(x, U[idx], color=col, lw=1.5, label=f"t={t[idx]:.2f}")
@@ -247,8 +254,8 @@ def plot_sample(dataset: dict, cfg: Config) -> None:
     axes[2].set_title("Energy dissipation")
 
     plt.tight_layout()
-    os.makedirs(cfg.plot_dir, exist_ok=True)
-    path = os.path.join(cfg.plot_dir, cfg.plot_filename)
+    os.makedirs(cfg.data_dir, exist_ok=True)
+    path = os.path.join(cfg.data_dir, cfg.plot_filename)
     fig.savefig(path, dpi=150, bbox_inches="tight")
     plt.close(fig)
     print(f"  → plot  : {path}")
@@ -325,9 +332,8 @@ def main() -> None:
     print(f"  Quality : {'✓ RESEARCH GRADE' if passed else '⚠  REVIEW WARNINGS'}")
     print(f"\n  CSV  : {os.path.abspath(os.path.join(cfg.data_dir, cfg.csv_filename))}")
     print(f"  .pt  : {os.path.abspath(os.path.join(cfg.data_dir, cfg.pt_filename))}")
-    print(f"  plot : {os.path.abspath(os.path.join(cfg.plot_dir, cfg.plot_filename))}")
+    print(f"  plot : {os.path.abspath(os.path.join(cfg.data_dir, cfg.plot_filename))}")
     print("=" * 70)
-    print("\nNext step:  python models/cross_verify.py")
 
 
 if __name__ == "__main__":

@@ -1,5 +1,6 @@
 import os
 import time
+from typing import Optional
 
 import numpy as np
 from scipy.integrate import trapezoid
@@ -26,10 +27,12 @@ class Config:
 
     t_train_end: float = 1.0
 
-    output_dir:    str = "./data"
+    data_dir: str = os.path.normpath(os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "..", "..", "data", "colehopf"
+    ))
     pt_filename:   str = "burgers_1d_cole_hopf.pt"
     csv_filename:  str = "burgers_1d_cole_hopf.csv"
-    plot_filename: str = "burgers_diagnostics.png"
+    plot_filename: str = "burgers_colehopf_diagnostics.png"
 
     validate: bool = True
 
@@ -46,7 +49,7 @@ def ic_sinpi(x: np.ndarray) -> np.ndarray:
 
 def ic_random_fourier(x: np.ndarray, L: float,
                       n_modes: int = 4,
-                      rng: np.random.Generator = None) -> np.ndarray:
+                      rng: Optional[np.random.Generator] = None) -> np.ndarray:
 
     if rng is None:
         rng = np.random.default_rng()
@@ -67,12 +70,9 @@ def make_ic(x: np.ndarray, cfg: Config, sample_idx: int,
 
 
 def compute_phi0(x: np.ndarray, u_ic: np.ndarray, nu: float) -> np.ndarray:
-
-    dx     = x[1] - x[0]
-    cumint = np.zeros_like(x)
-    for i in range(1, len(x)):
-        cumint[i] = cumint[i - 1] + 0.5 * (u_ic[i - 1] + u_ic[i]) * dx
-
+    dx       = x[1] - x[0]
+    trap     = 0.5 * (u_ic[:-1] + u_ic[1:]) * dx
+    cumint   = np.concatenate([[0.0], np.cumsum(trap)])
     exponent = -cumint / (2.0 * nu)
     return np.exp(exponent - np.max(exponent))
 
@@ -151,10 +151,6 @@ def generate_dataset(cfg: Config) -> dict:
     print(f"\n  Total: {total:.1f}s  ({total / cfg.N_samples:.1f}s / sample)")
     return {"U": U, "ICs": ICs, "x": x, "t": t}
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# VALIDATION
-# ─────────────────────────────────────────────────────────────────────────────
 def validate_solution(dataset: dict, cfg: Config) -> dict:
 
     U  = dataset["U"]
@@ -182,20 +178,17 @@ def validate_solution(dataset: dict, cfg: Config) -> dict:
     print(f"  [1/4] PDE residual — mean: {mean_res:.3e}  max: {max_res:.3e}  "
           f"{'✓' if max_res < 1e-3 else '⚠  check resolution'}")
 
-    # 2. Energy dissipation
     energy       = 0.5 * dx * np.sum(u_s ** 2, axis=1)
     energy_mono  = bool(np.all(np.diff(energy[1:]) <= 1e-8))
     dE_pct       = float(100.0 * (1.0 - energy[-1] / energy[0]))
     print(f"  [2/4] Energy — monotone: {energy_mono}  "
           f"dissipated: {dE_pct:.1f}%  {'✓' if energy_mono else '✗'}")
-
-    # 3. Mass conservation
+    
     mass         = dx * np.sum(u_s, axis=1)
     mass_drift   = float(np.max(np.abs(mass - mass[0])))
     print(f"  [3/4] Mass drift: {mass_drift:.3e}  "
           f"{'✓' if mass_drift < 1e-8 else '⚠'}")
 
-    # 4. Self-consistency (deterministic re-run)
     x_re, _, t_re = build_grid(cfg)
     U_re   = solve_burgers(x_re, t_re, ic_sinpi(x_re), cfg.nu, cfg.L)
     rdiff  = float(np.max(np.abs(U[0] - U_re)))
@@ -237,7 +230,7 @@ def plot_sample(dataset: dict, cfg: Config) -> None:
     axes[0].legend(fontsize=8)
 
     snap_times = [0.0, 0.5, 1.0, 1.5, 2.0]
-    colors = plt.cm.viridis(np.linspace(0, 1, len(snap_times)))
+    colors = plt.colormaps["viridis"](np.linspace(0, 1, len(snap_times)))
     for tt, col in zip(snap_times, colors):
         idx = int(np.argmin(np.abs(t - tt)))
         axes[1].plot(x, U[idx], color=col, lw=1.5, label=f"t={t[idx]:.2f}")
@@ -251,8 +244,8 @@ def plot_sample(dataset: dict, cfg: Config) -> None:
     axes[2].set_title("Energy dissipation")
 
     plt.tight_layout()
-    os.makedirs(cfg.output_dir, exist_ok=True)
-    path = os.path.join(cfg.output_dir, cfg.plot_filename)
+    os.makedirs(cfg.data_dir, exist_ok=True)
+    path = os.path.join(cfg.data_dir, cfg.plot_filename)
     fig.savefig(path, dpi=150, bbox_inches="tight")
     plt.close(fig)
     print(f"  → plot  : {path}")
@@ -263,13 +256,13 @@ def save_dataset(dataset: dict, val_results: dict, cfg: Config) -> None:
     x   = dataset["x"]
     t   = dataset["t"]
 
-    os.makedirs(cfg.output_dir, exist_ok=True)
+    os.makedirs(cfg.data_dir, exist_ok=True)
 
     u_mean = float(U.mean()); u_std = float(U.std())
     u_min  = float(U.min());  u_max = float(U.max())
     u_norm = (U - u_mean) / (u_std + 1e-12)
 
-    pt_path = os.path.join(cfg.output_dir, cfg.pt_filename)
+    pt_path = os.path.join(cfg.data_dir, cfg.pt_filename)
     torch.save({
         "u"           : torch.tensor(U,      dtype=torch.float32),
         "u_normalized": torch.tensor(u_norm, dtype=torch.float32),
@@ -306,7 +299,7 @@ def save_dataset(dataset: dict, val_results: dict, cfg: Config) -> None:
         for s in range(cfg.N_samples)
     ])
 
-    csv_path = os.path.join(cfg.output_dir, cfg.csv_filename)
+    csv_path = os.path.join(cfg.data_dir, cfg.csv_filename)
     np.savetxt(csv_path, all_rows,
                delimiter=",", header="t,x,u", comments="", fmt="%.10f")
 
@@ -338,8 +331,8 @@ def main() -> None:
     )
     print("\n" + "=" * 70)
     print(f"  Quality : {'✓ RESEARCH GRADE' if passed else '⚠  REVIEW WARNINGS'}")
-    print(f"\n  CSV  : {cfg.output_dir}/{cfg.csv_filename}")
-    print(f"  .pt  : {cfg.output_dir}/{cfg.pt_filename}")
+    print(f"\n  CSV  : {os.path.join(cfg.data_dir, cfg.csv_filename)}")
+    print(f"  .pt  : {os.path.join(cfg.data_dir, cfg.pt_filename)}")
     print("=" * 70)
 
 

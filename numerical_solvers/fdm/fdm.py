@@ -1,162 +1,258 @@
-import numpy as np
-import pandas as pd
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
+import os
+import time
 import warnings
 
-# PARAMETERS
-NX    = 512          # spatial grid points
-X_MIN = -1.0         # domain left boundary
-X_MAX =  1.0         # domain right boundary
-T_END =  2.0         # total simulation time
-NU    =  0.01 / np.pi  # viscosity
-CFL   =  0.4         # CFL safety factor
-
-OUTPUT_CSV  = "burgers_fdm_dataset.csv"
-OUTPUT_PLOT = "burgers_fdm_solution.png"
-
-# GRID
-dx = (X_MAX - X_MIN) / NX
-x  = np.linspace(X_MIN, X_MAX, NX, endpoint=False)
-
-dt_adv  = CFL * dx
-dt_diff = CFL * dx**2 / NU
-dt      = round(min(dt_adv, dt_diff), 8)
-
-t = np.arange(0.0, T_END + dt, dt)
-NT = len(t)
+import numpy as np
+import torch
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 
 
-# INITIAL CONDITION
-def initial_condition(x):
-    return -np.sin(np.pi * x)
+class Config:
+    x_start: float = -1.0
+    x_end:   float =  1.0
+    L:       float =  2.0
+    nx:      int   = 512
 
-# FDM SOLVER
-def solve(x, t, u0, nu):
-    nx = len(x)
-    nt = len(t)
-    dx = x[1] - x[0]
+    T:       float = 2.0
+    nt_out:  int   = 200
+    t_start: float = 0.01
 
-    U = np.zeros((nt, nx))
+    nu:      float = 1.0 / (100.0 * np.pi)
+    cfl:     float = 0.4
+
+    t_train_end: float = 1.0
+
+    data_dir: str = os.path.normpath(os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "..", "..", "data", "fdm"
+    ))
+    pt_filename:   str = "burgers_fdm_dataset.pt"
+    csv_filename:  str = "burgers_fdm_dataset.csv"
+    plot_filename: str = "burgers_fdm_diagnostics.png"
+
+    validate: bool = True
+
+
+def build_grid(cfg: Config):
+    x  = np.linspace(cfg.x_start, cfg.x_end, cfg.nx, endpoint=False)
+    dx = cfg.L / cfg.nx
+    t  = np.concatenate([[0.0],
+                          np.linspace(cfg.t_start, cfg.T, cfg.nt_out - 1)])
+    return x, dx, t
+
+
+def initial_condition(x: np.ndarray) -> np.ndarray:
+    return np.sin(np.pi * x)
+
+
+def solve(x: np.ndarray, t_out: np.ndarray, u0: np.ndarray,
+          cfg: Config) -> np.ndarray:
+    nx  = len(x)
+    dx  = x[1] - x[0]
+    nu  = cfg.nu
+
+    dt_adv  = cfg.cfl * dx
+    dt_diff = cfg.cfl * dx ** 2 / nu
+    dt_fine = min(dt_adv, dt_diff)
+
+    U    = np.empty((len(t_out), nx))
     U[0] = u0.copy()
     u    = u0.copy()
 
-    for n in range(1, nt):
-        dt_n = t[n] - t[n - 1]
+    for i in range(1, len(t_out)):
+        dt_total   = t_out[i] - t_out[i - 1]
+        n_substeps = max(1, int(np.ceil(dt_total / dt_fine)))
+        dt_step    = dt_total / n_substeps
 
-        u_left  = np.roll(u,  1)
-        u_right = np.roll(u, -1)
+        for _ in range(n_substeps):
+            u_left  = np.roll(u,  1)
+            u_right = np.roll(u, -1)
 
-        advection = np.where(
-            u >= 0,
-            u * (u - u_left)  / dx,
-            u * (u_right - u) / dx
-        )
-        diffusion = nu * (u_right - 2.0 * u + u_left) / dx**2
-
-        u = u - dt_n * advection + dt_n * diffusion
-        U[n] = u
-
-        if not np.all(np.isfinite(u)) or np.max(np.abs(u)) > 1e4:
-            warnings.warn(
-                f"INSTABILITY DETECTED at t = {t[n]:.4f}  "
-                f"(step {n}/{nt}).  max|u| = {np.max(np.abs(u)):.2e}.  "
-                f"Try reducing dt or increasing NX.",
-                RuntimeWarning
+            advection = np.where(
+                u >= 0,
+                u * (u - u_left)  / dx,
+                u * (u_right - u) / dx,
             )
-            U = U[:n]
-            t_valid = t[:n]
-            return U, t_valid, n
+            diffusion = nu * (u_right - 2.0 * u + u_left) / dx ** 2
 
-    return U, t, nt - 1
+            u = u - dt_step * advection + dt_step * diffusion
 
-# VALIDATION
-def validate(U, t, x, nu):
-    print("\n  Validation")
-    print("  " + "-" * 40)
-    dx = x[1] - x[0]
+            if not np.all(np.isfinite(u)) or np.max(np.abs(u)) > 1e4:
+                warnings.warn(
+                    f"INSTABILITY at t ≈ {t_out[i - 1] + _ * dt_step:.4f}  "
+                    f"max|u| = {np.max(np.abs(u)):.2e}  "
+                    "Try reducing cfl or increasing nx.",
+                    RuntimeWarning,
+                )
+                U[i:] = np.nan
+                return U
 
-    max_u = np.max(np.abs(U), axis=1)
-    stable = np.all(max_u < 1e4) and np.all(np.isfinite(max_u))
-    print(f"  Stability        : {'PASS — max|u| = {:.4f}'.format(max_u.max()) if stable else 'FAIL'}")
+        U[i] = u.copy()
 
-    mass       = np.sum(U, axis=1) * dx
-    mass_drift = np.max(np.abs(mass - mass[0]))
-    mass_ok    = mass_drift < 1e-8
-    print(f"  Mass drift       : {mass_drift:.2e}  {'PASS' if mass_ok else 'WARNING — larger than expected'}")
+    return U
 
-    energy      = 0.5 * np.sum(U**2, axis=1) * dx
-    energy_mono = np.all(np.diff(energy) <= 1e-6)
-    dE          = 100.0 * (energy[0] - energy[-1]) / energy[0]
-    print(f"  Energy dissipated: {dE:.2f}%  {'PASS' if energy_mono else 'WARNING — non-monotone'}")
 
-    print("  " + "-" * 40)
-    return {"max_u": float(max_u.max()), "mass_drift": float(mass_drift),
-            "energy_dissipated_pct": float(dE), "stable": stable}
+def validate_solution(U: np.ndarray, x: np.ndarray,
+                      t: np.ndarray, cfg: Config) -> dict:
+    dx = cfg.L / cfg.nx
+    print("\n─── Validation ──────────────────────────────────────────────────")
 
-# SAVE CSV
-def save_csv(t, x, U, path):
-    T_grid, X_grid = np.meshgrid(t, x, indexing='ij')
-    df = pd.DataFrame({
-        "t": T_grid.ravel(),
-        "x": X_grid.ravel(),
-        "u": U.ravel(),
-    })
-    df.to_csv(path, index=False, float_format="%.10f")
-    return len(df)
+    max_u  = float(np.nanmax(np.abs(U)))
+    stable = bool(np.all(np.isfinite(U)) and max_u < 1e4)
+    print(f"  [1/3] Stability  : {'✓  max|u| = ' + f'{max_u:.4f}' if stable else '✗  UNSTABLE'}")
 
-# VISUALISATION
-def plot_solution(t, x, U, path):
-    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
-    fig.suptitle("1D Burgers' Equation — FDM Solution", fontsize=13, fontweight="bold")
+    mass       = dx * np.sum(U, axis=1)
+    mass_drift = float(np.max(np.abs(mass - mass[0])))
+    print(f"  [2/3] Mass drift : {mass_drift:.2e}  "
+          f"{'✓' if mass_drift < 1e-3 else '⚠  upwind numerical diffusion expected'}")
 
-    ax = axes[0]
-    stride = max(1, len(t) // 300)
-    im = ax.pcolormesh(x, t[::stride], U[::stride], cmap="RdBu_r", shading="auto")
-    ax.set_xlabel("x")
-    ax.set_ylabel("t")
-    ax.set_title("Space-Time  u(x, t)")
-    plt.colorbar(im, ax=ax, label="u")
+    energy      = 0.5 * dx * np.sum(U ** 2, axis=1)
+    energy_mono = bool(np.all(np.diff(energy) <= 1e-6))
+    dE_pct      = float(100.0 * (energy[0] - energy[-1]) / energy[0])
+    print(f"  [3/3] Energy     : monotone={energy_mono}  "
+          f"dissipated={dE_pct:.1f}%  {'✓' if energy_mono else '⚠'}")
 
-    ax = axes[1]
-    snap_times = np.linspace(0, t[-1], 8)
-    colors     = plt.get_cmap("plasma")(np.linspace(0, 1, len(snap_times)))
-    for ti, col in zip(snap_times, colors):
-        idx = int(np.argmin(np.abs(t - ti)))
-        ax.plot(x, U[idx], color=col, linewidth=1.5, label=f"t={ti:.2f}")
-    ax.set_xlabel("x")
-    ax.set_ylabel("u")
-    ax.set_title("Solution Snapshots")
-    ax.legend(fontsize=7, loc="upper right")
-    ax.grid(True, alpha=0.3)
+    print("─────────────────────────────────────────────────────────────────\n")
+    return {
+        "stable":                stable,
+        "max_u":                 max_u,
+        "mass_drift":            mass_drift,
+        "energy_monotone":       energy_mono,
+        "energy_dissipated_pct": dE_pct,
+    }
 
-    ax = axes[2]
-    dx = x[1] - x[0]
-    energy = 0.5 * np.sum(U**2, axis=1) * dx
-    ax.plot(t, energy, color="steelblue", linewidth=1.5)
-    ax.set_xlabel("t")
-    ax.set_ylabel("E(t) = ½∫u² dx")
-    ax.set_title("Energy Dissipation")
-    ax.grid(True, alpha=0.3)
+
+def plot_solution(U: np.ndarray, x: np.ndarray, t: np.ndarray,
+                  cfg: Config) -> None:
+    dx     = cfg.L / cfg.nx
+    energy = 0.5 * dx * np.sum(U ** 2, axis=1)
+
+    fig, axes = plt.subplots(1, 3, figsize=(14, 4))
+    fig.suptitle(
+        "Burgers — FDM  |  sin(πx)  |  Upwind + Central Diffusion",
+        fontsize=11, fontweight="bold",
+    )
+
+    im = axes[0].pcolormesh(x, t, U, cmap="RdBu_r",
+                             shading="auto", vmin=-1, vmax=1)
+    fig.colorbar(im, ax=axes[0], label="u")
+    axes[0].axhline(cfg.t_train_end, color="k", ls="--", lw=1,
+                    label="train / extrap split")
+    axes[0].set_xlabel("x"); axes[0].set_ylabel("t")
+    axes[0].set_title("Space-time heatmap")
+    axes[0].legend(fontsize=8)
+
+    snap_times = [0.0, 0.5, 1.0, 1.5, 2.0]
+    colors = plt.get_cmap("viridis")(np.linspace(0, 1, len(snap_times)))
+    for tt, col in zip(snap_times, colors):
+        idx = int(np.argmin(np.abs(t - tt)))
+        axes[1].plot(x, U[idx], color=col, lw=1.5, label=f"t={t[idx]:.2f}")
+    axes[1].set_xlabel("x"); axes[1].set_ylabel("u")
+    axes[1].set_title("Snapshots")
+    axes[1].legend(fontsize=7)
+    axes[1].grid(True, alpha=0.3)
+
+    axes[2].semilogy(t, energy, lw=1.8, color="steelblue")
+    axes[2].axvline(cfg.t_train_end, color="k", ls="--", lw=1)
+    axes[2].set_xlabel("t"); axes[2].set_ylabel("E(t)")
+    axes[2].set_title("Energy dissipation")
+    axes[2].grid(True, alpha=0.3)
 
     plt.tight_layout()
-    plt.savefig(path, dpi=150, bbox_inches="tight")
-    plt.close()
+    os.makedirs(cfg.data_dir, exist_ok=True)
+    path = os.path.join(cfg.data_dir, cfg.plot_filename)
+    fig.savefig(path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"  → plot  : {path}")
 
 
-if __name__ == "__main__":
+def save_dataset(U: np.ndarray, x: np.ndarray, t: np.ndarray,
+                 val_results: dict, cfg: Config) -> None:
+    os.makedirs(cfg.data_dir, exist_ok=True)
+
+    u_mean = float(U.mean()); u_std = float(U.std())
+    u_min  = float(U.min());  u_max = float(U.max())
+    u_norm = (U - u_mean) / (u_std + 1e-12)
+
+    U_pt      = U[np.newaxis]
+    u_norm_pt = u_norm[np.newaxis]
+
+    pt_path = os.path.join(cfg.data_dir, cfg.pt_filename)
+    torch.save({
+        "u"           : torch.tensor(U_pt,      dtype=torch.float32),
+        "u_normalized": torch.tensor(u_norm_pt, dtype=torch.float32),
+        "x"           : torch.tensor(x,         dtype=torch.float32),
+        "t"           : torch.tensor(t,         dtype=torch.float32),
+        "nu"          : cfg.nu,
+        "L"           : cfg.L,
+        "x_start"     : cfg.x_start,
+        "x_end"       : cfg.x_end,
+        "T"           : cfg.T,
+        "t_start"     : cfg.t_start,
+        "t_train_end" : cfg.t_train_end,
+        "nx"          : cfg.nx,
+        "nt"          : cfg.nt_out,
+        "N_samples"   : 1,
+        "dx"          : cfg.L / cfg.nx,
+        "u_mean"      : u_mean,
+        "u_std"       : u_std,
+        "u_min"       : u_min,
+        "u_max"       : u_max,
+        "method"      : "fdm_upwind_central",
+        "validation"  : val_results,
+    }, pt_path)
+    print(f"  → .pt   : {pt_path}")
+    print(f"     shape: U = {U_pt.shape}  (N_samples, N_t, N_x)")
+
+    X_grid, T_grid = np.meshgrid(x, t)
+    all_rows = np.column_stack([T_grid.ravel(), X_grid.ravel(), U.ravel()])
+    csv_path = os.path.join(cfg.data_dir, cfg.csv_filename)
+    np.savetxt(csv_path, all_rows,
+               delimiter=",", header="t,x,u", comments="", fmt="%.10f")
+    print(f"  → .csv  : {csv_path}")
+    print(f"     rows : {all_rows.shape[0]:,}  ({cfg.nt_out} × {cfg.nx})")
+
+
+def main() -> None:
+    print("=" * 70)
+    print("  BURGERS DATASET — FDM  |  Upwind + Central Diffusion")
+    print("=" * 70)
+
+    cfg      = Config()
+    x, dx, t = build_grid(cfg)
+
+    dt_adv  = cfg.cfl * dx
+    dt_diff = cfg.cfl * dx ** 2 / cfg.nu
+    dt_fine = min(dt_adv, dt_diff)
+
+    print(f"\n  Domain  : x ∈ [{cfg.x_start}, {cfg.x_end})  nx={cfg.nx}  dx={dx:.8f}")
+    print(f"  Time    : t[0]=0  t[-1]={cfg.T}  nt_out={cfg.nt_out}")
+    print(f"  Physics : ν={cfg.nu:.6f}  CFL={cfg.cfl}")
+    print(f"  dt_fine : {dt_fine:.2e}\n")
+
+    t0 = time.perf_counter()
     u0 = initial_condition(x)
 
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
-        U, t_valid, last_step = solve(x, t, u0, NU)
+        U = solve(x, t, u0, cfg)
         for w in caught:
             print(f"\n  ⚠  {w.message}")
 
-    t = t_valid
+    elapsed = time.perf_counter() - t0
+    print(f"  Solved in {elapsed:.1f}s  |  u(T) max={np.nanmax(np.abs(U[-1])):.4f}")
 
-    stats = validate(U, t, x, NU)
+    val_results = validate_solution(U, x, t, cfg) if cfg.validate else {}
+    plot_solution(U, x, t, cfg)
+    save_dataset(U, x, t, val_results, cfg)
 
-    nrows = save_csv(t, x, U, OUTPUT_CSV)
-    plot_solution(t, x, U, OUTPUT_PLOT)
+    passed = val_results.get("stable", False) and val_results.get("energy_monotone", False)
+    print("\n" + "=" * 70)
+    print(f"\n  .pt  : {os.path.join(cfg.data_dir, cfg.pt_filename)}")
+    print(f"  .csv : {os.path.join(cfg.data_dir, cfg.csv_filename)}")
+    print("=" * 70)
+
+
+if __name__ == "__main__":
+    main()
