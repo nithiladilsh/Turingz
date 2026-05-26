@@ -82,8 +82,8 @@ DATA_PATH = resolve_dataset_path()
 def default_config(smoke: bool = False) -> FNOConfig:
     cfg = FNOConfig()
 
-    cfg.n_modes_t = 8
-    cfg.n_modes_x = 8
+    cfg.n_modes_t = 16
+    cfg.n_modes_x = 16
     cfg.hidden_channels = 32
     cfg.n_layers = 4
 
