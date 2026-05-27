@@ -1,6 +1,7 @@
 import os
 import time
 import warnings
+from typing import Optional
 
 import numpy as np
 import torch
@@ -22,6 +23,10 @@ class Config:
     nu:      float = 1.0 / (100.0 * np.pi)
     cfl:     float = 0.4
 
+    N_samples: int = 8
+    n_modes:   int = 4
+    ic_seed:   int = 42
+
     t_train_end: float = 1.0
 
     data_dir: str = os.path.normpath(os.path.join(
@@ -42,9 +47,28 @@ def build_grid(cfg: Config):
     return x, dx, t
 
 
-def initial_condition(x: np.ndarray) -> np.ndarray:
+def ic_sinpi(x: np.ndarray) -> np.ndarray:
     return np.sin(np.pi * x)
 
+
+def ic_random_fourier(x: np.ndarray, L: float,
+                      n_modes: int = 4,
+                      rng: Optional[np.random.Generator] = None) -> np.ndarray:
+    if rng is None:
+        rng = np.random.default_rng()
+    u = np.zeros_like(x)
+    for m in range(1, n_modes + 1):
+        amp   = rng.standard_normal()
+        phase = rng.uniform(0.0, 2.0 * np.pi)
+        u    += amp * np.sin(2.0 * np.pi * m * x / L + phase)
+    return u / (np.max(np.abs(u)) + 1e-12)
+
+def make_ic(x: np.ndarray, cfg: Config, sample_idx: int,
+            rng: np.random.Generator) -> np.ndarray:
+    """Sample 0 → canonical sin(πx); samples 1+ → random Fourier ICs."""
+    if sample_idx == 0:
+        return ic_sinpi(x)
+    return ic_random_fourier(x, cfg.L, n_modes=cfg.n_modes, rng=rng)
 
 def solve(x: np.ndarray, t_out: np.ndarray, u0: np.ndarray,
           cfg: Config) -> np.ndarray:
@@ -92,11 +116,58 @@ def solve(x: np.ndarray, t_out: np.ndarray, u0: np.ndarray,
 
     return U
 
+def generate_dataset(cfg: Config) -> dict:
+    x, dx, t = build_grid(cfg)
+    rng       = np.random.default_rng(cfg.ic_seed)
 
-def validate_solution(U: np.ndarray, x: np.ndarray,
-                      t: np.ndarray, cfg: Config) -> dict:
+    dt_adv  = cfg.cfl * dx
+    dt_diff = cfg.cfl * dx ** 2 / cfg.nu
+    dt_fine = min(dt_adv, dt_diff)
+
+    print(f"  Domain  : x ∈ [{cfg.x_start}, {cfg.x_end})  "
+          f"nx={cfg.nx}  dx={dx:.8f}")
+    print(f"  Time    : t[0]=0  t[1]={cfg.t_start}  t[-1]={cfg.T}  "
+          f"nt={cfg.nt_out}")
+    print(f"  Physics : ν={cfg.nu:.6f}  CFL={cfg.cfl}")
+    print(f"  dt_fine : {dt_fine:.2e}")
+    print(f"  Samples : {cfg.N_samples}  →  "
+          f"{cfg.N_samples * cfg.nt_out * cfg.nx:,} CSV rows\n"
+          f"  {'─' * 54}")
+
+    U   = np.empty((cfg.N_samples, cfg.nt_out, cfg.nx), dtype=np.float64)
+    ICs = np.empty((cfg.N_samples, cfg.nx),              dtype=np.float64)
+
+    t0_total = time.perf_counter()
+    for i in range(cfg.N_samples):
+        t0   = time.perf_counter()
+        u_ic = make_ic(x, cfg, sample_idx=i, rng=rng)
+        ICs[i] = u_ic
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            U[i] = solve(x, t, u_ic, cfg)
+            for w in caught:
+                print(f"\n  ⚠  sample {i}: {w.message}")
+
+        elapsed = time.perf_counter() - t0
+        ic_label = "sin(πx)" if i == 0 else "rand-Fourier"
+        print(f"  Sample {i + 1}/{cfg.N_samples} | IC={ic_label} | "
+              f"IC max={np.max(np.abs(u_ic)):.3f} | "
+              f"u(T) max={np.nanmax(np.abs(U[i, -1, :])):.4f} | "
+              f"{elapsed:.1f}s")
+
+    total = time.perf_counter() - t0_total
+    print(f"\n  Total: {total:.1f}s  ({total / cfg.N_samples:.1f}s / sample)")
+    return {"U": U, "ICs": ICs, "x": x, "t": t}
+
+
+def validate_solution(dataset: dict, cfg: Config) -> dict:
+    U  = dataset["U"][0]
+    x  = dataset["x"]
+    t  = dataset["t"]
     dx = cfg.L / cfg.nx
-    print("\n─── Validation ──────────────────────────────────────────────────")
+
+    print("\n─── Validation (sample 0 — sin(πx)) ────────────────────────────")
 
     max_u  = float(np.nanmax(np.abs(U)))
     stable = bool(np.all(np.isfinite(U)) and max_u < 1e4)
@@ -123,14 +194,18 @@ def validate_solution(U: np.ndarray, x: np.ndarray,
     }
 
 
-def plot_solution(U: np.ndarray, x: np.ndarray, t: np.ndarray,
-                  cfg: Config) -> None:
+def plot_sample(dataset: dict, cfg: Config) -> None:
+    U      = dataset["U"][0]
+    x      = dataset["x"]
+    t      = dataset["t"]
     dx     = cfg.L / cfg.nx
     energy = 0.5 * dx * np.sum(U ** 2, axis=1)
 
     fig, axes = plt.subplots(1, 3, figsize=(14, 4))
     fig.suptitle(
-        "Burgers — FDM  |  sin(πx)  |  Upwind + Central Diffusion",
+        f"Burgers — FDM  |  sample 0: sin(πx)  |  Upwind + Central Diffusion  |  "
+        f"N={cfg.N_samples} samples  "
+        f"({cfg.N_samples * cfg.nt_out * cfg.nx:,} rows)",
         fontsize=11, fontweight="bold",
     )
 
@@ -167,23 +242,25 @@ def plot_solution(U: np.ndarray, x: np.ndarray, t: np.ndarray,
     print(f"  → plot  : {path}")
 
 
-def save_dataset(U: np.ndarray, x: np.ndarray, t: np.ndarray,
-                 val_results: dict, cfg: Config) -> None:
+def save_dataset(dataset: dict, val_results: dict, cfg: Config) -> None:
+    U   = dataset["U"]
+    ICs = dataset["ICs"]
+    x   = dataset["x"]
+    t   = dataset["t"]
+
     os.makedirs(cfg.data_dir, exist_ok=True)
 
     u_mean = float(U.mean()); u_std = float(U.std())
     u_min  = float(U.min());  u_max = float(U.max())
     u_norm = (U - u_mean) / (u_std + 1e-12)
 
-    U_pt      = U[np.newaxis]
-    u_norm_pt = u_norm[np.newaxis]
-
     pt_path = os.path.join(cfg.data_dir, cfg.pt_filename)
     torch.save({
-        "u"           : torch.tensor(U_pt,      dtype=torch.float32),
-        "u_normalized": torch.tensor(u_norm_pt, dtype=torch.float32),
-        "x"           : torch.tensor(x,         dtype=torch.float32),
-        "t"           : torch.tensor(t,         dtype=torch.float32),
+        "u"           : torch.tensor(U,      dtype=torch.float32),
+        "u_normalized": torch.tensor(u_norm, dtype=torch.float32),
+        "ICs"         : torch.tensor(ICs,    dtype=torch.float32),
+        "x"           : torch.tensor(x,      dtype=torch.float32),
+        "t"           : torch.tensor(t,      dtype=torch.float32),
         "nu"          : cfg.nu,
         "L"           : cfg.L,
         "x_start"     : cfg.x_start,
@@ -193,7 +270,7 @@ def save_dataset(U: np.ndarray, x: np.ndarray, t: np.ndarray,
         "t_train_end" : cfg.t_train_end,
         "nx"          : cfg.nx,
         "nt"          : cfg.nt_out,
-        "N_samples"   : 1,
+        "N_samples"   : cfg.N_samples,
         "dx"          : cfg.L / cfg.nx,
         "u_mean"      : u_mean,
         "u_std"       : u_std,
@@ -203,54 +280,48 @@ def save_dataset(U: np.ndarray, x: np.ndarray, t: np.ndarray,
         "validation"  : val_results,
     }, pt_path)
     print(f"  → .pt   : {pt_path}")
-    print(f"     shape: U = {U_pt.shape}  (N_samples, N_t, N_x)")
+    print(f"     shape: U = {U.shape}  (N_samples, N_t, N_x)")
 
     X_grid, T_grid = np.meshgrid(x, t)
-    all_rows = np.column_stack([T_grid.ravel(), X_grid.ravel(), U.ravel()])
+    t_col = T_grid.ravel()
+    x_col = X_grid.ravel()
+
+    all_rows = np.vstack([
+        np.column_stack((t_col, x_col, U[s].ravel()))
+        for s in range(cfg.N_samples)
+    ])
+
     csv_path = os.path.join(cfg.data_dir, cfg.csv_filename)
     np.savetxt(csv_path, all_rows,
                delimiter=",", header="t,x,u", comments="", fmt="%.10f")
+
+    total_rows = all_rows.shape[0]
     print(f"  → .csv  : {csv_path}")
-    print(f"     rows : {all_rows.shape[0]:,}  ({cfg.nt_out} × {cfg.nx})")
+    print(f"     rows : {total_rows:,}  "
+          f"({cfg.N_samples} × {cfg.nt_out} × {cfg.nx})")
+    print(f"     first row:  t={all_rows[0, 0]:.1f}  "
+          f"x={all_rows[0, 1]:.10f}  u={all_rows[0, 2]:.10f}")
 
 
 def main() -> None:
     print("=" * 70)
-    print("  BURGERS DATASET — FDM  |  Upwind + Central Diffusion")
+    print("  BURGERS DATASET — FDM  |  Upwind + Central Diffusion  |  Team Turingz")
     print("=" * 70)
 
-    cfg      = Config()
-    x, dx, t = build_grid(cfg)
+    cfg = Config()
+    print(f"\n  N_samples={cfg.N_samples}  nt={cfg.nt_out}  nx={cfg.nx}  "
+          f"→  {cfg.N_samples * cfg.nt_out * cfg.nx:,} CSV rows\n")
 
-    dt_adv  = cfg.cfl * dx
-    dt_diff = cfg.cfl * dx ** 2 / cfg.nu
-    dt_fine = min(dt_adv, dt_diff)
-
-    print(f"\n  Domain  : x ∈ [{cfg.x_start}, {cfg.x_end})  nx={cfg.nx}  dx={dx:.8f}")
-    print(f"  Time    : t[0]=0  t[-1]={cfg.T}  nt_out={cfg.nt_out}")
-    print(f"  Physics : ν={cfg.nu:.6f}  CFL={cfg.cfl}")
-    print(f"  dt_fine : {dt_fine:.2e}\n")
-
-    t0 = time.perf_counter()
-    u0 = initial_condition(x)
-
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter("always")
-        U = solve(x, t, u0, cfg)
-        for w in caught:
-            print(f"\n  ⚠  {w.message}")
-
-    elapsed = time.perf_counter() - t0
-    print(f"  Solved in {elapsed:.1f}s  |  u(T) max={np.nanmax(np.abs(U[-1])):.4f}")
-
-    val_results = validate_solution(U, x, t, cfg) if cfg.validate else {}
-    plot_solution(U, x, t, cfg)
-    save_dataset(U, x, t, val_results, cfg)
+    dataset     = generate_dataset(cfg)
+    val_results = validate_solution(dataset, cfg) if cfg.validate else {}
+    plot_sample(dataset, cfg)
+    save_dataset(dataset, val_results, cfg)
 
     passed = val_results.get("stable", False) and val_results.get("energy_monotone", False)
     print("\n" + "=" * 70)
-    print(f"\n  .pt  : {os.path.join(cfg.data_dir, cfg.pt_filename)}")
-    print(f"  .csv : {os.path.join(cfg.data_dir, cfg.csv_filename)}")
+    print(f"  Quality : {'✓ STABLE' if passed else '⚠  REVIEW WARNINGS'}")
+    print(f"\n  CSV  : {os.path.join(cfg.data_dir, cfg.csv_filename)}")
+    print(f"  .pt  : {os.path.join(cfg.data_dir, cfg.pt_filename)}")
     print("=" * 70)
 
 
