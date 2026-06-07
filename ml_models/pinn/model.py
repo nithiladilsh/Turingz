@@ -192,6 +192,7 @@ class BurgersPINN(AbstractSolver):
             "sample": int(self.cfg.sample),
             "nu": float(self.nu),
             "wall_time_s": time.time() - t0,
+            "n_parameters": self.num_parameters(),
             "final_loss_train": [float(v) for v in history.loss_train[-1]],
             "final_loss_test": [float(v) for v in history.loss_test[-1]],
             "loss_order": ["pde"] + self._bc_kinds,
@@ -253,6 +254,12 @@ class BurgersPINN(AbstractSolver):
     # -------------------------------------------------------------------------
     # AbstractSolver.save / load  (in place)
     # -------------------------------------------------------------------------
+    def num_parameters(self) -> int:
+        """Trainable parameter count of the underlying network."""
+        if self.model is None:
+            return 0
+        return int(sum(p.numel() for p in self.model.net.parameters()))
+
     def save(self, path: str) -> None:
         if self.model is None:
             raise RuntimeError("Cannot save an unfitted BurgersPINN.")
@@ -289,6 +296,12 @@ class BurgersPINN(AbstractSolver):
         }
         with open(os.path.join(path, "metadata.json"), "w") as f:
             json.dump(meta, f, indent=2)
+
+        # Uniform cross-model manifest so common.persistence.load_any can
+        # reload this solver without being told it is a PINN.
+        from common.persistence import write_manifest
+        write_manifest(path, "pinn", os.path.basename(self._save_path),
+                       name=self.name, framework="deepxde-pytorch")
 
     def load(self, path: str) -> None:
         """Restore a saved solver in place from `path`."""

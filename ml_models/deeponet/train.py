@@ -111,7 +111,8 @@ def parse_args():
     p.add_argument("--iterations", type=int,   default=30_000)
     p.add_argument("--batch-size", type=int,   default=None,
                    help="Mini-batch size (over IC samples).  Default = use all ICs per step.")
-    p.add_argument("--seed",       type=int,   default=42)
+    p.add_argument("--seed",       type=int,   default=None,
+                   help="random seed (default: canonical SEED from common.canonical_split)")
     p.add_argument("--device",     type=str,   default="auto",
                    choices=["auto", "cuda", "cpu"],
                    help="Computation device.  'auto' uses GPU if available.")
@@ -123,6 +124,8 @@ def parse_args():
 # ─────────────────────────────────────────────────────────────────────────────
 def main():
     args = parse_args()
+    from common.canonical_split import SEED as _CANON_SEED
+    _seed = args.seed if args.seed is not None else _CANON_SEED
     out_path = Path(args.out)
     out_path.mkdir(parents=True, exist_ok=True)
 
@@ -167,7 +170,7 @@ def main():
         lr           = args.lr,
         iterations   = args.iterations,
         batch_size   = args.batch_size,
-        seed         = args.seed,
+        seed         = _seed,
     )
     print(f"\nSolver: {solver.name}")
     print(f"  branch layers : [{args.n_sensors}] + [{args.width}]×{args.depth} + [{args.latent_dim}]")

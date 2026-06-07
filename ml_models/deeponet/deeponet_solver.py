@@ -237,6 +237,7 @@ class DeepONetSolver(AbstractSolver):
             "latent_dim"      : self.latent_dim,
             "iterations"      : self.iterations,
             "wall_time_s"     : wall_time,
+            "n_parameters"    : self.num_parameters(),
             "final_train_loss": float(np.array(losshistory.loss_train[-1]).sum()),
             "final_val_loss"  : float(np.array(losshistory.loss_test[-1]).sum()),
         }
@@ -293,6 +294,12 @@ class DeepONetSolver(AbstractSolver):
         return pred.reshape(len(t_grid), len(x_grid))
 
     # ── Persistence ─────────────────────────────────────────────────────────
+    def num_parameters(self) -> int:
+        """Trainable parameter count of the branch+trunk network."""
+        if self._model is None:
+            return 0
+        return int(sum(p.numel() for p in self._model.net.parameters()))
+
     def save(self, path: str) -> None:
         """Save state_dict + sensor metadata + hyper-parameters."""
         if self._model is None:
@@ -314,6 +321,12 @@ class DeepONetSolver(AbstractSolver):
         # Hyper-parameters
         with open(out / "config.json", "w") as f:
             json.dump(self._config_dict(), f, indent=2)
+
+        # Uniform cross-model manifest so common.persistence.load_any can
+        # reload this solver without being told it is a DeepONet.
+        from common.persistence import write_manifest
+        write_manifest(str(out), "deeponet", "model.pt",
+                       name=self.name, framework="deepxde-pytorch")
 
     def load(self, path: str) -> None:
         inp = Path(path)
@@ -343,20 +356,4 @@ class DeepONetSolver(AbstractSolver):
         model = dde.Model(data, net)
         model.compile("adam", lr=self.lr)
         net.load_state_dict(torch.load(inp / "model.pt", weights_only=False))
-        self._model = model
-
-    def _config_dict(self) -> Dict[str, Any]:
-        return {
-            "n_sensors":    self.n_sensors,
-            "latent_dim":   self.latent_dim,
-            "branch_width": self.branch_width,
-            "trunk_width":  self.trunk_width,
-            "branch_depth": self.branch_depth,
-            "trunk_depth":  self.trunk_depth,
-            "activation":   self.activation,
-            "lr":           self.lr,
-            "iterations":   self.iterations,
-            "batch_size":   self.batch_size,
-            "val_fraction": self.val_fraction,
-            "seed":         self.seed,
-        }
+        self._model = mod

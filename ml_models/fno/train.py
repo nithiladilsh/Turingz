@@ -311,6 +311,9 @@ def main(smoke: bool = False) -> None:
     print("=" * 72)
 
     cfg = default_config(smoke=smoke)
+    # Unified seed: read the canonical SEED so every model matches.
+    from common.canonical_split import SEED as _CANON_SEED
+    cfg.seed = _CANON_SEED
 
     print(f"\n  Architecture: modes=({cfg.n_modes_t},{cfg.n_modes_x}) "
           f"width={cfg.hidden_channels} layers={cfg.n_layers}")
@@ -399,17 +402,4 @@ def main(smoke: bool = False) -> None:
 
     print("\n" + "=" * 72)
     print(f"  Saved checkpoint : {MODEL_PATH}")
-    print(f"  Saved log        : {LOG_PATH}")
-    print(f"  Saved plot       : {PLOT_PATH}")
-    print("=" * 72)
-
-
-if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser(description="Train FNO for 1D Burgers equation.")
-    parser.add_argument("--smoke", action="store_true",
-                        help="Run a short debugging training run.")
-    args = parser.parse_args()
-
-    main(smoke=args.smoke)
+   

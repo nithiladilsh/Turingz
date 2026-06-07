@@ -430,6 +430,12 @@ class FNOSolver(AbstractSolver):
         x_native_np = self._x_grid.detach().cpu().numpy()
         return self._regrid(u_full, t_full, x_native_np, t_grid, x_grid)
 
+    def num_parameters(self) -> int:
+        """Trainable parameter count of the FNO network."""
+        if self.model is None:
+            return 0
+        return int(sum(p.numel() for p in self.model.parameters()))
+
     # -------------------------------------------------------------------------
     # Save/load
     # -------------------------------------------------------------------------
@@ -437,7 +443,20 @@ class FNOSolver(AbstractSolver):
         if self.model is None:
             raise RuntimeError("Cannot save an unfitted FNOSolver.")
 
-        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        from common.persistence import write_manifest
+
+        # Uniform directory-with-manifest convention. Backward compatible:
+        # if `path` ends in .pt it is the weights file and the manifest is
+        # written alongside it; otherwise `path` is a directory holding
+        # fno_model.pt. Either way a manifest.json is produced so the model
+        # can be reloaded through common.persistence.load_any.
+        if path.endswith(".pt"):
+            out_dir = os.path.dirname(path) or "."
+            ckpt_file = path
+        else:
+            out_dir = path
+            ckpt_file = os.path.join(out_dir, "fno_model.pt")
+        os.makedirs(out_dir, exist_ok=True)
 
         torch.save({
             "state_dict": self.model.state_dict(),
@@ -450,10 +469,23 @@ class FNOSolver(AbstractSolver):
             "nu": self._nu,
             "training_strategy": "IC_to_full_training_block",
             "extrapolation_strategy": "blockwise_autoregressive_rollout",
-        }, path)
+        }, ckpt_file)
+
+        write_manifest(out_dir, "fno", os.path.basename(ckpt_file),
+                       name=self.name, framework="pytorch-neuralop")
 
     def load(self, path: str) -> None:
-        ckpt = _torch_load(path, map_location=self.device)
+        from common.persistence import read_manifest
+
+        # Accept a directory (preferred) or a legacy .pt file.
+        if os.path.isdir(path):
+            man = read_manifest(path)
+            fname = man["checkpoint"] if man else "fno_model.pt"
+            ckpt_file = os.path.join(path, fname)
+        else:
+            ckpt_file = path
+
+        ckpt = _torch_load(ckpt_file, map_location=self.device)
 
         for k, v in ckpt["cfg"].items():
             setattr(self.cfg, k, v)

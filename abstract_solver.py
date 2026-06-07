@@ -127,3 +127,8 @@ class AbstractSolver(ABC):
         X, T = np.meshgrid(x_grid, t_grid, indexing="xy")
         u_flat = self.predict(ic, X.ravel(), T.ravel())
         return u_flat.reshape(len(t_grid), len(x_grid))
+
+    def num_parameters(self) -> int:
+        """Number of trainable parameters. Default 0 until a subclass
+        overrides it; the cost module reads this for model size."""
+        return 0
