@@ -19,11 +19,17 @@ def main():
     p.add_argument("--soft-periodic", action="store_true",
                    help="use explicit PeriodicBC loss instead of hard feature transform")
     p.add_argument("--anchors", action="store_true", help="data-informed PINN ablation")
-    p.add_argument("--seed", type=int, default=42)
+    p.add_argument("--seed", type=int, default=None,
+                   help="random seed (default: canonical SEED from common.canonical_split)")
     p.add_argument("--float64", action="store_true")
     args = p.parse_args()
 
-    cfg = PINNConfig(sample=args.sample, seed=args.seed, float64=args.float64)
+    # Canonical settings shared with FNO and DeepONet (single source of truth).
+    from common.canonical_split import T_TRAIN_END, SEED, regime_of
+
+    seed = args.seed if args.seed is not None else SEED
+    cfg = PINNConfig(sample=args.sample, seed=seed, float64=args.float64)
+    cfg.t_train_end = T_TRAIN_END           # same temporal split for every model
     if args.adam_iters is not None:
         cfg.adam_iters = args.adam_iters
     if args.no_lbfgs:
@@ -33,14 +39,18 @@ def main():
     if args.anchors:
         cfg.use_data_anchors = True
 
+    # The PINN is single-instance (one model per IC); the canonical split only
+    # labels each model so it lines up with the operators in the comparison.
+    regime = regime_of(args.sample)
     out_dir = os.path.join(args.out, f"sample{args.sample}")
     os.makedirs(out_dir, exist_ok=True)
 
     ds = ColeHopfDataset(args.data, sample=args.sample)
     print(f"[data] nu={ds.nu:.6e}  x in [{ds.x_start},{ds.x_end})  "
           f"nx={ds.nx} nt={ds.nt}  t_train_end={cfg.t_train_end}")
+    print(f"[split] sample {args.sample} regime={regime}  (operators' in_dist/ood label)")
     print(f"[cfg ] hard_periodic={cfg.hard_periodic} anchors={cfg.use_data_anchors} "
-          f"adam={cfg.adam_iters} lbfgs={cfg.lbfgs}")
+          f"adam={cfg.adam_iters} lbfgs={cfg.lbfgs} seed={seed}")
 
     pinn = BurgersPINN(cfg)
     info = pinn.fit(ds, out_dir=out_dir)
@@ -51,10 +61,14 @@ def main():
         "loss_order": info["loss_order"],
         "wall_time_s": info["wall_time_s"],
         "name": info["name"],
+        "sample": args.sample,
+        "regime": regime,
+        "t_train_end": cfg.t_train_end,
+        "split_source": "common.canonical_split",
     }
     with open(os.path.join(out_dir, "train_summary.json"), "w") as f:
         json.dump(summary, f, indent=2)
-    print(f"[done] {info['name']} trained in {info['wall_time_s']:.1f}s; "
+    print(f"[done] {info['name']} ({regime}) trained in {info['wall_time_s']:.1f}s; "
           f"model + metadata saved to {out_dir}")
 
 

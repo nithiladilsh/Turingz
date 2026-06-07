@@ -160,6 +160,18 @@ class DeepONetSolver(AbstractSolver):
         t           = _np(dataset["t"])                  # (nt,)
         t_train_end = float(dataset.get("t_train_end", 1.0))
 
+        # ── Optional IC-level training subset (canonical split) ───────────
+        # If dataset["train_idx"] is provided, train only on those ICs so the
+        # held-out ICs stay genuinely unseen. Default (None) = train on all,
+        # preserving the original behaviour.
+        train_idx = dataset.get("train_idx", None)
+        if train_idx is not None:
+            train_idx = np.asarray(train_idx, dtype=int)
+            if train_idx.size == 0:
+                raise ValueError("dataset['train_idx'] is empty.")
+            U   = U[train_idx]
+            ICs = ICs[train_idx]
+
         N, nt, nx = U.shape
         if ICs.shape != (N, nx) or x.shape != (nx,) or t.shape != (nt,):
             raise ValueError(

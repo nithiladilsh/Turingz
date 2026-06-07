@@ -146,6 +146,15 @@ def main():
     n_train_t = int((dataset["t"] <= dataset["t_train_end"]).sum())
     print(f"  → {n_train_t} training snapshots,  {nt - n_train_t} extrapolation snapshots")
 
+    # ── Canonical split (shared with PINN and FNO) ────────────────────────
+    # Train only on the canonical TRAIN_IDX; the held-out TEST_IDX ICs stay
+    # unseen and are evaluated after training as the out-of-distribution test.
+    from common.canonical_split import operator_train_idx, operator_test_idx
+    train_idx = operator_train_idx()
+    test_idx  = operator_test_idx()
+    dataset["train_idx"] = train_idx
+    print(f"  canonical split: train_idx={train_idx}  held-out test_idx(ood)={test_idx}")
+
     # ── Build solver ──────────────────────────────────────────────────────
     solver = DeepONetSolver(
         n_sensors    = args.n_sensors,
@@ -181,6 +190,30 @@ def main():
         print(f"  extrap   rel L2 mean  : {info['extrapolation_rel_l2_mean']:.4f}")
         print(f"  extrap   per-IC       : "
               + ", ".join(f"{v:.3f}" for v in info["extrapolation_rel_l2_per_ic"]))
+
+    # ── Held-out (OOD) evaluation on the canonical TEST_IDX ICs ───────────
+    # These ICs were never seen in training, so this measures operator
+    # generalization to unseen initial conditions.
+    U_full = dataset["u"]; x_full = dataset["x"]; t_full = dataset["t"]
+    in_mask = t_full <= dataset["t_train_end"]; ex_mask = ~in_mask
+    def _rel_l2(a, b):
+        return float(np.linalg.norm(a - b) / (np.linalg.norm(b) + 1e-12))
+    ood = {"indices": test_idx, "per_ic_in_dist": [], "per_ic_extrap": []}
+    for i in test_idx:
+        pred = solver.rollout(U_full[i, 0, :], x_full, t_full)   # (nt, nx)
+        ref = U_full[i]
+        ood["per_ic_in_dist"].append(_rel_l2(pred[in_mask], ref[in_mask]))
+        if ex_mask.any():
+            ood["per_ic_extrap"].append(_rel_l2(pred[ex_mask], ref[ex_mask]))
+    ood["in_dist_rel_l2_mean"] = float(np.mean(ood["per_ic_in_dist"]))
+    if ood["per_ic_extrap"]:
+        ood["extrap_rel_l2_mean"] = float(np.mean(ood["per_ic_extrap"]))
+    info["ood_test"] = ood
+    info["train_idx"] = train_idx
+    info["test_idx"] = test_idx
+    info["split_source"] = "common.canonical_split"
+    print(f"  OOD test ICs {test_idx}: in-dist rel L2 mean={ood['in_dist_rel_l2_mean']:.4f}"
+          + (f"  extrap mean={ood['extrap_rel_l2_mean']:.4f}" if "extrap_rel_l2_mean" in ood else ""))
 
     # ── Save ──────────────────────────────────────────────────────────────
     solver.save(str(out_path))

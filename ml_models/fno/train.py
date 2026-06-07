@@ -325,11 +325,16 @@ def main(smoke: bool = False) -> None:
     print(f"  Loaded dataset: U={U.shape} x={x.shape} t={t.shape} "
           f"t_train_end={dataset['t_train_end']}")
 
-    train_idx, val_idx = make_split(U.shape[0], n_val=1, seed=cfg.seed)
+    # Canonical split — single source of truth shared with PINN and DeepONet.
+    # Operators train on the canonical TRAIN_IDX and are tested on the held-out
+    # (unseen) TEST_IDX. This replaces the previous random per-seed split.
+    from common.canonical_split import operator_train_idx, operator_test_idx
+    train_idx = operator_train_idx()
+    test_idx = operator_test_idx()
     train_dataset = dict(dataset)
     train_dataset["train_idx"] = train_idx
 
-    print(f"  Split: train_idx={train_idx} val_idx={val_idx}\n")
+    print(f"  Canonical split: train_idx={train_idx}  held-out test_idx(ood)={test_idx}\n")
 
     solver = FNOSolver(cfg)
     print(f"  Training {solver.name}...\n")
@@ -343,23 +348,23 @@ def main(smoke: bool = False) -> None:
     print("\n  Evaluating train / val / all trajectories...")
     t0 = time.perf_counter()
 
-    eval_train = evaluate(solver, dataset, indices=train_idx, label="train")
-    eval_val = evaluate(solver, dataset, indices=val_idx, label="val") if val_idx else {}
+    eval_train = evaluate(solver, dataset, indices=train_idx, label="train(in_dist)")
+    eval_test = evaluate(solver, dataset, indices=test_idx, label="test(ood)") if test_idx else {}
     eval_all = evaluate(solver, dataset, indices=None, label="all")
 
     eval_time = time.perf_counter() - t0
 
     err_over_t = eval_all.pop("per_ic_rel_l2_over_t")
     eval_train.pop("per_ic_rel_l2_over_t", None)
-    eval_val.pop("per_ic_rel_l2_over_t", None)
+    eval_test.pop("per_ic_rel_l2_over_t", None)
 
-    print(f"    train in-dist rel-L2 : mean={eval_train['in_dist_rel_l2_mean']:.4e} "
+    print(f"    train(in_dist) rel-L2 : mean={eval_train['in_dist_rel_l2_mean']:.4e} "
           f"max={eval_train['in_dist_rel_l2_max']:.4e}")
-    if eval_val:
-        print(f"    val   in-dist rel-L2 : mean={eval_val['in_dist_rel_l2_mean']:.4e} "
-              f"max={eval_val['in_dist_rel_l2_max']:.4e}")
-        print(f"    val   extrap rel-L2  : mean={eval_val['extrap_rel_l2_mean']:.4e} "
-              f"max={eval_val['extrap_rel_l2_max']:.4e}")
+    if eval_test:
+        print(f"    test(ood) in-dist rel-L2 : mean={eval_test['in_dist_rel_l2_mean']:.4e} "
+              f"max={eval_test['in_dist_rel_l2_max']:.4e}")
+        print(f"    test(ood) extrap  rel-L2 : mean={eval_test['extrap_rel_l2_mean']:.4e} "
+              f"max={eval_test['extrap_rel_l2_max']:.4e}")
 
     print(f"    all   extrap rel-L2  : mean={eval_all['extrap_rel_l2_mean']:.4e} "
           f"max={eval_all['extrap_rel_l2_max']:.4e}")
@@ -374,12 +379,13 @@ def main(smoke: bool = False) -> None:
         "training_strategy": "IC_to_full_training_block",
         "extrapolation_strategy": "blockwise_autoregressive_rollout",
         "train_idx": train_idx,
-        "val_idx": val_idx,
+        "test_idx": test_idx,
+        "split_source": "common.canonical_split",
         "config": cfg.__dict__,
         "fit_info": {k: v for k, v in fit_info.items() if k != "history"},
         "evaluation": {
-            "train": eval_train,
-            "val": eval_val,
+            "train_in_dist": eval_train,
+            "test_ood": eval_test,
             "all": eval_all,
         },
         "history": fit_info["history"],
