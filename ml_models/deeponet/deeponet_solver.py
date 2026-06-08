@@ -300,6 +300,23 @@ class DeepONetSolver(AbstractSolver):
             return 0
         return int(sum(p.numel() for p in self._model.net.parameters()))
 
+    def _config_dict(self) -> Dict[str, Any]:
+        """Hyper-parameters required to rebuild the network in load()."""
+        return {
+            "n_sensors":    self.n_sensors,
+            "latent_dim":   self.latent_dim,
+            "branch_width": self.branch_width,
+            "trunk_width":  self.trunk_width,
+            "branch_depth": self.branch_depth,
+            "trunk_depth":  self.trunk_depth,
+            "activation":   self.activation,
+            "lr":           self.lr,
+            "iterations":   self.iterations,
+            "batch_size":   self.batch_size,
+            "val_fraction": self.val_fraction,
+            "seed":         self.seed,
+        }
+
     def save(self, path: str) -> None:
         """Save state_dict + sensor metadata + hyper-parameters."""
         if self._model is None:
@@ -356,4 +373,4 @@ class DeepONetSolver(AbstractSolver):
         model = dde.Model(data, net)
         model.compile("adam", lr=self.lr)
         net.load_state_dict(torch.load(inp / "model.pt", weights_only=False))
-        self._model = mod
+        self._model = model

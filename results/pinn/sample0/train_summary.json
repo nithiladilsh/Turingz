@@ -1,0 +1,20 @@
+{
+  "final_loss_train": [
+    7.191578674792254e-07,
+    3.6973531791772984e-08
+  ],
+  "final_loss_test": [
+    7.191578674792254e-07,
+    3.6973531791772984e-08
+  ],
+  "loss_order": [
+    "pde",
+    "ic"
+  ],
+  "wall_time_s": 1821.1748449802399,
+  "name": "PINN(5x64,hardP,sample=0)",
+  "sample": 0,
+  "regime": "in_dist",
+  "t_train_end": 1.0,
+  "split_source": "common.canonical_split"
+}

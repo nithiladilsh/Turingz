@@ -1,0 +1,254 @@
+{
+  "accuracy_key": "relative_l2_global",
+  "ranked": [
+    {
+      "name": "PINN(5x64,hardP,sample=0)",
+      "model_type": "pinn",
+      "relative_l2": 0.00761253675791546,
+      "latency_s": 0.0122495,
+      "memory_mb": 1.766,
+      "train_wall_s": 1821.1748449802399,
+      "accuracy_score": 0.992445,
+      "amortized_train_s": 1821.1748,
+      "cost_index": 0.542596,
+      "HEI": 1.829069,
+      "trainings_per_benchmark": 8,
+      "n_parameters": 17345,
+      "relative_l2_global": 0.00761253675791546,
+      "relative_l2_extrap": 0.015117880208873107,
+      "relative_l2_final": 0.04661347530458009,
+      "latency_ms_median": 12.2495,
+      "peak_cpu_mb": 1084.641,
+      "gpu_delta_mb": null,
+      "throughput_points_per_s": 8359490.78,
+      "throughput_rollouts_per_s": 81.6357,
+      "cost_grid": {
+        "nt": 200,
+        "nx": 512,
+        "n_points": 102400
+      },
+      "device": {
+        "cpu_logical_cores": 22,
+        "cpu_physical_cores": 16,
+        "ram_total_gb": 31.46,
+        "gpu_available": true,
+        "gpu_name": "NVIDIA GeForce RTX 2050"
+      },
+      "scalability": {
+        "solver": "PINN(5x64,hardP,sample=0)",
+        "sample": 0,
+        "points": [
+          {
+            "nx": 64,
+            "nt": 200,
+            "n_points": 12800,
+            "latency_ms_median": 3.041,
+            "peak_cpu_mb": 1088.359,
+            "cpu_delta_mb": 0.516,
+            "points_per_s": 4209141.91
+          },
+          {
+            "nx": 128,
+            "nt": 200,
+            "n_points": 25600,
+            "latency_ms_median": 3.815,
+            "peak_cpu_mb": 1089.156,
+            "cpu_delta_mb": 0.422,
+            "points_per_s": 6710353.55
+          },
+          {
+            "nx": 256,
+            "nt": 200,
+            "n_points": 51200,
+            "latency_ms_median": 6.5159,
+            "peak_cpu_mb": 1091.59,
+            "cpu_delta_mb": 1.027,
+            "points_per_s": 7857701.76
+          },
+          {
+            "nx": 512,
+            "nt": 200,
+            "n_points": 102400,
+            "latency_ms_median": 12.7349,
+            "peak_cpu_mb": 1093.156,
+            "cpu_delta_mb": 1.586,
+            "points_per_s": 8040895.49
+          }
+        ],
+        "complexity_exponent_p": 0.6971,
+        "interpretation": "~linear (p=0.6971): cost grows roughly proportionally to output size"
+      }
+    },
+    {
+      "name": "FNO(modes=(16,16),w=32,L=4)",
+      "model_type": "fno",
+      "relative_l2": 0.3157081834631897,
+      "latency_s": 0.0722804,
+      "memory_mb": 0.121,
+      "train_wall_s": 0.0,
+      "accuracy_score": 0.760047,
+      "amortized_train_s": 0.0,
+      "cost_index": 0.464822,
+      "HEI": 1.635134,
+      "trainings_per_benchmark": 1,
+      "n_parameters": 603105,
+      "relative_l2_global": 0.3157081834631897,
+      "relative_l2_extrap": 0.5363087220484821,
+      "relative_l2_final": 0.6824826526264486,
+      "latency_ms_median": 72.2804,
+      "peak_cpu_mb": 850.004,
+      "gpu_delta_mb": null,
+      "throughput_points_per_s": 1416704.94,
+      "throughput_rollouts_per_s": 13.835,
+      "cost_grid": {
+        "nt": 200,
+        "nx": 512,
+        "n_points": 102400
+      },
+      "device": {
+        "cpu_logical_cores": 22,
+        "cpu_physical_cores": 16,
+        "ram_total_gb": 31.46,
+        "gpu_available": true,
+        "gpu_name": "NVIDIA GeForce RTX 2050"
+      },
+      "scalability": {
+        "solver": "FNO(modes=(16,16),w=32,L=4)",
+        "sample": 0,
+        "points": [
+          {
+            "nx": 64,
+            "nt": 200,
+            "n_points": 12800,
+            "latency_ms_median": 83.9122,
+            "peak_cpu_mb": 850.145,
+            "cpu_delta_mb": 0.047,
+            "points_per_s": 152540.39
+          },
+          {
+            "nx": 128,
+            "nt": 200,
+            "n_points": 25600,
+            "latency_ms_median": 57.8643,
+            "peak_cpu_mb": 850.164,
+            "cpu_delta_mb": 0.039,
+            "points_per_s": 442414.41
+          },
+          {
+            "nx": 256,
+            "nt": 200,
+            "n_points": 51200,
+            "latency_ms_median": 65.0991,
+            "peak_cpu_mb": 850.164,
+            "cpu_delta_mb": 0.02,
+            "points_per_s": 786493.21
+          },
+          {
+            "nx": 512,
+            "nt": 200,
+            "n_points": 102400,
+            "latency_ms_median": 60.5087,
+            "peak_cpu_mb": 850.445,
+            "cpu_delta_mb": 0.301,
+            "points_per_s": 1692318.62
+          }
+        ],
+        "complexity_exponent_p": -0.1245,
+        "interpretation": "sub-linear (p=-0.1245): cost barely grows with grid size"
+      }
+    },
+    {
+      "name": "DeepONet(m=128)",
+      "model_type": "deeponet",
+      "relative_l2": 0.4670616000434357,
+      "latency_s": 0.017140999999999997,
+      "memory_mb": 2.449,
+      "train_wall_s": 1586.8,
+      "accuracy_score": 0.681635,
+      "amortized_train_s": 198.35,
+      "cost_index": 0.433944,
+      "HEI": 1.57079,
+      "trainings_per_benchmark": 1,
+      "n_parameters": 115969,
+      "relative_l2_global": 0.4670616000434357,
+      "relative_l2_extrap": 0.699227596995031,
+      "relative_l2_final": 1.1945630479011133,
+      "latency_ms_median": 17.141,
+      "peak_cpu_mb": 1078.734,
+      "gpu_delta_mb": null,
+      "throughput_points_per_s": 5973963.1,
+      "throughput_rollouts_per_s": 58.3395,
+      "cost_grid": {
+        "nt": 200,
+        "nx": 512,
+        "n_points": 102400
+      },
+      "device": {
+        "cpu_logical_cores": 22,
+        "cpu_physical_cores": 16,
+        "ram_total_gb": 31.46,
+        "gpu_available": true,
+        "gpu_name": "NVIDIA GeForce RTX 2050"
+      },
+      "scalability": {
+        "solver": "DeepONet(m=128)",
+        "sample": 0,
+        "points": [
+          {
+            "nx": 64,
+            "nt": 200,
+            "n_points": 12800,
+            "latency_ms_median": 5.0075,
+            "peak_cpu_mb": 1077.352,
+            "cpu_delta_mb": 0.082,
+            "points_per_s": 2556165.72
+          },
+          {
+            "nx": 128,
+            "nt": 200,
+            "n_points": 25600,
+            "latency_ms_median": 5.8445,
+            "peak_cpu_mb": 1077.367,
+            "cpu_delta_mb": 0.031,
+            "points_per_s": 4380186.56
+          },
+          {
+            "nx": 256,
+            "nt": 200,
+            "n_points": 51200,
+            "latency_ms_median": 11.205,
+            "peak_cpu_mb": 1077.809,
+            "cpu_delta_mb": 0.211,
+            "points_per_s": 4569388.72
+          },
+          {
+            "nx": 512,
+            "nt": 200,
+            "n_points": 102400,
+            "latency_ms_median": 20.2066,
+            "peak_cpu_mb": 1077.809,
+            "cpu_delta_mb": 0.02,
+            "points_per_s": 5067651.17
+          }
+        ],
+        "complexity_exponent_p": 0.6977,
+        "interpretation": "~linear (p=0.6977): cost grows roughly proportionally to output size"
+      }
+    }
+  ],
+  "recommendation": {
+    "best_efficiency": {
+      "name": "PINN(5x64,hardP,sample=0)",
+      "HEI": 1.829069
+    },
+    "best_accuracy": {
+      "name": "PINN(5x64,hardP,sample=0)",
+      "relative_l2": 0.00761253675791546
+    },
+    "lowest_latency": {
+      "name": "PINN(5x64,hardP,sample=0)",
+      "latency_s": 0.0122495
+    },
+    "recommendation": "For latency-bound deployment use PINN(5x64,hardP,sample=0) (highest HEI = 1.829069); when accuracy dominates and cost is acceptable use PINN(5x64,hardP,sample=0) (lowest relative-L2 = 0.00761253675791546)."
+  }
+}

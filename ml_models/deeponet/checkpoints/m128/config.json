@@ -1,5 +1,5 @@
 {
-  "n_sensors": 100,
+  "n_sensors": 128,
   "latent_dim": 128,
   "branch_width": 128,
   "trunk_width": 128,

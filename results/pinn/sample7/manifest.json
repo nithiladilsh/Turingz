@@ -1,0 +1,8 @@
+{
+  "schema": "turingz.solver.manifest/v1",
+  "model_type": "pinn",
+  "name": "PINN(5x64,hardP,sample=7)",
+  "checkpoint": "pinn_model-19135.pt",
+  "framework": "deepxde-pytorch",
+  "saved_at": "2026-06-08T13:15:42"
+}

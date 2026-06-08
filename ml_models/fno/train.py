@@ -403,3 +403,7 @@ def main(smoke: bool = False) -> None:
     print("\n" + "=" * 72)
     print(f"  Saved checkpoint : {MODEL_PATH}")
    
+
+if __name__ == "__main__":
+    import sys
+    main(smoke="--smoke" in sys.argv)

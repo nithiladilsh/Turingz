@@ -1,0 +1,8 @@
+{
+  "schema": "turingz.solver.manifest/v1",
+  "model_type": "deeponet",
+  "name": "DeepONet(m=128)",
+  "checkpoint": "model.pt",
+  "framework": "deepxde-pytorch",
+  "saved_at": "2026-06-08T02:40:27"
+}

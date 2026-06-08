@@ -1,0 +1,8 @@
+{
+  "schema": "turingz.solver.manifest/v1",
+  "model_type": "fno",
+  "name": "FNO(modes=(16,16),w=32,L=4)",
+  "checkpoint": "fno_burgers.pt",
+  "framework": "pytorch-neuralop",
+  "saved_at": "2026-06-08T09:06:36"
+}

@@ -1,0 +1,53 @@
+{
+  "config": {
+    "sample": 1,
+    "t_train_end": 1.0,
+    "hidden": [
+      64,
+      64,
+      64,
+      64,
+      64
+    ],
+    "activation": "tanh",
+    "hard_periodic": true,
+    "n_harmonics": 4,
+    "num_domain": 16000,
+    "num_boundary": 400,
+    "num_initial": 400,
+    "use_data_anchors": false,
+    "n_anchors": 2000,
+    "w_pde": 1.0,
+    "w_ic": 10.0,
+    "w_bc": 1.0,
+    "w_data": 1.0,
+    "lr": 0.001,
+    "adam_iters": 15000,
+    "lbfgs": true,
+    "display_every": 1000,
+    "seed": 42,
+    "float64": false
+  },
+  "checkpoint": "pinn_model-18423.pt",
+  "domain": {
+    "x_start": -1.0,
+    "x_end": 1.0,
+    "L": 2.0,
+    "t_train_end": 1.0,
+    "T": 2.0
+  },
+  "physics": {
+    "nu": 0.0031830988618379067
+  },
+  "sample": 1,
+  "loss_order": [
+    "pde",
+    "ic"
+  ],
+  "loss_weights": [
+    1.0,
+    10.0
+  ],
+  "backend": "pytorch",
+  "deepxde": "1.15.0"
+}

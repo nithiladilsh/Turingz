@@ -325,5 +325,22 @@ class BurgersPINN(AbstractSolver):
         self.nu = self.ds.nu
         self._build()
         self.model.compile("adam", lr=self.cfg.lr, loss_weights=self._loss_weights)
-        self.model.restore(os.path.join(path, meta["checkpoint"]), verbose=1)
-        self._save_path = os.path.join(path, meta["checkpoint"])
+        ckpt_path = os.path.join(path, meta["checkpoint"])
+        try:
+            self.model.restore(ckpt_path, verbose=1)
+        except Exception as _restore_err:
+            # Inference / cost-profiling fallback. DeepXDE's restore() also
+            # loads the optimizer state, whose format can be incompatible across
+            # torch versions (e.g. KeyError 'step'). For reload-and-predict we
+            # only need the network weights, so load just those and skip the
+            # optimizer. (Full restore still runs first when it can.)
+            import torch
+            blob = torch.load(ckpt_path, map_location="cpu", weights_only=False)
+            state = (blob["model_state_dict"]
+                     if isinstance(blob, dict) and "model_state_dict" in blob
+                     else blob)
+            self.model.net.load_state_dict(state)
+            print(f"  [load] optimizer restore skipped "
+                  f"({type(_restore_err).__name__}); loaded network weights "
+                  f"only (correct for inference/cost profiling).")
+        self._save_path = ckpt_path
