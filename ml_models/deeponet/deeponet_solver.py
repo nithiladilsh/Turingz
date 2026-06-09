@@ -372,5 +372,9 @@ class DeepONetSolver(AbstractSolver):
         )
         model = dde.Model(data, net)
         model.compile("adam", lr=self.lr)
-        net.load_state_dict(torch.load(inp / "model.pt", weights_only=False))
+        # Map weights to the available device: a GPU-trained checkpoint must be
+        # loadable on a CPU-only machine (and vice versa).
+        _map = "cuda" if torch.cuda.is_available() else "cpu"
+        net.load_state_dict(
+            torch.load(inp / "model.pt", weights_only=False, map_location=_map))
         self._model = model

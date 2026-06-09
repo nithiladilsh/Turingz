@@ -11,50 +11,30 @@ import numpy as np
 import torch
 import deepxde as dde
 
-# Make `from abstract_solver import AbstractSolver` resolve to the project root,
-# matching the FNO and DeepONet solvers, so this module can be imported either
-# as a package (`python -m ml_models.pinn.train`) or from the eval harness.
 _REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
-from abstract_solver import AbstractSolver  # noqa: E402
+from abstract_solver import AbstractSolver 
 
 from .config import PINNConfig
 from .dataset import ColeHopfDataset
 
 
 class BurgersPINN(AbstractSolver):
-    """Single-instance PINN solver for the periodic viscous Burgers equation
-
-        u_t + u u_x = nu u_xx,   x in [x_start, x_end) periodic,  t in [0, t_train_end].
-
-    Conforms to the project-wide AbstractSolver interface so the reliability,
-    robustness, and cost modules can drive it identically to FNO / DeepONet.
-
-    Asymmetry to keep in mind: a PINN is a single-instance solver, so one
-    fitted BurgersPINN solves exactly one initial condition (selected by
-    cfg.sample). The operator solvers fit one model across all ICs. predict's
-    `ic` argument is therefore a selector, not a branch input -- it is checked
-    for consistency against the trained IC, not fed through the network.
-    """
-
     def __init__(self, cfg: Optional[PINNConfig] = None):
         self.cfg = cfg or PINNConfig()
         self.ds: Optional[ColeHopfDataset] = None
         self.nu: Optional[float] = None
-        self.model = None
+        self.model: Optional[Any] = None
         self.geomtime = None
         self.data = None
-        self._bc_kinds = []                 # tracks loss order for weighting
+        self._bc_kinds = []                 
         self._loss_weights = None
         self._losshistory = None
         self._save_path = None
-        self._trained_ic = None             # gridded IC of the fitted instance
+        self._trained_ic = None 
         self._ic_warned = False
 
-    # -------------------------------------------------------------------------
-    # AbstractSolver.name
-    # -------------------------------------------------------------------------
     @property
     def name(self) -> str:
         hidden = list(self.cfg.hidden)
@@ -63,9 +43,6 @@ class BurgersPINN(AbstractSolver):
         anc = ",anchors" if self.cfg.use_data_anchors else ""
         return f"PINN({depth}x{width},{per}{anc},sample={self.cfg.sample})"
 
-    # -------------------------------------------------------------------------
-    # Network pieces (unchanged, validated)
-    # -------------------------------------------------------------------------
     def _feature_transform(self, x):
         xs, t = x[:, 0:1], x[:, 1:2]
         feats = [t]
@@ -75,20 +52,19 @@ class BurgersPINN(AbstractSolver):
         return torch.cat(feats, dim=1)
 
     def _pde(self, x, u):
+        assert self.nu is not None
         u_t = dde.grad.jacobian(u, x, i=0, j=1)
         u_x = dde.grad.jacobian(u, x, i=0, j=0)
         u_xx = dde.grad.hessian(u, x, i=0, j=0)
+        assert u_xx is not None
         return u_t + u * u_x - self.nu * u_xx
 
-    # -------------------------------------------------------------------------
-    # Assembly (unchanged, validated)
-    # -------------------------------------------------------------------------
     def _build(self):
         if self.ds is None:
             raise RuntimeError("_build called before a dataset was attached.")
-        dde.config.set_random_seed(self.cfg.seed)
+        dde.config.set_random_seed(self.cfg.seed)  # type: ignore[attr-defined]
         if self.cfg.float64:
-            dde.config.set_default_float("float64")
+            dde.config.set_default_float("float64")  # type: ignore[attr-defined]
 
         t_end = self.cfg.t_train_end or self.ds.t_train_end
         geom = dde.geometry.Interval(self.ds.x_start, self.ds.x_end)
@@ -97,7 +73,7 @@ class BurgersPINN(AbstractSolver):
 
         ic = dde.icbc.IC(self.geomtime, self.ds.ic_func(),
                          lambda _, on_initial: on_initial)
-        bcs = [ic]
+        bcs: list[Any] = [ic]
         self._bc_kinds = ["ic"]
 
         if not self.cfg.hard_periodic:
@@ -121,8 +97,9 @@ class BurgersPINN(AbstractSolver):
         )
 
         in_dim = (2 * self.cfg.n_harmonics + 1) if self.cfg.hard_periodic else 2
-        net = dde.nn.FNN([in_dim] + list(self.cfg.hidden) + [1],
-                         self.cfg.activation, "Glorot normal")
+        net = dde.nn.FNN(  # type: ignore[attr-defined]
+            [in_dim] + list(self.cfg.hidden) + [1],
+            self.cfg.activation, "Glorot normal")
         if self.cfg.hard_periodic:
             net.apply_feature_transform(lambda x: self._feature_transform(x))
 
@@ -135,6 +112,7 @@ class BurgersPINN(AbstractSolver):
         return [self.cfg.w_pde] + [w[k] for k in self._bc_kinds]
 
     def _run_training(self, out_dir: Optional[str] = None):
+        assert self.model is not None
         self.model.compile("adam", lr=self.cfg.lr, loss_weights=self._loss_weights)
         callbacks = []
         if out_dir:
@@ -150,30 +128,9 @@ class BurgersPINN(AbstractSolver):
             history, _ = self.model.train(display_every=self.cfg.display_every)
         self._losshistory = history
         return history
-
-    # -------------------------------------------------------------------------
-    # AbstractSolver.fit
-    # -------------------------------------------------------------------------
+    
     def fit(self, dataset: Union[Dict[str, Any], ColeHopfDataset],
             out_dir: Optional[str] = None) -> Dict[str, Any]:
-        """Train the PINN for the initial condition selected by cfg.sample.
-
-        Parameters
-        ----------
-        dataset : dict | ColeHopfDataset
-            Reference dataset. A dict (keys u, ICs, x, t, nu, t_train_end, ...)
-            is wrapped internally; a ColeHopfDataset is used as-is (its .sample
-            then takes precedence over cfg.sample).
-        out_dir : str, optional
-            If given, checkpoints are written here during training and the
-            full model + metadata are saved at the end (CLI convenience). The
-            harness may omit it and call save(path) separately.
-
-        Returns
-        -------
-        dict with name, sample, wall_time_s, final_loss_train/test, loss_order.
-        Module 3's cost meter reads 'wall_time_s'.
-        """
         t0 = time.time()
         if isinstance(dataset, ColeHopfDataset):
             self.ds = dataset
@@ -199,13 +156,7 @@ class BurgersPINN(AbstractSolver):
         }
         return info
 
-    # -------------------------------------------------------------------------
-    # AbstractSolver.predict  /  rollout
-    # -------------------------------------------------------------------------
     def _check_ic(self, ic: Optional[np.ndarray]):
-        """Warn (once) if the queried IC differs from the trained one, since a
-        PINN instance is bound to a single IC and silently returning the wrong
-        field would be a subtle bug in the harness."""
         if ic is None or self._trained_ic is None or self._ic_warned:
             return
         ic = np.asarray(ic, dtype=np.float64).ravel()
@@ -219,7 +170,6 @@ class BurgersPINN(AbstractSolver):
             self._ic_warned = True
 
     def predict(self, ic: np.ndarray, x: np.ndarray, t: np.ndarray) -> np.ndarray:
-        """Forward inference at scattered query points. Returns (M,)."""
         if self.model is None:
             raise RuntimeError("BurgersPINN.predict called before fit/load.")
         self._check_ic(ic)
@@ -227,8 +177,8 @@ class BurgersPINN(AbstractSolver):
         t_q = np.asarray(t, dtype=np.float64).ravel()
         if x_q.shape[0] != t_q.shape[0]:
             raise ValueError("predict: x and t must have the same length.")
-        X = np.column_stack([x_q, t_q])          # network input order is (x, t)
-        return self.model.predict(X).ravel()
+        X = np.column_stack([x_q, t_q])         
+        return np.asarray(self.model.predict(X)).ravel()
 
     def rollout(self, ic: np.ndarray, x_grid: np.ndarray,
                 t_grid: np.ndarray) -> np.ndarray:
@@ -240,22 +190,25 @@ class BurgersPINN(AbstractSolver):
         t_grid = np.asarray(t_grid, dtype=np.float64).ravel()
         Xg, Tg = np.meshgrid(x_grid, t_grid, indexing="xy")   # (nt, nx)
         X = np.column_stack([Xg.ravel(), Tg.ravel()])
-        u = self.model.predict(X).reshape(len(t_grid), len(x_grid))
+        u = np.asarray(self.model.predict(X)).reshape(len(t_grid), len(x_grid))
         return u
 
-    # Convenience used by evaluate.py / visualize.py: predict on the dataset grid.
+    def supported_samples(self, candidate_indices):
+        """A PINN is single-instance: it only predicts the IC it was trained
+        on (cfg.sample), so it is graded only on that sample."""
+        s = self.cfg.sample
+        return [s] if s in list(candidate_indices) else []
+
     def predict_grid(self, train_only: bool = False):
+        if self.model is None:
+            raise RuntimeError("BurgersPINN.predict_grid called before fit/load.")
         if self.ds is None:
             raise RuntimeError("predict_grid needs an attached dataset (fit/load first).")
         X, t, x = self.ds.eval_grid(train_only=train_only)
-        u = self.model.predict(X).reshape(len(t), len(x))
+        u = np.asarray(self.model.predict(X)).reshape(len(t), len(x))
         return u, t, x
 
-    # -------------------------------------------------------------------------
-    # AbstractSolver.save / load  (in place)
-    # -------------------------------------------------------------------------
     def num_parameters(self) -> int:
-        """Trainable parameter count of the underlying network."""
         if self.model is None:
             return 0
         return int(sum(p.numel() for p in self.model.net.parameters()))
@@ -263,13 +216,10 @@ class BurgersPINN(AbstractSolver):
     def save(self, path: str) -> None:
         if self.model is None:
             raise RuntimeError("Cannot save an unfitted BurgersPINN.")
+        assert self.nu is not None and self.ds is not None
         os.makedirs(path, exist_ok=True)
         self._save_path = self.model.save(os.path.join(path, "pinn_model"))
 
-        # Problem spec so load(path) can rebuild the DeepXDE model standalone,
-        # with no external dataset (mirrors how FNO/DeepONet checkpoints are
-        # self-contained). u_ref is kept so a reloaded model can also be
-        # evaluated/plotted without the original .pt.
         np.savez(
             os.path.join(path, "problem.npz"),
             x=self.ds.x, t=self.ds.t,
@@ -297,14 +247,11 @@ class BurgersPINN(AbstractSolver):
         with open(os.path.join(path, "metadata.json"), "w") as f:
             json.dump(meta, f, indent=2)
 
-        # Uniform cross-model manifest so common.persistence.load_any can
-        # reload this solver without being told it is a PINN.
         from common.persistence import write_manifest
         write_manifest(path, "pinn", os.path.basename(self._save_path),
                        name=self.name, framework="deepxde-pytorch")
 
     def load(self, path: str) -> None:
-        """Restore a saved solver in place from `path`."""
         with open(os.path.join(path, "metadata.json")) as f:
             meta = json.load(f)
         self.cfg = PINNConfig.from_dict(meta["config"])
@@ -314,8 +261,8 @@ class BurgersPINN(AbstractSolver):
         ic = prob["ic"]
         blob = {
             "x": prob["x"], "t": prob["t"],
-            "u": u_ref[None, ...],              # (1, nt, nx)
-            "ICs": ic[None, ...],               # (1, nx)
+            "u": u_ref[None, ...],             
+            "ICs": ic[None, ...],         
             "nu": float(prob["nu"]), "L": float(prob["L"]),
             "x_start": float(prob["x_start"]), "x_end": float(prob["x_end"]),
             "T": float(prob["T"]), "t_train_end": float(prob["t_train_end"]),
@@ -324,17 +271,12 @@ class BurgersPINN(AbstractSolver):
         self.ds = ColeHopfDataset.from_blob(blob, sample=0)
         self.nu = self.ds.nu
         self._build()
+        assert self.model is not None
         self.model.compile("adam", lr=self.cfg.lr, loss_weights=self._loss_weights)
         ckpt_path = os.path.join(path, meta["checkpoint"])
         try:
             self.model.restore(ckpt_path, verbose=1)
         except Exception as _restore_err:
-            # Inference / cost-profiling fallback. DeepXDE's restore() also
-            # loads the optimizer state, whose format can be incompatible across
-            # torch versions (e.g. KeyError 'step'). For reload-and-predict we
-            # only need the network weights, so load just those and skip the
-            # optimizer. (Full restore still runs first when it can.)
-            import torch
             blob = torch.load(ckpt_path, map_location="cpu", weights_only=False)
             state = (blob["model_state_dict"]
                      if isinstance(blob, dict) and "model_state_dict" in blob
