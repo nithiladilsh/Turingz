@@ -1,0 +1,55 @@
+{
+  "solver": "FNO(modes=(16,16),w=32,L=4)",
+  "threshold": 0.1,
+  "t_train_end": 1.0,
+  "n_extrap_points": 800,
+  "extrap_fail_fraction": 1.0,
+  "mean_reliable_horizon": 0.7524936869740486,
+  "detector_auc": {
+    "raw_residual": NaN,
+    "excess_residual": NaN,
+    "periodicity_gap": NaN
+  },
+  "per_sample": {
+    "0": {
+      "regime": "in_dist",
+      "true_reliable_horizon": 0.9949495196342468,
+      "extrap_fail_fraction": 1.0
+    },
+    "1": {
+      "regime": "in_dist",
+      "true_reliable_horizon": 1.0049999952316284,
+      "extrap_fail_fraction": 1.0
+    },
+    "2": {
+      "regime": "in_dist",
+      "true_reliable_horizon": 1.0049999952316284,
+      "extrap_fail_fraction": 1.0
+    },
+    "3": {
+      "regime": "in_dist",
+      "true_reliable_horizon": 1.0049999952316284,
+      "extrap_fail_fraction": 1.0
+    },
+    "4": {
+      "regime": "in_dist",
+      "true_reliable_horizon": 1.0049999952316284,
+      "extrap_fail_fraction": 1.0
+    },
+    "5": {
+      "regime": "in_dist",
+      "true_reliable_horizon": 1.0049999952316284,
+      "extrap_fail_fraction": 1.0
+    },
+    "6": {
+      "regime": "ood",
+      "true_reliable_horizon": 0.0,
+      "extrap_fail_fraction": 1.0
+    },
+    "7": {
+      "regime": "ood",
+      "true_reliable_horizon": 0.0,
+      "extrap_fail_fraction": 1.0
+    }
+  }
+}

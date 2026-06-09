@@ -18,7 +18,7 @@ def evaluate(model_dir: str, data_path: str, sample: int = 0) -> dict:
     pinn = BurgersPINN()
     pinn.load(model_dir)
 
-    pred, t, x = pinn.predict_grid(train_only=False)     # (nt, nx) on dataset grid
+    pred, t, x = pinn.predict_grid(train_only=False)    
     ref = ds.u_ref
     t_end = pinn.cfg.t_train_end or ds.t_train_end
     metrics = compute_metrics(pred, ref, t, t_train_end=t_end)
@@ -59,4 +59,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-main()

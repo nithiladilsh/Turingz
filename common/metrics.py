@@ -1,27 +1,6 @@
-"""
-================================================================================
-SHARED ACCURACY METRICS  —  single source of truth
-Team : Turingz   File : common/metrics.py
-
-One implementation of the accuracy metrics, used identically for PINN, FNO and
-DeepONet. Each model used to compute error in its own script with its own
-conventions; this module replaces all of them so the cross-model comparison is
-apples-to-apples.
-
-Everything operates on a predicted field and a reference field of the SAME
-shape (nt, nx), with the row index being time. The time windows match the
-Cole-Hopf cross-verification report (results/cross_verification.json):
-    pre_shock  : t < 0.25
-    shock      : 0.25 <= t <= 0.75
-    post_shock : 0.75 < t <= t_train_end
-    extrap     : t > t_train_end
-================================================================================
-"""
-
 from typing import Dict
 import numpy as np
 
-# Window edges — identical to the cross-verification report.
 SHOCK_T_LO = 0.25
 SHOCK_T_HI = 0.75
 
@@ -44,13 +23,7 @@ def _agg(v: np.ndarray) -> Dict[str, float]:
 
 def compute_metrics(pred: np.ndarray, ref: np.ndarray, t: np.ndarray,
                     t_train_end: float = 1.0) -> Dict:
-    """Accuracy of one predicted field vs its reference.
 
-    pred, ref : (nt, nx) arrays on the same grid.
-    t         : (nt,) time coordinates.
-    Returns global and windowed relative-L2 and L-infinity, plus the
-    per-time relative-L2 curve.
-    """
     pred = np.asarray(pred, dtype=np.float64)
     ref = np.asarray(ref, dtype=np.float64)
     t = np.asarray(t, dtype=np.float64)
@@ -88,12 +61,6 @@ def compute_metrics(pred: np.ndarray, ref: np.ndarray, t: np.ndarray,
 
 
 def aggregate_over_samples(per_sample: Dict[int, Dict]) -> Dict:
-    """Summarize per-sample metrics across many ICs, split by regime.
-
-    per_sample : {sample_index: metrics_dict_from_compute_metrics}.
-                 Each metrics dict may carry a 'regime' key ('in_dist'/'ood').
-    Returns mean/max of the headline numbers over 'all', 'in_dist' and 'ood'.
-    """
     def collect(getter, items):
         vals = [getter(m) for m in items]
         if not vals:

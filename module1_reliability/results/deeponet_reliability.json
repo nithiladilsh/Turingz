@@ -1,0 +1,55 @@
+{
+  "solver": "DeepONet(m=128)",
+  "threshold": 0.1,
+  "t_train_end": 1.0,
+  "n_extrap_points": 800,
+  "extrap_fail_fraction": 0.91375,
+  "mean_reliable_horizon": 0.8404356092214584,
+  "detector_auc": {
+    "raw_residual": 0.6888320545609549,
+    "excess_residual": 0.6899621324768532,
+    "periodicity_gap": 0.7394079977794961
+  },
+  "per_sample": {
+    "0": {
+      "regime": "in_dist",
+      "true_reliable_horizon": 1.1457070112228394,
+      "extrap_fail_fraction": 0.86
+    },
+    "1": {
+      "regime": "in_dist",
+      "true_reliable_horizon": 1.1356565952301025,
+      "extrap_fail_fraction": 0.87
+    },
+    "2": {
+      "regime": "in_dist",
+      "true_reliable_horizon": 1.1256060600280762,
+      "extrap_fail_fraction": 0.88
+    },
+    "3": {
+      "regime": "in_dist",
+      "true_reliable_horizon": 1.1356565952301025,
+      "extrap_fail_fraction": 0.87
+    },
+    "4": {
+      "regime": "in_dist",
+      "true_reliable_horizon": 1.0854040384292603,
+      "extrap_fail_fraction": 0.92
+    },
+    "5": {
+      "regime": "in_dist",
+      "true_reliable_horizon": 1.0954545736312866,
+      "extrap_fail_fraction": 0.91
+    },
+    "6": {
+      "regime": "ood",
+      "true_reliable_horizon": 0.0,
+      "extrap_fail_fraction": 1.0
+    },
+    "7": {
+      "regime": "ood",
+      "true_reliable_horizon": 0.0,
+      "extrap_fail_fraction": 1.0
+    }
+  }
+}

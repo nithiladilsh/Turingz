@@ -1,22 +1,3 @@
-"""
-================================================================================
-SHARED EVALUATION CLI  —  one command for PINN, FNO and DeepONet
-Team : Turingz   File : common/evaluate.py
-
-Usage (from project root):
-    python -m common.evaluate --model pinn     --checkpoint results/pinn/sample0 \
-        --data data/colehopf/burgers_1d_cole_hopf.pt
-    python -m common.evaluate --model fno      --checkpoint ml_models/fno/checkpoints/fno_burgers.pt \
-        --data data/colehopf/burgers_1d_cole_hopf.pt
-    python -m common.evaluate --model deeponet --checkpoint ml_models/deeponet/checkpoints/m128 \
-        --data data/colehopf/burgers_1d_cole_hopf.pt
-
-Every model is graded by the same code path (common.evaluation + common.metrics
-+ common.reliability_signals), on the same canonical IC set, with in_dist / ood
-labelling and the SAME model-agnostic PDE-residual signal.
-================================================================================
-"""
-
 import argparse
 
 from . import evaluation as E

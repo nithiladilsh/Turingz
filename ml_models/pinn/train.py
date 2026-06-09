@@ -24,12 +24,11 @@ def main():
     p.add_argument("--float64", action="store_true")
     args = p.parse_args()
 
-    # Canonical settings shared with FNO and DeepONet (single source of truth).
     from common.canonical_split import T_TRAIN_END, SEED, regime_of
 
     seed = args.seed if args.seed is not None else SEED
     cfg = PINNConfig(sample=args.sample, seed=seed, float64=args.float64)
-    cfg.t_train_end = T_TRAIN_END           # same temporal split for every model
+    cfg.t_train_end = T_TRAIN_END         
     if args.adam_iters is not None:
         cfg.adam_iters = args.adam_iters
     if args.no_lbfgs:
@@ -39,8 +38,6 @@ def main():
     if args.anchors:
         cfg.use_data_anchors = True
 
-    # The PINN is single-instance (one model per IC); the canonical split only
-    # labels each model so it lines up with the operators in the comparison.
     regime = regime_of(args.sample)
     out_dir = os.path.join(args.out, f"sample{args.sample}")
     os.makedirs(out_dir, exist_ok=True)

@@ -1,0 +1,85 @@
+{
+  "n_models": 10,
+  "models": [
+    {
+      "model_type": "deeponet",
+      "name": "DeepONet(m=128)",
+      "framework": "deepxde-pytorch",
+      "checkpoint": "ml_models/deeponet/checkpoints/m128",
+      "sample": null,
+      "regime": null
+    },
+    {
+      "model_type": "fno",
+      "name": "FNO(modes=(16,16),w=32,L=4)",
+      "framework": "pytorch-neuralop",
+      "checkpoint": "ml_models/fno/checkpoints",
+      "sample": null,
+      "regime": null
+    },
+    {
+      "model_type": "pinn",
+      "name": "PINN(5x64,hardP,sample=0)",
+      "framework": "deepxde-pytorch",
+      "checkpoint": "results/pinn/sample0",
+      "sample": 0,
+      "regime": "in_dist"
+    },
+    {
+      "model_type": "pinn",
+      "name": "PINN(5x64,hardP,sample=1)",
+      "framework": "deepxde-pytorch",
+      "checkpoint": "results/pinn/sample1",
+      "sample": 1,
+      "regime": "in_dist"
+    },
+    {
+      "model_type": "pinn",
+      "name": "PINN(5x64,hardP,sample=2)",
+      "framework": "deepxde-pytorch",
+      "checkpoint": "results/pinn/sample2",
+      "sample": 2,
+      "regime": "in_dist"
+    },
+    {
+      "model_type": "pinn",
+      "name": "PINN(5x64,hardP,sample=3)",
+      "framework": "deepxde-pytorch",
+      "checkpoint": "results/pinn/sample3",
+      "sample": 3,
+      "regime": "in_dist"
+    },
+    {
+      "model_type": "pinn",
+      "name": "PINN(5x64,hardP,sample=4)",
+      "framework": "deepxde-pytorch",
+      "checkpoint": "results/pinn/sample4",
+      "sample": 4,
+      "regime": "in_dist"
+    },
+    {
+      "model_type": "pinn",
+      "name": "PINN(5x64,hardP,sample=5)",
+      "framework": "deepxde-pytorch",
+      "checkpoint": "results/pinn/sample5",
+      "sample": 5,
+      "regime": "in_dist"
+    },
+    {
+      "model_type": "pinn",
+      "name": "PINN(5x64,hardP,sample=6)",
+      "framework": "deepxde-pytorch",
+      "checkpoint": "results/pinn/sample6",
+      "sample": 6,
+      "regime": "ood"
+    },
+    {
+      "model_type": "pinn",
+      "name": "PINN(5x64,hardP,sample=7)",
+      "framework": "deepxde-pytorch",
+      "checkpoint": "results/pinn/sample7",
+      "sample": 7,
+      "regime": "ood"
+    }
+  ]
+}
