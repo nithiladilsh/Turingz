@@ -52,7 +52,8 @@ import matplotlib.pyplot as plt
 _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 _PROJECT_ROOT = os.path.normpath(os.path.join(_THIS_DIR, ".."))
 _FNO_DIR = os.path.join(_PROJECT_ROOT, "ml_models", "fno")
-for _p in (_PROJECT_ROOT, _FNO_DIR):
+_DEEPONET_DIR = os.path.join(_PROJECT_ROOT, "ml_models", "deeponet")
+for _p in (_PROJECT_ROOT, _FNO_DIR, _DEEPONET_DIR):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
@@ -69,19 +70,42 @@ RolloutFn = Callable[[np.ndarray, np.ndarray, np.ndarray], np.ndarray]
 
 
 # =============================================================================
-#  Solver loading (the ONLY FNO-specific part)
+#  Solver loading (the ONLY model-specific part)
 # =============================================================================
+# Each loader returns (solver, x_native), where solver.rollout(ic, x, t) -> (nt, nx)
+# and x_native is the solver's native spatial grid (the IC is sampled on it).
+# Both FNO and DeepONet are OPERATOR learners: they take the IC as input, so the
+# fixed-OOD-IC robustness study is meaningful for them. (The PINN is a
+# single-instance solver — it ignores the input IC — so it is deliberately NOT
+# in this registry; see module2_robustness/robustness_eval_pinn.py instead.)
 def load_fno_solver(checkpoint_path: str):
-    """Load the trained FNO and return (solver, x_native).
-
-    x_native is the solver's native spatial grid; the IC must be sampled on it.
-    """
+    """Load the trained FNO and return (solver, x_native)."""
     from fno_solver import FNOSolver  # imported lazily so common.* tests need no neuralop
 
     solver = FNOSolver()
     solver.load(checkpoint_path)
     x_native = solver._x_grid.detach().cpu().numpy()
     return solver, x_native
+
+
+def load_deeponet_solver(checkpoint_path: str):
+    """Load the trained DeepONet and return (solver, x_native)."""
+    from deeponet_solver import DeepONetSolver  # lazy: needs deepxde
+
+    solver = DeepONetSolver()
+    solver.load(checkpoint_path)
+    x_native = np.asarray(solver._x_full, dtype=np.float64)
+    return solver, x_native
+
+
+# model id -> (loader, default checkpoint path, extra sys.path dir for its import)
+MODEL_LOADERS = {
+    "fno": (load_fno_solver,
+            os.path.join(_FNO_DIR, "checkpoints", "fno_burgers.pt")),
+    "deeponet": (load_deeponet_solver,
+                 os.path.join(_PROJECT_ROOT, "ml_models", "deeponet",
+                              "checkpoints", "m128")),
+}
 
 
 # =============================================================================
@@ -150,9 +174,10 @@ def write_csv(results: List[Dict], path: str) -> None:
             w.writerow({k: r[k] for k in keys})
 
 
-def write_json(results: List[Dict], path: str, weight_mode: str) -> None:
+def write_json(results: List[Dict], path: str, weight_mode: str,
+               model: str = "FNO") -> None:
     payload = {
-        "model": "FNO",
+        "model": model,
         "module": "module2_robustness",
         "weight_mode": weight_mode,
         "t_train_end": T_TRAIN_END,
@@ -162,13 +187,14 @@ def write_json(results: List[Dict], path: str, weight_mode: str) -> None:
         json.dump(payload, f, indent=2)
 
 
-def plot_results(results: List[Dict], path: str, weight_mode: str) -> None:
+def plot_results(results: List[Dict], path: str, weight_mode: str,
+                 model: str = "FNO") -> None:
     n = len(results)
     fig, axes = plt.subplots(2, n, figsize=(5 * n, 7))
     if n == 1:
         axes = np.asarray(axes).reshape(2, 1)
 
-    fig.suptitle(f"FNO Robustness | Module 2 | Team Turingz | weight={weight_mode}",
+    fig.suptitle(f"{model} Robustness | Module 2 | Team Turingz | weight={weight_mode}",
                  fontsize=12, fontweight="bold")
 
     for col, r in enumerate(results):
@@ -205,11 +231,14 @@ def plot_results(results: List[Dict], path: str, weight_mode: str) -> None:
 #  Main
 # =============================================================================
 def main() -> None:
-    default_ckpt = os.path.join(_FNO_DIR, "checkpoints", "fno_burgers.pt")
-
-    ap = argparse.ArgumentParser(description="FNO Module 2 robustness evaluation.")
-    ap.add_argument("--checkpoint", default=default_ckpt,
-                    help="Trained FNO checkpoint (.pt file or checkpoint dir).")
+    ap = argparse.ArgumentParser(
+        description="Operator-model Module 2 robustness evaluation (FNO / DeepONet). "
+                    "The PINN is single-instance and is handled by "
+                    "robustness_eval_pinn.py instead.")
+    ap.add_argument("--model", default="fno", choices=sorted(MODEL_LOADERS),
+                    help="Which trained operator model to evaluate.")
+    ap.add_argument("--checkpoint", default=None,
+                    help="Checkpoint path/dir (defaults to the model's standard location).")
     ap.add_argument("--weight-mode", default="low_freq", choices=WEIGHT_MODES,
                     help="Spectral-distance mode weighting for plots/CSV.")
     ap.add_argument("--out-dir",
@@ -217,24 +246,28 @@ def main() -> None:
                     help="Output directory for CSV/JSON/plot.")
     args = ap.parse_args()
 
+    loader, default_ckpt = MODEL_LOADERS[args.model]
+    checkpoint = args.checkpoint or default_ckpt
+    label = args.model.upper()
+
     os.makedirs(args.out_dir, exist_ok=True)
-    csv_path = os.path.join(args.out_dir, "fno_robustness.csv")
-    json_path = os.path.join(args.out_dir, "fno_robustness_timeseries.json")
-    plot_path = os.path.join(args.out_dir, "fno_robustness_plot.png")
+    csv_path = os.path.join(args.out_dir, f"{args.model}_robustness.csv")
+    json_path = os.path.join(args.out_dir, f"{args.model}_robustness_timeseries.json")
+    plot_path = os.path.join(args.out_dir, f"{args.model}_robustness_plot.png")
 
     print("=" * 72)
-    print("  FNO ROBUSTNESS EVAL  |  Module 2  |  Team Turingz")
+    print(f"  {label} ROBUSTNESS EVAL  |  Module 2  |  Team Turingz")
     print("=" * 72)
 
-    solver, x_native = load_fno_solver(args.checkpoint)
-    print(f"\n  Loaded FNO   : {args.checkpoint}")
+    solver, x_native = loader(checkpoint)
+    print(f"\n  Loaded {label:8s}: {checkpoint}")
 
     x_grid, t = native_grid()
-    # The FNO native grid must equal the Cole-Hopf reference grid, or the
+    # The model's native grid must equal the Cole-Hopf reference grid, or the
     # pointwise comparison is meaningless. Guard it explicitly.
     if x_native.shape != x_grid.shape or not np.allclose(x_native, x_grid):
         raise ValueError(
-            f"FNO native x grid (nx={x_native.shape[0]}) does not match the "
+            f"{label} native x grid (nx={x_native.shape[0]}) does not match the "
             f"Cole-Hopf grid (nx={x_grid.shape[0]}). The checkpoint was trained "
             "on a different grid than common/ood_spec.py defines."
         )
@@ -245,8 +278,8 @@ def main() -> None:
     results = run_robustness(solver.rollout, x_grid, t, args.weight_mode)
 
     write_csv(results, csv_path)
-    write_json(results, json_path, args.weight_mode)
-    plot_results(results, plot_path, args.weight_mode)
+    write_json(results, json_path, args.weight_mode, model=label)
+    plot_results(results, plot_path, args.weight_mode, model=label)
 
     print("\n" + "=" * 72)
     print(f"  CSV   : {csv_path}")

@@ -1,0 +1,4 @@
+case,name,nu,weight_mode,final_rel_l2,final_spec_dist,first_cross_rel_l2,first_cross_spec_dist,early_warning_lead
+ood1_highfreq,OOD-1 higher-frequency sinusoid,0.0031830988618379067,high_freq,1.3198747132637156,2965.8501475886833,nan,nan,nan
+ood2_gaussian,OOD-2 localised Gaussian bump,0.0031830988618379067,high_freq,1.0371122735133715,1977.1199044093512,nan,0.01,nan
+ood3_shifted_nu,OOD-3 shifted-viscosity sin(pi x),0.006366197723675813,high_freq,1.5889572767075186,3444.798900025501,0.3215656565656566,0.27131313131313134,0.05025252525252527
