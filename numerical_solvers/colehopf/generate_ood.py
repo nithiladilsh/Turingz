@@ -39,11 +39,11 @@ if _HERE not in sys.path:
 from colehopf import (Config, build_grid, solve_burgers, ic_random_fourier)
 
 
-# ── OOD configuration (same physics/grid, shifted IC distribution) ───────────
+# OOD configuration (same physics/grid, shifted IC distribution)
 class OODConfig(Config):
     N_samples: int = 8
-    n_modes:   int = 6        # higher frequency than the in-dist 4 modes (well-resolved shift)
-    ic_seed:   int = 2024     # different realization than the in-dist seed 42
+    n_modes:   int = 6       
+    ic_seed:   int = 2024     
 
     data_dir: str = os.path.normpath(os.path.join(
         os.path.dirname(os.path.abspath(__file__)), "..", "..", "data", "colehopf_ood"))
@@ -90,7 +90,7 @@ def residual_check(U, x, t, nu, L):
 
 
 def save_pt(ds: dict, cfg: OODConfig) -> str:
-    import torch  # lazy: only needed for the .pt deliverable
+    import torch 
     U, ICs, x, t = ds["U"], ds["ICs"], ds["x"], ds["t"]
     os.makedirs(cfg.data_dir, exist_ok=True)
     pt_path = os.path.join(cfg.data_dir, cfg.pt_filename)
@@ -129,10 +129,7 @@ def main():
     cfg = OODConfig()
     ds = generate(cfg)
     mean_res, max_res = residual_check(ds["U"], ds["x"], ds["t"], cfg.nu, cfg.L)
-    # The stored field is the exact analytic Cole-Hopf solution; this residual
-    # is a coarse-grid discretization check. The mean is the trustworthy gate;
-    # the max spikes momentarily at shock formation (sharper for OOD ICs, which
-    # is the intended difficulty), not a flaw in the reference.
+
     ok = mean_res < 5e-3
     print(f"\n  PDE residual RMS  mean={mean_res:.3e}  max={max_res:.3e} (max at shock)  "
           f"{'OK' if ok else 'CHECK RESOLUTION'}")
