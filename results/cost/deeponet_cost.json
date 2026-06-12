@@ -3,16 +3,19 @@
   "model_type": "deeponet",
   "trainings_per_benchmark": 1,
   "n_parameters": 115969,
-  "relative_l2_global": 0.4670616000434357,
-  "relative_l2_extrap": 0.699227596995031,
-  "relative_l2_final": 1.1945630479011133,
-  "latency_s": 0.017140999999999997,
-  "latency_ms_median": 17.141,
-  "memory_mb": 2.449,
-  "peak_cpu_mb": 1078.734,
-  "gpu_delta_mb": null,
-  "throughput_points_per_s": 5973963.1,
-  "throughput_rollouts_per_s": 58.3395,
+  "eval_samples": [
+    0
+  ],
+  "relative_l2_global": 0.3554579465280574,
+  "relative_l2_extrap": 0.6934929068862798,
+  "relative_l2_final": 1.5637181981405577,
+  "latency_s": 0.0133968,
+  "latency_ms_median": 13.3968,
+  "memory_mb": 0.129,
+  "peak_cpu_mb": 1076.668,
+  "gpu_delta_mb": 250.784,
+  "throughput_points_per_s": 7643616.3,
+  "throughput_rollouts_per_s": 74.6447,
   "train_wall_s": 1586.8,
   "cost_grid": {
     "nt": 200,
@@ -34,40 +37,40 @@
         "nx": 64,
         "nt": 200,
         "n_points": 12800,
-        "latency_ms_median": 5.0075,
-        "peak_cpu_mb": 1077.352,
-        "cpu_delta_mb": 0.082,
-        "points_per_s": 2556165.72
+        "latency_ms_median": 2.4452,
+        "peak_cpu_mb": 1076.836,
+        "cpu_delta_mb": 0.039,
+        "points_per_s": 5234745.64
       },
       {
         "nx": 128,
         "nt": 200,
         "n_points": 25600,
-        "latency_ms_median": 5.8445,
-        "peak_cpu_mb": 1077.367,
-        "cpu_delta_mb": 0.031,
-        "points_per_s": 4380186.56
+        "latency_ms_median": 4.0309,
+        "peak_cpu_mb": 1076.852,
+        "cpu_delta_mb": 0.023,
+        "points_per_s": 6350938.88
       },
       {
         "nx": 256,
         "nt": 200,
         "n_points": 51200,
-        "latency_ms_median": 11.205,
-        "peak_cpu_mb": 1077.809,
-        "cpu_delta_mb": 0.211,
-        "points_per_s": 4569388.72
+        "latency_ms_median": 6.835,
+        "peak_cpu_mb": 1077.289,
+        "cpu_delta_mb": 0.207,
+        "points_per_s": 7490856.01
       },
       {
         "nx": 512,
         "nt": 200,
         "n_points": 102400,
-        "latency_ms_median": 20.2066,
-        "peak_cpu_mb": 1077.809,
-        "cpu_delta_mb": 0.02,
-        "points_per_s": 5067651.17
+        "latency_ms_median": 13.0138,
+        "peak_cpu_mb": 1078.863,
+        "cpu_delta_mb": 1.586,
+        "points_per_s": 7868570.2
       }
     ],
-    "complexity_exponent_p": 0.6977,
-    "interpretation": "~linear (p=0.6977): cost grows roughly proportionally to output size"
+    "complexity_exponent_p": 0.7998,
+    "interpretation": "~linear (p=0.7998): cost grows roughly proportionally to output size"
   }
 }

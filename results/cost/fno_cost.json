@@ -3,17 +3,20 @@
   "model_type": "fno",
   "trainings_per_benchmark": 1,
   "n_parameters": 603105,
-  "relative_l2_global": 0.3157081834631897,
-  "relative_l2_extrap": 0.5363087220484821,
-  "relative_l2_final": 0.6824826526264486,
-  "latency_s": 0.0722804,
-  "latency_ms_median": 72.2804,
-  "memory_mb": 0.121,
-  "peak_cpu_mb": 850.004,
-  "gpu_delta_mb": null,
-  "throughput_points_per_s": 1416704.94,
-  "throughput_rollouts_per_s": 13.835,
-  "train_wall_s": 0.0,
+  "eval_samples": [
+    0
+  ],
+  "relative_l2_global": 0.158936195287345,
+  "relative_l2_extrap": 0.30467252561241226,
+  "relative_l2_final": 0.47119569381723614,
+  "latency_s": 0.055653100000000004,
+  "latency_ms_median": 55.6531,
+  "memory_mb": 0.184,
+  "peak_cpu_mb": 850.781,
+  "gpu_delta_mb": 51.099,
+  "throughput_points_per_s": 1839971.03,
+  "throughput_rollouts_per_s": 17.9685,
+  "train_wall_s": 124.33796879998408,
   "cost_grid": {
     "nt": 200,
     "nx": 512,
@@ -34,40 +37,40 @@
         "nx": 64,
         "nt": 200,
         "n_points": 12800,
-        "latency_ms_median": 83.9122,
-        "peak_cpu_mb": 850.145,
-        "cpu_delta_mb": 0.047,
-        "points_per_s": 152540.39
+        "latency_ms_median": 58.0823,
+        "peak_cpu_mb": 850.93,
+        "cpu_delta_mb": 0.043,
+        "points_per_s": 220376.95
       },
       {
         "nx": 128,
         "nt": 200,
         "n_points": 25600,
-        "latency_ms_median": 57.8643,
-        "peak_cpu_mb": 850.164,
-        "cpu_delta_mb": 0.039,
-        "points_per_s": 442414.41
+        "latency_ms_median": 62.3834,
+        "peak_cpu_mb": 850.941,
+        "cpu_delta_mb": 0.027,
+        "points_per_s": 410365.58
       },
       {
         "nx": 256,
         "nt": 200,
         "n_points": 51200,
-        "latency_ms_median": 65.0991,
-        "peak_cpu_mb": 850.164,
-        "cpu_delta_mb": 0.02,
-        "points_per_s": 786493.21
+        "latency_ms_median": 57.3592,
+        "peak_cpu_mb": 850.945,
+        "cpu_delta_mb": 0.023,
+        "points_per_s": 892620.54
       },
       {
         "nx": 512,
         "nt": 200,
         "n_points": 102400,
-        "latency_ms_median": 60.5087,
-        "peak_cpu_mb": 850.445,
-        "cpu_delta_mb": 0.301,
-        "points_per_s": 1692318.62
+        "latency_ms_median": 56.0268,
+        "peak_cpu_mb": 850.949,
+        "cpu_delta_mb": 0.02,
+        "points_per_s": 1827696.75
       }
     ],
-    "complexity_exponent_p": -0.1245,
-    "interpretation": "sub-linear (p=-0.1245): cost barely grows with grid size"
+    "complexity_exponent_p": -0.0277,
+    "interpretation": "sub-linear (p=-0.0277): cost barely grows with grid size"
   }
 }

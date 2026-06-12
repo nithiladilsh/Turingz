@@ -57,16 +57,33 @@ def _read_train_wall(train_wall: Optional[float], train_log: Optional[str]) -> f
         try:
             with open(train_log) as f:
                 blob = json.load(f)
-            for k in ("wall_time_s", "wall_time", "train_time_s"):
-                if k in blob:
-                    return float(blob[k])
-            # nested fit info
-            fit = blob.get("fit") or blob.get("train_summary") or {}
-            if "wall_time_s" in fit:
-                return float(fit["wall_time_s"])
+            # Search the whole log for the first wall_time_s, wherever it nests
+            # (FNO writes it under "fit_info", PINN/DeepONet at other levels).
+            found = _find_key(blob, ("wall_time_s", "wall_time", "train_time_s"))
+            if found is not None:
+                return float(found)
+            print(f"  ! train log {train_log} has no wall_time_s; pass --train-wall")
         except Exception as e:
             print(f"  ! could not read train log {train_log}: {e}")
     return 0.0
+
+
+def _find_key(obj, keys):
+    """Depth-first search a nested dict/list for the first of `keys`."""
+    if isinstance(obj, dict):
+        for k in keys:
+            if k in obj and isinstance(obj[k], (int, float)):
+                return obj[k]
+        for v in obj.values():
+            r = _find_key(v, keys)
+            if r is not None:
+                return r
+    elif isinstance(obj, list):
+        for v in obj:
+            r = _find_key(v, keys)
+            if r is not None:
+                return r
+    return None
 
 
 def cmd_profile(args) -> None:
@@ -116,6 +133,23 @@ def cmd_compare(args) -> None:
             profiles.append(json.load(f))
     print(f"[compare] {len(profiles)} model profile(s): "
           f"{', '.join(p['name'] for p in profiles)}")
+
+    # Fairness guard: accuracy is only comparable if every model was scored on
+    # the SAME initial conditions. A single-instance PINN scored on its own IC
+    # vs operators scored across all ICs is not apples-to-apples.
+    sample_sets = {p["name"]: tuple(p.get("eval_samples", [])) for p in profiles}
+    distinct = set(sample_sets.values())
+    if len(distinct) > 1:
+        print("  ! WARNING: models were scored on DIFFERENT initial conditions, "
+              "so the accuracy column is NOT a like-for-like comparison:")
+        for name, ss in sample_sets.items():
+            print(f"      {name}: ICs {list(ss) if ss else 'unknown'}")
+        print("    For a fair accuracy comparison, profile every model on the "
+              "same IC, e.g. add  --samples 0 --cost-sample 0  to each.")
+    missing_train = [p["name"] for p in profiles if not p.get("train_wall_s")]
+    if missing_train:
+        print(f"  ! NOTE: training time missing (=0) for: {', '.join(missing_train)}. "
+              "Pass --train-wall or a --train-log that contains wall_time_s.")
 
     trade = cost_accuracy.build_trade_off(profiles, accuracy_key=args.accuracy_key)
     out_json = os.path.join(args.out, "trade_off.json")

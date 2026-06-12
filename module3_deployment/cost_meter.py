@@ -103,6 +103,20 @@ class _PeakMemorySampler:
         self.peak_cpu_mb = 0.0
         self.baseline_gpu_mb: Optional[float] = None
         self.peak_gpu_mb: Optional[float] = None
+        # torch-CUDA per-process GPU memory: isolates the MODEL's own footprint
+        # (more meaningful than pynvml's system-wide reading) and works even when
+        # pynvml is not installed. Guarded so the meter still imports without torch.
+        self._torch = None
+        self._cuda = False
+        try:
+            import torch as _t
+            if _t.cuda.is_available():
+                self._torch = _t
+                self._cuda = True
+        except Exception:
+            pass
+        self.gpu_base_mb: Optional[float] = None
+        self.gpu_peak_mb: Optional[float] = None
 
     def _rss_mb(self) -> float:
         return self._proc.memory_info().rss / (1024.0 ** 2)
@@ -121,6 +135,13 @@ class _PeakMemorySampler:
         self.peak_cpu_mb = self.baseline_cpu_mb
         self.baseline_gpu_mb = _gpu_mem_used_mb()
         self.peak_gpu_mb = self.baseline_gpu_mb
+        if self._cuda:
+            try:
+                self._torch.cuda.synchronize()
+                self._torch.cuda.reset_peak_memory_stats()
+                self.gpu_base_mb = self._torch.cuda.memory_allocated() / (1024.0 ** 2)
+            except Exception:
+                self._cuda = False
         self._thread = threading.Thread(target=self._run, daemon=True)
         self._thread.start()
         return self
@@ -134,17 +155,33 @@ class _PeakMemorySampler:
         g = _gpu_mem_used_mb()
         if g is not None:
             self.peak_gpu_mb = g if self.peak_gpu_mb is None else max(self.peak_gpu_mb, g)
+        if self._cuda:
+            try:
+                self._torch.cuda.synchronize()
+                self.gpu_peak_mb = self._torch.cuda.max_memory_allocated() / (1024.0 ** 2)
+            except Exception:
+                pass
 
     def report(self) -> Dict[str, Optional[float]]:
         cpu_delta = round(self.peak_cpu_mb - self.baseline_cpu_mb, 3)
         gpu_delta = None
+        peak_gpu = round(self.peak_gpu_mb, 3) if self.peak_gpu_mb is not None else None
         if self.peak_gpu_mb is not None and self.baseline_gpu_mb is not None:
             gpu_delta = round(self.peak_gpu_mb - self.baseline_gpu_mb, 3)
+        # Prefer torch-CUDA per-process numbers when available — they isolate the
+        # model's own GPU allocation instead of system-wide GPU usage.
+        gpu_source = "pynvml" if peak_gpu is not None else None
+        if self.gpu_peak_mb is not None:
+            peak_gpu = round(self.gpu_peak_mb, 3)
+            if self.gpu_base_mb is not None:
+                gpu_delta = round(self.gpu_peak_mb - self.gpu_base_mb, 3)
+            gpu_source = "torch.cuda"
         return {
             "peak_cpu_mb": round(self.peak_cpu_mb, 3),
             "cpu_delta_mb": cpu_delta,
-            "peak_gpu_mb": round(self.peak_gpu_mb, 3) if self.peak_gpu_mb is not None else None,
+            "peak_gpu_mb": peak_gpu,
             "gpu_delta_mb": gpu_delta,
+            "gpu_source": gpu_source,
         }
 
 
@@ -192,6 +229,17 @@ def measure_training(solver, dataset: Dict[str, Any]) -> Dict[str, Any]:
         "final_loss": _extract_final_loss(fit_info),
         "memory": sampler.report(),
     }
+
+
+def _torch_cuda():
+    """Return the torch module if a usable CUDA device is present, else None."""
+    try:
+        import torch
+        if torch.cuda.is_available():
+            return torch
+    except Exception:
+        pass
+    return None
 
 
 def measure_inference(solver, ic: np.ndarray, x_grid: np.ndarray,

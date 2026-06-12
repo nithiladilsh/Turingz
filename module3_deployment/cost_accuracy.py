@@ -82,6 +82,10 @@ def profile_solver(solver, reference: Dict, model_type: str,
         "model_type": model_type.lower(),
         "trainings_per_benchmark": HEI.trainings_per_full_benchmark(model_type),
         "n_parameters": int(solver.num_parameters()),
+        # which ICs the accuracy was averaged over (so a comparison can flag
+        # when one model was scored on a different set — e.g. a single-instance
+        # PINN judged only on its own IC vs operators judged across all ICs).
+        "eval_samples": [int(s) for s in eval_samples],
         # accuracy (shared)
         "relative_l2_global": acc["relative_l2_global"],
         "relative_l2_extrap": acc["relative_l2_extrap"],
