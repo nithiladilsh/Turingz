@@ -4,12 +4,6 @@ venv/
 __pycache__/
 *.pyc
 
-# Data and Models
-!data/.gitkeep
-*.pt
-*.pth
-*.onnx
-
 # IDEs
 .vscode/
 .idea/
