@@ -1,0 +1,22 @@
+{
+  "n_sensors": 128,
+  "latent_dim": 256,
+  "width": 256,
+  "depth": 4,
+  "n_fourier": 6,
+  "activation": "relu",
+  "lr": 0.001,
+  "iterations": 30000,
+  "batch": 64,
+  "points": 8192,
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "n_train": 800,
+  "n_val": 100,
+  "T": 2.0
+}

@@ -43,7 +43,3 @@ torch.save({
     "nu": nu, "L": L, "x_start": -1.0, "x_end": 1.0,
     "T": T, "t_train_end": 1.0, "t_start": t_start, "nx": nx, "nt": nt, "N_samples": len(u),
 }, "burgers_fdm.pt")
-
-X, Tg = np.meshgrid(x, t)
-rows = np.vstack([np.column_stack([Tg.ravel(), X.ravel(), u[s].ravel()]) for s in range(len(u))])
-np.savetxt("burgers_fdm.csv", rows, delimiter=",", header="t,x,u", comments="", fmt="%.10f")
