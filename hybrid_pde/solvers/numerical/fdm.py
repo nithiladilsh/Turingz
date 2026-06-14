@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import torch
 
@@ -35,6 +36,8 @@ rng = np.random.default_rng(42)
 ICs = np.stack([np.sin(np.pi * x)] + [random_ic(rng) for _ in range(7)])
 u = np.stack([solve(ic) for ic in ICs])
 
+_out = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))), "data", "fdm", "burgers_fdm.pt")
+os.makedirs(os.path.dirname(_out), exist_ok=True)
 torch.save({
     "u": torch.tensor(u, dtype=torch.float32),
     "ICs": torch.tensor(ICs, dtype=torch.float32),
@@ -42,4 +45,4 @@ torch.save({
     "t": torch.tensor(t, dtype=torch.float32),
     "nu": nu, "L": L, "x_start": -1.0, "x_end": 1.0,
     "T": T, "t_train_end": 1.0, "t_start": t_start, "nx": nx, "nt": nt, "N_samples": len(u),
-}, "burgers_fdm.pt")
+}, _out)

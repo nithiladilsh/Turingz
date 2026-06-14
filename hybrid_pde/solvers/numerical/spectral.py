@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import torch
 
@@ -65,6 +66,8 @@ print("finite=%s energy_dissipated=%.1f%% mass_drift=%.1e pde_residual=%.1e" % (
     np.isfinite(u).all(), 100*(1-energy[-1]/energy[0]),
     np.max(np.abs(mass-mass[0])), np.mean(res)))
 
+_out = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))), "data", "spectral", "burgers_spectral.pt")
+os.makedirs(os.path.dirname(_out), exist_ok=True)
 torch.save({
     "u": torch.tensor(u, dtype=torch.float32),
     "ICs": torch.tensor(ICs, dtype=torch.float32),
@@ -72,4 +75,4 @@ torch.save({
     "t": torch.tensor(t, dtype=torch.float32),
     "nu": nu, "L": L, "x_start": -1.0, "x_end": 1.0,
     "T": T, "t_train_end": 1.0, "t_start": t_start, "nx": nx, "nt": nt, "N_samples": len(u),
-}, "burgers_spectral.pt")
+}, _out)
