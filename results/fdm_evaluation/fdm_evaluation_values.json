@@ -1,0 +1,118 @@
+{
+  "test1_self_convergence": {
+    "smooth sin(pi x)": [
+      {
+        "grid": 64,
+        "finer": 128,
+        "difference_pct": 2.8961486293872722,
+        "order": null
+      },
+      {
+        "grid": 128,
+        "finer": 256,
+        "difference_pct": 2.1901269441052054,
+        "order": 0.40312114923371456
+      },
+      {
+        "grid": 256,
+        "finer": 512,
+        "difference_pct": 1.4532887945497306,
+        "order": 0.5916930728778185
+      },
+      {
+        "grid": 512,
+        "finer": 1024,
+        "difference_pct": 0.911269276189839,
+        "order": 0.6733720884618923
+      },
+      {
+        "grid": 1024,
+        "finer": 2048,
+        "difference_pct": 0.5327735044629319,
+        "order": 0.7743550902217319
+      }
+    ],
+    "realistic bumpy case": [
+      {
+        "grid": 64,
+        "finer": 128,
+        "difference_pct": 36.24235103991957,
+        "order": null
+      },
+      {
+        "grid": 128,
+        "finer": 256,
+        "difference_pct": 23.905637911069956,
+        "order": 0.6003256421317017
+      },
+      {
+        "grid": 256,
+        "finer": 512,
+        "difference_pct": 16.859774899779044,
+        "order": 0.5037656293320686
+      },
+      {
+        "grid": 512,
+        "finer": 1024,
+        "difference_pct": 11.90393337203757,
+        "order": 0.5021469179105095
+      },
+      {
+        "grid": 1024,
+        "finer": 2048,
+        "difference_pct": 7.559570971830502,
+        "order": 0.6550620919758646
+      }
+    ]
+  },
+  "test2_numerical_diffusion": {
+    "rows": [
+      {
+        "grid": 64,
+        "dx": 0.03125,
+        "fake_nu": 0.015625,
+        "fake_over_real_pct": 490.8738521234052
+      },
+      {
+        "grid": 128,
+        "dx": 0.015625,
+        "fake_nu": 0.0078125,
+        "fake_over_real_pct": 245.4369260617026
+      },
+      {
+        "grid": 256,
+        "dx": 0.0078125,
+        "fake_nu": 0.00390625,
+        "fake_over_real_pct": 122.7184630308513
+      },
+      {
+        "grid": 512,
+        "dx": 0.00390625,
+        "fake_nu": 0.001953125,
+        "fake_over_real_pct": 61.35923151542565
+      },
+      {
+        "grid": 1024,
+        "dx": 0.001953125,
+        "fake_nu": 0.0009765625,
+        "fake_over_real_pct": 30.679615757712824
+      },
+      {
+        "grid": 2048,
+        "dx": 0.0009765625,
+        "fake_nu": 0.00048828125,
+        "fake_over_real_pct": 15.339807878856412
+      }
+    ],
+    "nx_for_10pct": 3142
+  },
+  "test3_conservation": {
+    "mass_drift": 2.220446049250313e-16,
+    "energy_rising_steps": 0
+  },
+  "partB_crosscheck": {
+    "fdm_vs_colehopf_pct": 16.281277071094237,
+    "spectral_vs_colehopf_pct": 0.010758344578941719,
+    "fdm_times_worse": 1513.3626694726859
+  }
+}
