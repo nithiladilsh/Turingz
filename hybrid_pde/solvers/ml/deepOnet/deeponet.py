@@ -1,122 +1,134 @@
-import json, os
-os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
+import os
+os.environ.setdefault("DDE_BACKEND", "pytorch")
+import json, sys, time
 import numpy as np
 import torch
-import torch.nn as nn
+import deepxde as dde
 
-DATA = "data/colehopf/burgers_colehopf.pt"
-OUT = "results/deeponet"
-M, P, W, D, NFF = 128, 256, 256, 4, 6
+_THIS = os.path.dirname(os.path.abspath(__file__))
+_ROOT = os.path.normpath(os.path.join(_THIS, "..", "..", "..", ".."))
+sys.path.insert(0, _ROOT)
+from hybrid_pde.common import AbstractSolver, evaluate, load, split
+
+OUT = os.path.join(_ROOT, "results", "deeponet")
+M, P, W, D, NFF = 100, 256, 256, 4, 6
 LR, ITERS, BATCH, PT = 1e-3, 30000, 64, 8192
 SEEDS = [0, 1, 2, 3, 4]
-N_TRAIN, N_VAL = 800, 100
-ACT = nn.ReLU
-DETERMINISTIC = False
 
-if DETERMINISTIC:
-    torch.use_deterministic_algorithms(True, warn_only=True)
-dev = "cuda" if torch.cuda.is_available() else "cpu"
-print("device:", dev, (torch.cuda.get_device_name(0) if dev == "cuda" else ""), flush=True)
 
-d = torch.load(DATA, weights_only=False, map_location="cpu")
-U, ICs = d["u"].numpy(), d["ICs"].numpy()
-x, t = d["x"].numpy(), d["t"].numpy()
-te, Tmax = float(d["t_train_end"]), float(d["T"])
-N, nt, nx = U.shape
-sidx = np.linspace(0, nx - 1, M).astype(int)
-tr_mask, ex_mask = t <= te, t > te
-train_idx = np.arange(N_TRAIN)
-val_idx = np.arange(N_TRAIN, N_TRAIN + N_VAL)
-test_idx = np.arange(N_TRAIN + N_VAL, N)
-FF = 2.0 ** np.arange(NFF)
-TRUNK_IN = 2 + 2 * NFF
-
-def feats(z):
-    xc, tc = z[:, 0:1], z[:, 1:2] / Tmax
-    ang = np.pi * xc * FF[None, :]
-    return np.concatenate([xc, tc, np.sin(ang), np.cos(ang)], axis=1).astype(np.float32)
-
-def grid(tt):
+def _grid(x, tt):
     Xg, Tg = np.meshgrid(x, tt, indexing="xy")
     return np.stack([Xg.ravel(), Tg.ravel()], 1).astype(np.float32)
 
-def mlp(i, o):
-    s = [i] + [W] * D + [o]; layers = []
-    for a, b in zip(s[:-1], s[1:]):
-        layers += [nn.Linear(a, b), ACT()]
-    return nn.Sequential(*layers[:-1])
 
-class DeepONet(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.branch, self.trunk = mlp(M, P), mlp(TRUNK_IN, P)
-        self.bias = nn.Parameter(torch.zeros(1))
-    def forward(self, b, tr):
-        return self.branch(b) @ self.trunk(tr).T + self.bias
+class DeepONetDDE(AbstractSolver):
+    name = "DeepONet(DeepXDE)"
 
-T = lambda a: torch.tensor(a, dtype=torch.float32, device=dev)
-branch = T(ICs[:, sidx])
-trunk_tr = T(feats(grid(t[tr_mask])))
-y_tr = T(U[:, tr_mask, :].reshape(N, -1))
-M_tr = trunk_tr.shape[0]
+    def __init__(self, m=M, p=P, w=W, d=D, nff=NFF, lr=LR, iterations=ITERS,
+                 batch=BATCH, points=PT, seed=0):
+        self.m, self.p, self.w, self.d = m, p, w, d
+        self.lr, self.iterations, self.batch, self.points, self.seed = lr, iterations, batch, points, seed
+        self.FF = 2.0 ** np.arange(nff)
+        self.Tmax, self.sidx, self.model = None, None, None
 
-def rel_l2(model, mask, idx):
-    g = T(feats(grid(t[mask])))
-    y = T(U[idx][:, mask, :].reshape(len(idx), -1))
-    with torch.no_grad():
-        e = torch.linalg.norm(model(branch[idx], g) - y, dim=1) / torch.linalg.norm(y, dim=1)
-    return float(e.mean())
+    def _feats(self, pts):
+        xc, tc = pts[:, 0:1], pts[:, 1:2] / self.Tmax
+        ang = np.pi * xc * self.FF[None, :]
+        return np.concatenate([xc, tc, np.sin(ang), np.cos(ang)], 1).astype(np.float32)
 
-def train_one(seed):
-    torch.manual_seed(seed); np.random.seed(seed); rng = np.random.default_rng(seed)
-    model = DeepONet().to(dev)
-    opt = torch.optim.Adam(model.parameters(), lr=LR)
-    for it in range(ITERS):
-        bi = rng.choice(train_idx, BATCH, replace=False)
-        pj = rng.choice(M_tr, PT, replace=False)
-        pred = model(branch[bi], trunk_tr[pj])
-        yb = y_tr[bi][:, pj]
-        loss = (torch.linalg.norm(pred - yb, dim=1) / torch.linalg.norm(yb, dim=1)).mean()
-        opt.zero_grad(); loss.backward(); opt.step()
-        if it % 2000 == 0 or it == ITERS - 1:
-            print(f"  seed {seed}  iter {it+1}/{ITERS}  loss {float(loss):.4e}", flush=True)
-    return model, float(loss)
+    def fit(self, dataset):
+        U, ICs, x, t = dataset["u"], dataset["ICs"], dataset["x"], dataset["t"]
+        te, self.Tmax = float(dataset["t_train_end"]), float(dataset["T"])
+        train_idx, val_idx = dataset["train_idx"], dataset["val_idx"]
+        nx = len(x)
+        self.sidx = np.linspace(0, nx - 1, self.m).astype(int)
+        tr = t <= te
 
-runs, best = [], None
-for s in SEEDS:
-    model, fl = train_one(s)
-    r = {"seed": s, "final_train_loss": fl,
-         "train_in_dist": rel_l2(model, tr_mask, train_idx),
-         "val_in_dist": rel_l2(model, tr_mask, val_idx),
-         "test_in_dist": rel_l2(model, tr_mask, test_idx),
-         "train_extrap": rel_l2(model, ex_mask, train_idx),
-         "test_extrap": rel_l2(model, ex_mask, test_idx)}
-    runs.append(r)
-    print("  -> seed %d  train_in_dist=%.4f  val_in_dist=%.4f  test_in_dist=%.4f  test_extrap=%.4f" % (
-        s, r["train_in_dist"], r["val_in_dist"], r["test_in_dist"], r["test_extrap"]), flush=True)
-    if best is None or r["val_in_dist"] < best[0]:
-        best = (r["val_in_dist"], model, s)
+        full = _grid(x, t[tr])
+        y_tr_full = U[train_idx][:, tr, :].reshape(len(train_idx), -1).astype(np.float32)
+        y_va_full = U[val_idx][:, tr, :].reshape(len(val_idx), -1).astype(np.float32)
+        rng = np.random.default_rng(self.seed)
+        sel = np.sort(rng.choice(full.shape[0], min(self.points, full.shape[0]), replace=False))
+        trunk = self._feats(full[sel])
+        br_tr = ICs[train_idx][:, self.sidx].astype(np.float32)
+        br_va = ICs[val_idx][:, self.sidx].astype(np.float32)
 
-def agg(key):
-    v = np.array([r[key] for r in runs])
-    return {"mean": float(v.mean()), "std": float(v.std(ddof=1))}
+        dde.config.set_random_seed(self.seed)
+        data = dde.data.TripleCartesianProd((br_tr, trunk), y_tr_full[:, sel],
+                                            (br_va, trunk), y_va_full[:, sel])
+        net = dde.nn.DeepONetCartesianProd(
+            [self.m] + [self.w] * self.d + [self.p],
+            [trunk.shape[1]] + [self.w] * self.d + [self.p],
+            "relu", "Glorot normal")
+        self.model = dde.Model(data, net)
+        self.model.compile("adam", lr=self.lr, metrics=["l2 relative error"])
+        t0 = time.perf_counter()
+        bs = min(self.batch, br_tr.shape[0])
+        self.model.train(iterations=self.iterations, batch_size=bs,
+                         display_every=max(self.iterations // 10, 1))
+        return {"wall_s": time.perf_counter() - t0, "n_parameters": self.num_parameters()}
 
-info = {"seeds": SEEDS, "n_train": N_TRAIN, "n_val": N_VAL, "n_test": int(len(test_idx)),
-        "t_train_end": te,
-        "train_in_dist": agg("train_in_dist"), "val_in_dist": agg("val_in_dist"),
-        "test_in_dist": agg("test_in_dist"),
-        "train_extrap": agg("train_extrap"), "test_extrap": agg("test_extrap"),
-        "checkpoint_seed": best[2], "runs": runs}
-config = {"n_sensors": M, "latent_dim": P, "width": W, "depth": D, "n_fourier": NFF,
-          "activation": "relu", "lr": LR, "iterations": ITERS, "batch": BATCH, "points": PT,
-          "seeds": SEEDS, "n_train": N_TRAIN, "n_val": N_VAL, "T": Tmax}
+    def predict(self, ic, x, t):
+        pts = np.stack([np.asarray(x).ravel(), np.asarray(t).ravel()], 1).astype(np.float32)
+        br = ic[self.sidx][None, :].astype(np.float32)
+        return np.asarray(self.model.predict((br, self._feats(pts)))).reshape(-1)
 
-os.makedirs(OUT, exist_ok=True)
-torch.save(best[1].state_dict(), f"{OUT}/model.pt")
-np.savez(f"{OUT}/meta.npz", sensor_idx=sidx, x=x, t=t,
-         train_idx=train_idx, val_idx=val_idx, test_idx=test_idx)
-json.dump(config, open(f"{OUT}/config.json", "w"), indent=2)
-json.dump(info, open(f"{OUT}/training_info.json", "w"), indent=2)
-print("test in_dist=%.4f±%.4f | test extrap=%.4f±%.4f" % (
-    info["test_in_dist"]["mean"], info["test_in_dist"]["std"],
-    info["test_extrap"]["mean"], info["test_extrap"]["std"]))
+    def predict_grid(self, ics, x, t, chunk=100):
+        trunk = self._feats(_grid(x, t))
+        outs = []
+        for s in range(0, len(ics), chunk):
+            br = ics[s:s + chunk][:, self.sidx].astype(np.float32)
+            outs.append(np.asarray(self.model.predict((br, trunk))))
+        return np.concatenate(outs, 0).reshape(len(ics), len(t), len(x))
+
+    def num_parameters(self):
+        return int(sum(q.numel() for q in self.model.net.parameters())) if self.model else 0
+
+
+def main(smoke=False):
+    print("device:", "cuda" if torch.cuda.is_available() else "cpu", flush=True)
+    U, ICs, x, t, te, Tmax = load()
+    N = U.shape[0]
+    train_idx, val_idx, test_idx = split(N)
+
+    iters, seeds = (300, [0]) if smoke else (ITERS, SEEDS)
+    if smoke:
+        train_idx, val_idx, test_idx = train_idx[:32], val_idx[:8], test_idx[:8]
+
+    ds = {"u": U, "ICs": ICs, "x": x, "t": t, "t_train_end": te, "T": Tmax,
+          "train_idx": train_idx, "val_idx": val_idx}
+
+    runs, best = [], None
+    for sd in seeds:
+        solver = DeepONetDDE(m=M, iterations=iters, seed=sd)
+        fit = solver.fit(ds)
+        etr = evaluate(solver, U, ICs, x, t, te, train_idx)
+        eva = evaluate(solver, U, ICs, x, t, te, val_idx)
+        ete = evaluate(solver, U, ICs, x, t, te, test_idx)
+        r = {"seed": sd, "wall_s": fit["wall_s"], "n_parameters": fit["n_parameters"],
+             "train_in_dist": etr["in_dist_mean"], "val_in_dist": eva["in_dist_mean"],
+             "test_in_dist": ete["in_dist_mean"], "test_extrap": ete["extrap_mean"]}
+        runs.append(r)
+        print("  seed %d  train_in=%.4f val_in=%.4f test_in=%.4f test_extrap=%.4f" %
+              (sd, r["train_in_dist"], r["val_in_dist"], r["test_in_dist"], r["test_extrap"]), flush=True)
+        if best is None or r["val_in_dist"] < best[0]:
+            best = (r["val_in_dist"], sd)
+
+    def agg(k):
+        v = np.array([r[k] for r in runs])
+        return {"mean": float(v.mean()), "std": float(v.std(ddof=1) if len(v) > 1 else 0.0)}
+
+    info = {"model": "DeepONet(DeepXDE)", "library": "deepxde", "n_sensors": M, "latent_dim": P,
+            "width": W, "depth": D, "n_fourier": NFF, "lr": LR, "iterations": iters,
+            "batch": BATCH, "points": PT, "seeds": seeds, "checkpoint_seed": best[1],
+            **{k: agg(k) for k in ["train_in_dist", "val_in_dist", "test_in_dist", "test_extrap"]},
+            "runs": runs}
+    os.makedirs(OUT, exist_ok=True)
+    json.dump(info, open(os.path.join(OUT, "training_info.json"), "w"), indent=2)
+    print("test in_dist=%.4f±%.4f | test extrap=%.4f±%.4f" %
+          (info["test_in_dist"]["mean"], info["test_in_dist"]["std"],
+           info["test_extrap"]["mean"], info["test_extrap"]["std"]))
+
+
+if __name__ == "__main__":
+    main(smoke="--smoke" in sys.argv)
