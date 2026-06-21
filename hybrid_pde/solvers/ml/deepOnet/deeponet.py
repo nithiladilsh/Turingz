@@ -13,9 +13,10 @@ from hybrid_pde.common import AbstractSolver, evaluate, load, split
 OUT = os.path.join(_ROOT, "results", "deeponet")
 _SWEEP = os.path.join(OUT, "sensor_sweep.json")
 M = json.load(open(_SWEEP)).get("recommended_n_sensors", 100) if os.path.exists(_SWEEP) else 100
-P, W, D, NFF = 256, 256, 4, 6
-LR, ITERS, BATCH, PT = 1e-3, 30000, 64, 8192
-SEEDS = [0, 1, 2, 3, 4]
+P, W, D, NFF = 512, 256, 4, 6
+ACT = "tanh"
+LR, ITERS, BATCH, PT = 1e-3, 30000, 64, 16384
+SEEDS = [0, 1, 2]
 
 
 def _grid(x, tt):
@@ -32,6 +33,7 @@ class DeepONetDDE(AbstractSolver):
         self.lr, self.iterations, self.batch, self.points, self.seed = lr, iterations, batch, points, seed
         self.FF = 2.0 ** np.arange(nff)
         self.Tmax, self.sidx, self.model = None, None, None
+        self.u_mean, self.u_std = 0.0, 1.0
 
     def _feats(self, pts):
         xc, tc = pts[:, 0:1], pts[:, 1:2] / self.Tmax
@@ -49,6 +51,9 @@ class DeepONetDDE(AbstractSolver):
         full = _grid(x, t[tr])
         y_tr_full = U[train_idx][:, tr, :].reshape(len(train_idx), -1).astype(np.float32)
         y_va_full = U[val_idx][:, tr, :].reshape(len(val_idx), -1).astype(np.float32)
+        self.u_mean, self.u_std = float(y_tr_full.mean()), float(y_tr_full.std() + 1e-8)
+        y_tr_full = (y_tr_full - self.u_mean) / self.u_std
+        y_va_full = (y_va_full - self.u_mean) / self.u_std
         rng = np.random.default_rng(self.seed)
         sel = np.sort(rng.choice(full.shape[0], min(self.points, full.shape[0]), replace=False))
         trunk = self._feats(full[sel])
@@ -61,7 +66,7 @@ class DeepONetDDE(AbstractSolver):
         net = dde.nn.DeepONetCartesianProd(
             [self.m] + [self.w] * self.d + [self.p],
             [trunk.shape[1]] + [self.w] * self.d + [self.p],
-            "relu", "Glorot normal")
+            ACT, "Glorot normal")
         self.model = dde.Model(data, net)
         self.model.compile("adam", lr=self.lr, metrics=["l2 relative error"])
         t0 = time.perf_counter()
@@ -73,14 +78,15 @@ class DeepONetDDE(AbstractSolver):
     def predict(self, ic, x, t):
         pts = np.stack([np.asarray(x).ravel(), np.asarray(t).ravel()], 1).astype(np.float32)
         br = ic[self.sidx][None, :].astype(np.float32)
-        return np.asarray(self.model.predict((br, self._feats(pts)))).reshape(-1)
+        out = np.asarray(self.model.predict((br, self._feats(pts)))) * self.u_std + self.u_mean
+        return out.reshape(-1)
 
     def predict_grid(self, ics, x, t, chunk=100):
         trunk = self._feats(_grid(x, t))
         outs = []
         for s in range(0, len(ics), chunk):
             br = ics[s:s + chunk][:, self.sidx].astype(np.float32)
-            outs.append(np.asarray(self.model.predict((br, trunk))))
+            outs.append(np.asarray(self.model.predict((br, trunk))) * self.u_std + self.u_mean)
         return np.concatenate(outs, 0).reshape(len(ics), len(t), len(x))
 
     def num_parameters(self):
@@ -131,7 +137,8 @@ def main(smoke=False):
     best_solver = best[2]
     torch.save(best_solver.model.net.state_dict(), os.path.join(OUT, "model.pt"))
     json.dump({"n_sensors": M, "latent_dim": P, "width": W, "depth": D,
-               "n_fourier": NFF, "T": Tmax, "library": "deepxde",
+               "n_fourier": NFF, "T": Tmax, "library": "deepxde", "activation": ACT,
+               "u_mean": best_solver.u_mean, "u_std": best_solver.u_std,
                "checkpoint_seed": best[1]},
               open(os.path.join(OUT, "config.json"), "w"), indent=2)
     print("saved model.pt (seed %d) and config.json" % best[1])
