@@ -1,0 +1,81 @@
+{
+  "surrogate": "DeepONet(cached)",
+  "ic": 900,
+  "reports": [
+    {
+      "accuracy_target": 0.5,
+      "switch_index": 129,
+      "switch_time": 1.2964646464646465,
+      "corrector": "spectral",
+      "numerical_steps_spent": 70,
+      "ml_steps_used": 129,
+      "wall_ms": 1325.8000000000002,
+      "achieved_extrap_error": 0.4324067281152068,
+      "target_met": true,
+      "handover_jump": 0.02243009251289399,
+      "controller_choice": {
+        "tau": 0.5
+      }
+    },
+    {
+      "accuracy_target": 0.35,
+      "switch_index": 114,
+      "switch_time": 1.1457070707070707,
+      "corrector": "spectral",
+      "numerical_steps_spent": 85,
+      "ml_steps_used": 114,
+      "wall_ms": 1609.9,
+      "achieved_extrap_error": 0.289550910747413,
+      "target_met": true,
+      "handover_jump": 0.016667477921618563,
+      "controller_choice": {
+        "tau": 0.65
+      }
+    },
+    {
+      "accuracy_target": 0.25,
+      "switch_index": 22,
+      "switch_time": 0.22106060606060607,
+      "corrector": "spectral",
+      "numerical_steps_spent": 177,
+      "ml_steps_used": 22,
+      "wall_ms": 3352.38,
+      "achieved_extrap_error": 0.12530563244933668,
+      "target_met": true,
+      "handover_jump": 0.030603427311503967,
+      "controller_choice": {
+        "tau": 0.75
+      }
+    },
+    {
+      "accuracy_target": 0.2,
+      "switch_index": 17,
+      "switch_time": 0.17080808080808083,
+      "corrector": "spectral",
+      "numerical_steps_spent": 182,
+      "ml_steps_used": 17,
+      "wall_ms": 3447.0800000000004,
+      "achieved_extrap_error": 0.1296958594047738,
+      "target_met": true,
+      "handover_jump": 0.03162758203837857,
+      "controller_choice": {
+        "tau": 0.8
+      }
+    },
+    {
+      "accuracy_target": 0.15,
+      "switch_index": 10,
+      "switch_time": 0.10045454545454545,
+      "corrector": "spectral",
+      "numerical_steps_spent": 189,
+      "ml_steps_used": 10,
+      "wall_ms": 3579.6600000000003,
+      "achieved_extrap_error": 0.14866246024167054,
+      "target_met": true,
+      "handover_jump": 0.031490831135930555,
+      "controller_choice": {
+        "tau": 0.85
+      }
+    }
+  ]
+}

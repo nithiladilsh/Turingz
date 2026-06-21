@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Turingz — Hybrid ML + Numerical PDE Extrapolation</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#0a0e1a; --bg2:#0f1525; --panel:#141b2e; --panel2:#1a2238;
+  --ink:#e8edf7; --muted:#9aa7c2; --line:#26304a;
+  --cyan:#36d6c3; --blue:#5e9bec; --indigo:#7c83ff;
+  --coral:#ff6b6b; --green:#5bd97c; --amber:#f0b760; --violet:#b07cff;
+  --ml:#5bd97c; --fdm:#f0a060; --spectral:#5e9bec; --hybrid:#ff6b6b; --truth:#e8edf7;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;line-height:1.6;overflow-x:hidden}
+a{color:var(--cyan);text-decoration:none}
+h1,h2,h3{line-height:1.2;font-weight:700}
+code{font-family:'JetBrains Mono','Consolas',monospace;background:#0c1220;padding:2px 6px;border-radius:5px;color:var(--cyan);font-size:.86em}
+
+/* layout */
+#nav{position:fixed;top:0;left:0;width:230px;height:100vh;background:linear-gradient(180deg,#0c1220,#0a0e1a);border-right:1px solid var(--line);padding:24px 0;overflow-y:auto;z-index:100}
+#nav .brand{padding:0 22px 18px;border-bottom:1px solid var(--line);margin-bottom:14px}
+#nav .brand b{font-size:1.35rem;background:linear-gradient(90deg,var(--cyan),var(--indigo));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+#nav .brand span{display:block;font-size:.72rem;color:var(--muted);letter-spacing:.5px;margin-top:2px}
+#nav a{display:block;color:var(--muted);padding:9px 22px;font-size:.86rem;border-left:3px solid transparent;transition:.2s}
+#nav a:hover{color:var(--ink);background:#121a2e}
+#nav a.active{color:var(--cyan);border-left-color:var(--cyan);background:#101729}
+#nav a .n{display:inline-block;width:22px;color:#4a5878;font-size:.75rem}
+main{margin-left:230px}
+section{padding:78px 7vw;border-bottom:1px solid var(--line);min-height:60vh;position:relative}
+section h2{font-size:2rem;margin-bottom:6px;display:flex;align-items:center;gap:12px}
+section h2 .tag{font-size:.7rem;font-weight:600;color:var(--bg);background:var(--cyan);padding:3px 9px;border-radius:20px;letter-spacing:.5px}
+section .lead{color:var(--muted);font-size:1.05rem;max-width:780px;margin-bottom:30px}
+.kicker{color:var(--indigo);font-weight:700;letter-spacing:2px;font-size:.78rem;text-transform:uppercase;margin-bottom:8px}
+
+/* hero */
+#overview{min-height:100vh;display:flex;flex-direction:column;justify-content:center;background:radial-gradient(1200px 600px at 70% -10%,#16203a,transparent),var(--bg)}
+.hero-title{font-size:3.3rem;letter-spacing:-1px;margin-bottom:10px}
+.hero-title .grad{background:linear-gradient(90deg,var(--cyan),var(--indigo),var(--violet));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.hero-sub{font-size:1.25rem;color:var(--muted);max-width:760px;margin-bottom:26px}
+#heroCanvasWrap{position:absolute;inset:0;z-index:0;opacity:.55;pointer-events:none}
+#overview .inner{position:relative;z-index:2}
+.pill{display:inline-block;background:#121a2e;border:1px solid var(--line);color:var(--muted);padding:6px 14px;border-radius:30px;font-size:.82rem;margin:4px 6px 4px 0}
+.pill b{color:var(--cyan)}
+
+/* cards/grid */
+.grid{display:grid;gap:18px}
+.g2{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(4,1fr)}
+.card{background:linear-gradient(160deg,var(--panel),var(--bg2));border:1px solid var(--line);border-radius:16px;padding:22px;transition:.25s}
+.card:hover{border-color:#34416a;transform:translateY(-3px);box-shadow:0 14px 40px -20px #000}
+.card h3{font-size:1.1rem;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.card p{color:var(--muted);font-size:.92rem}
+.stat{background:linear-gradient(160deg,var(--panel),var(--bg2));border:1px solid var(--line);border-radius:16px;padding:20px;text-align:center}
+.stat .v{font-size:2.1rem;font-weight:800;background:linear-gradient(90deg,var(--cyan),var(--indigo));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.stat .l{color:var(--muted);font-size:.82rem;margin-top:4px}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+.chartbox{background:linear-gradient(160deg,var(--panel),var(--bg2));border:1px solid var(--line);border-radius:16px;padding:20px}
+.chartbox h3{font-size:1rem;margin-bottom:14px;color:var(--ink)}
+canvas{max-width:100%}
+.badge{font-size:.7rem;padding:3px 8px;border-radius:20px;font-weight:700;letter-spacing:.4px}
+.b-real{background:rgba(91,217,124,.16);color:var(--green);border:1px solid rgba(91,217,124,.35)}
+.b-pending{background:rgba(240,183,96,.14);color:var(--amber);border:1px solid rgba(240,183,96,.32)}
+.note{font-size:.82rem;color:var(--muted);border-left:3px solid var(--indigo);padding:8px 14px;background:#101729;border-radius:0 8px 8px 0;margin-top:14px}
+.callout{background:linear-gradient(120deg,rgba(255,107,107,.1),rgba(124,131,255,.08));border:1px solid #3a2f4a;border-radius:14px;padding:18px 22px;margin-top:18px}
+.callout b{color:var(--coral)}
+
+/* table */
+table{width:100%;border-collapse:collapse;font-size:.9rem;margin-top:10px}
+th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line)}
+th{color:var(--muted);font-weight:600;font-size:.8rem;text-transform:uppercase;letter-spacing:.5px}
+tbody tr:hover{background:#101729}
+td b{color:var(--ink)}
+
+/* buttons */
+.btn{background:#1a2238;border:1px solid var(--line);color:var(--ink);padding:9px 16px;border-radius:10px;cursor:pointer;font-size:.88rem;font-weight:600;transition:.2s}
+.btn:hover{border-color:var(--cyan);color:var(--cyan)}
+.btn.active{background:linear-gradient(90deg,var(--cyan),var(--indigo));color:#06121a;border-color:transparent}
+.btn.play{background:linear-gradient(90deg,var(--green),var(--cyan));color:#06121a;border:none}
+.seg{display:inline-flex;gap:8px;flex-wrap:wrap}
+input[type=range]{width:100%;accent-color:var(--cyan)}
+
+/* pipeline */
+.pipe{display:flex;align-items:stretch;gap:0;flex-wrap:wrap;margin-top:10px}
+.pstage{flex:1;min-width:150px;background:linear-gradient(160deg,var(--panel),var(--bg2));border:1px solid var(--line);border-radius:14px;padding:16px;position:relative}
+.pstage.me{border-color:var(--coral);box-shadow:0 0 0 1px rgba(255,107,107,.3) inset}
+.pstage .who{font-size:.72rem;color:var(--muted)}
+.pstage h4{font-size:.98rem;margin:4px 0 6px}
+.parrow{display:flex;align-items:center;color:var(--indigo);font-size:1.6rem;padding:0 6px}
+.legend{display:flex;gap:18px;flex-wrap:wrap;font-size:.84rem;color:var(--muted);margin:10px 0}
+.legend span{display:flex;align-items:center;gap:6px}
+.meter{height:14px;background:#0c1220;border-radius:10px;overflow:hidden;border:1px solid var(--line)}
+.meter > div{height:100%;transition:width .3s}
+@media(max-width:1100px){.g4{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:1fr}}
+@media(max-width:820px){#nav{display:none}main{margin-left:0}section{padding:50px 6vw}.g2,.g4{grid-template-columns:1fr}.hero-title{font-size:2.3rem}}
+.fade{opacity:0;transform:translateY(24px);transition:.7s}
+.fade.in{opacity:1;transform:none}
+
+/* ---- multipage router ---- */
+.view{display:none}
+.view.active{display:block;animation:vin .5s ease}
+@keyframes vin{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+section.view{min-height:calc(100vh - 58px);border-bottom:none;padding:96px 7vw 120px}
+#overview.view{display:none;align-items:center}
+#overview.view.active{display:flex}
+main{padding-top:58px}
+.topbar{position:fixed;top:0;left:230px;right:0;height:58px;background:rgba(10,14,26,.82);backdrop-filter:blur(12px);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 7vw;z-index:90}
+.topbar .tt{font-weight:700;font-size:1rem;display:flex;align-items:center;gap:10px}
+.topbar .tt .ix{color:#4a5878;font-size:.78rem;font-family:monospace}
+.topbar .ctrls{display:flex;gap:8px;align-items:center}
+.navbtn{background:#141b2e;border:1px solid var(--line);color:var(--ink);width:34px;height:34px;border-radius:9px;cursor:pointer;font-size:1rem;transition:.2s;display:flex;align-items:center;justify-content:center}
+.navbtn:hover{border-color:var(--cyan);color:var(--cyan)}
+.navbtn:disabled{opacity:.3;cursor:default}
+.tourbtn{background:linear-gradient(90deg,var(--cyan),var(--indigo));color:#06121a;border:none;padding:8px 16px;border-radius:9px;font-weight:700;cursor:pointer;font-size:.86rem}
+.tourbtn:hover{filter:brightness(1.08)}
+.progress{position:fixed;top:58px;left:230px;right:0;height:3px;background:transparent;z-index:91}
+.progress > div{height:100%;background:linear-gradient(90deg,var(--cyan),var(--indigo),var(--violet));width:0;transition:width .4s}
+/* tour overlay */
+#tour{position:fixed;inset:0;z-index:200;pointer-events:none;display:none}
+#tour.on{display:block}
+#tourCard{position:fixed;left:50%;bottom:40px;transform:translateX(-50%);width:min(720px,86vw);background:linear-gradient(160deg,#16203a,#0f1525);border:1px solid #34416a;border-radius:16px;padding:20px 24px;box-shadow:0 24px 60px -20px #000;pointer-events:auto}
+#tourCard .step{font-size:.74rem;color:var(--indigo);font-weight:700;letter-spacing:1px}
+#tourCard h4{font-size:1.15rem;margin:4px 0 6px}
+#tourCard p{color:var(--muted);font-size:.95rem}
+#tourCard .row{display:flex;justify-content:space-between;align-items:center;margin-top:14px;gap:12px}
+#tourBar{flex:1;height:5px;background:#0c1220;border-radius:6px;overflow:hidden}
+#tourBar > div{height:100%;background:linear-gradient(90deg,var(--cyan),var(--indigo));width:0}
+@media(max-width:820px){.topbar{left:0;padding:0 6vw}.progress{left:0}section.view{padding:84px 6vw 110px}}
+
+</style>
+</head>
+<body>
+
+<nav id="nav">
+  <div class="brand"><b>Turingz</b><span>GROUP 74 · UNIV. OF MORATUWA</span></div>
+  <a href="#overview" class="active"><span class="n">00</span>Overview</a>
+  <a href="#problem"><span class="n">01</span>The Problem</a>
+  <a href="#dataset"><span class="n">02</span>Dataset Generation</a>
+  <a href="#numerical"><span class="n">03</span>Numerical Solvers</a>
+  <a href="#mlmodels"><span class="n">04</span>ML Models</a>
+  <a href="#gap"><span class="n">05</span>The Extrapolation Gap</a>
+  <a href="#hybrid"><span class="n">06</span>Hybrid Engine</a>
+  <a href="#cost"><span class="n">07</span>Cost Module (M3)</a>
+  <a href="#demo"><span class="n">08</span>Live Demo</a>
+  <a href="#validation"><span class="n">09</span>Validation</a>
+  <a href="#summary"><span class="n">10</span>Summary</a>
+</nav>
+
+<main>
+
+<div class="topbar">
+  <div class="tt"><span class="ix" id="tbIx">00 / 10</span><span id="tbTitle">Overview</span></div>
+  <div class="ctrls">
+    <button class="tourbtn" id="startTour">▶ Take the tour</button>
+    <button class="navbtn" id="prevBtn" title="Previous">‹</button>
+    <button class="navbtn" id="nextBtn" title="Next">›</button>
+  </div>
+</div>
+<div class="progress"><div id="progBar"></div></div>
+
+
+<!-- 00 OVERVIEW -->
+<section id="overview" class="view active">
+  <div id="heroCanvasWrap"><canvas id="heroCanvas"></canvas></div>
+  <div class="inner">
+    <div class="kicker">Final-Year Research Project · 10-credit module</div>
+    <h1 class="hero-title">Hybrid <span class="grad">Machine Learning</span> &amp; Numerical Methods<br>for PDE Extrapolation</h1>
+    <p class="hero-sub">One solver that runs fast ML where it can be trusted, and exact numerical computation where it cannot — automatically deciding where the boundary is, at minimum cost.</p>
+    <div style="margin-bottom:26px">
+      <span class="pill">Benchmark: <b>1D viscous Burgers</b> (shock-forming)</span>
+      <span class="pill">ν = <b>1/(100π)</b></span>
+      <span class="pill">x∈[−1,1], t∈[0,2]</span>
+      <span class="pill">Train window <b>t ≤ 1</b>, extrapolate <b>t &gt; 1</b></span>
+    </div>
+    <div class="grid g4" id="heroStats"></div>
+    <p style="margin-top:22px;color:var(--muted);font-size:.9rem">Team: Sandeepa D.S. (214039V) · Dharmapala R.D. (214050V) · <b style="color:var(--cyan)">Mendis B.N.D. (214133E)</b></p>
+  </div>
+</section>
+
+<!-- 01 PROBLEM -->
+<section id="problem" class="view">
+  <div class="kicker">Why this is hard</div>
+  <h2>The Problem <span class="tag">MOTIVATION</span></h2>
+  <p class="lead">Two families of PDE solvers exist, and each has a fundamental weakness the other does not. Neither alone gives fast <em>and</em> trustworthy long-horizon prediction.</p>
+  <div class="grid g2">
+    <div class="card"><h3><span class="dot" style="background:var(--spectral)"></span>Classical numerical solvers</h3><p>Finite-difference, spectral, Cole-Hopf. <b style="color:var(--green)">Accurate &amp; trustworthy</b>, but <b style="color:var(--coral)">computationally expensive</b> for long-time simulation — they must take many tiny time steps.</p></div>
+    <div class="card"><h3><span class="dot" style="background:var(--ml)"></span>Machine-learning solvers</h3><p>PINN, FNO, DeepONet. <b style="color:var(--green)">Extremely fast</b> after training, but <b style="color:var(--coral)">only reliable inside the training window</b>. Past it, error grows and they fail <em>silently</em> — plausible-looking but wrong.</p></div>
+  </div>
+  <div class="callout"><b>The research gap.</b> At deployment there is <b>no ground truth</b> to tell us when the ML model has failed. The hybrid must decide, on its own, <b>when</b> to trust ML, <b>how</b> to correct it with numerics, and <b>how much</b> numerical effort to spend. Those three decisions are exactly the three member modules.</div>
+</section>
+
+<!-- 02 DATASET -->
+<section id="dataset" class="view">
+  <div class="kicker">Phase 1 · Shared foundation</div>
+  <h2>Dataset Generation <span class="tag">VERIFIED</span></h2>
+  <p class="lead">Ground truth is generated by the <b>Cole-Hopf transform</b> — the exact analytical solution of viscous Burgers — then independently verified against a 4th-order spectral solver before any model sees it.</p>
+  <div class="grid g4" style="margin-bottom:24px" id="dataStats"></div>
+  <div class="grid g2">
+    <div class="chartbox"><h3>Initial-condition samples (animated)</h3><canvas id="icCanvas" height="240"></canvas>
+      <div class="legend"><span>Random 4-mode sinusoidal ICs, each normalised. The set is fixed by seed 42 — fully reproducible.</span></div></div>
+    <div class="card">
+      <h3>How the data is built</h3>
+      <p style="margin-bottom:10px">A continuous field <code>u(x,t)</code> over a 512-point space grid × 200 time levels, for 1000 initial conditions.</p>
+      <table>
+        <tr><td>Reference method</td><td><b>Cole-Hopf (exact)</b></td></tr>
+        <tr><td>Independent verifier</td><td>Spectral IFRK4</td></tr>
+        <tr><td>Agreement</td><td><b style="color:var(--green)">0.011%</b> rel-L2</td></tr>
+        <tr><td>IC split</td><td>800 train / 100 val / 100 test</td></tr>
+        <tr><td>Time split</td><td>train t≤1 · extrapolate t&gt;1</td></tr>
+      </table>
+      <div class="note">Earlier the dataset had only 8 ICs and models <b>memorised</b> instead of learning (87% error on unseen ICs). Scaling to 1000 ICs fixed this — a documented correction, not a guess.</div>
+    </div>
+  </div>
+</section>
+
+<!-- 03 NUMERICAL -->
+<section id="numerical" class="view">
+  <div class="kicker">The trustworthy-but-expensive family</div>
+  <h2>Numerical Solvers <span class="tag">MEASURED</span></h2>
+  <p class="lead">Three numerical solvers were built and benchmarked. They define the accuracy ceiling and the cost the hybrid is trying to avoid paying in full.</p>
+  <div class="grid g2">
+    <div class="chartbox"><h3>Accuracy vs Cole-Hopf truth <span class="badge b-real">REAL</span></h3><canvas id="numAccChart" height="230"></canvas></div>
+    <div class="chartbox"><h3>Cost — wall-time per solve <span class="badge b-real">REAL</span></h3><canvas id="numCostChart" height="230"></canvas></div>
+  </div>
+  <div class="grid g3" style="margin-top:18px" id="numCards"></div>
+  <div class="callout"><b>Key trade-off discovered.</b> Spectral is essentially exact (0.011%) but a full solve takes <b>3.29 s</b>. FDM is <b>24× cheaper per step</b> but carries 16% error from artificial numerical diffusion. This 24× spread is precisely the lever the cost module pulls.</div>
+</section>
+
+<!-- 04 ML MODELS -->
+<section id="mlmodels" class="view">
+  <div class="kicker">The fast-but-fragile family</div>
+  <h2>ML Models <span class="tag">3 SURROGATES</span></h2>
+  <p class="lead">Three operator/PDE surrogates were trained on the same data through one shared interface. DeepONet is fully evaluated (5 seeds); FNO and PINN are trained, with full evaluation scheduled on the GPU host.</p>
+  <div class="grid g3" id="mlCards" style="margin-bottom:22px"></div>
+  <div class="grid g2">
+    <div class="chartbox"><h3>DeepONet error by regime — 5 seeds <span class="badge b-real">REAL</span></h3><canvas id="mlBarChart" height="240"></canvas></div>
+    <div class="card">
+      <h3>What the comparison shows</h3>
+      <p>Every surrogate is fast and accurate <em>inside</em> the training window, then degrades in extrapolation. The differences:</p>
+      <table>
+        <tr><th>Model</th><th>Design strength</th><th>Generalises across ICs?</th></tr>
+        <tr><td><b>DeepONet</b></td><td>operator learning</td><td>Yes (1 model, all ICs)</td></tr>
+        <tr><td><b>FNO</b></td><td>shock/transport via Fourier</td><td>Yes (expected best)</td></tr>
+        <tr><td><b>PINN</b></td><td>physics residual loss</td><td>No — one net per IC</td></tr>
+      </table>
+      <div class="note">Sensor count (64→256) makes no meaningful difference for DeepONet — reported as insensitive. The ~30% in-distribution floor is a known limitation of vanilla DeepONet on sharp shocks, not a bug.</div>
+    </div>
+  </div>
+</section>
+
+<!-- 05 GAP -->
+<section id="gap" class="view">
+  <div class="kicker">The empirical heart of the project</div>
+  <h2>The Extrapolation Gap <span class="tag">REAL DATA</span></h2>
+  <p class="lead">This is the failure the whole hybrid exists to fix. Watch a trained ML solver stay accurate up to t = 1, then diverge — producing a smooth, believable, <em>wrong</em> answer with no warning.</p>
+  <div class="grid g2">
+    <div class="chartbox"><h3>DeepONet error vs time (held-out test ICs) <span class="badge b-real">REAL</span></h3><canvas id="gapChart" height="250"></canvas>
+      <div class="legend">
+        <span><span class="dot" style="background:var(--ml)"></span>DeepONet</span>
+        <span><span class="dot" style="background:var(--amber)"></span>Persistence baseline</span>
+        <span><span class="dot" style="background:var(--muted)"></span>Train window ends t=1</span>
+      </div>
+    </div>
+    <div>
+      <div class="grid g2" id="gapStats"></div>
+      <div class="callout" style="margin-top:18px"><b>Worse than doing nothing.</b> In the extrapolation window DeepONet's error (≈70%) is <b>worse than a naive persistence baseline (53%)</b> that simply freezes the solution at t=1. The operator has not learned the forward-time dynamics at all — clean, strong evidence of extrapolation failure.</div>
+    </div>
+  </div>
+</section>
+
+<!-- 06 HYBRID -->
+<section id="hybrid" class="view">
+  <div class="kicker">The solution — one pipeline, three contributions</div>
+  <h2>The Hybrid Engine <span class="tag">SYSTEM</span></h2>
+  <p class="lead">The fast ML model runs while it can be trusted; numerical computation is injected exactly when it is about to go wrong. Three independent modules make the three decisions, talking only through small fixed data contracts.</p>
+  <div class="pipe">
+    <div class="pstage"><div class="who">Shared · Phase 1</div><h4>ML rollout</h4><p style="font-size:.85rem;color:var(--muted)">Fast surrogate predicts forward — cheap.</p></div>
+    <div class="parrow">→</div>
+    <div class="pstage"><div class="who">M1 · Sandeepa (214039V)</div><h4>Trust</h4><p style="font-size:.85rem;color:var(--muted)">Watches the rollout, outputs a trust score, raises a flag when ML is no longer reliable.</p></div>
+    <div class="parrow">→</div>
+    <div class="pstage"><div class="who">M2 · Dharmapala (214050V)</div><h4>Coupling</h4><p style="font-size:.85rem;color:var(--muted)">Hands the state to the numerical solver and re-anchors the trajectory — continuous, no jumps.</p></div>
+    <div class="parrow">→</div>
+    <div class="pstage me"><div class="who">M3 · Mendis (214133E) — this module</div><h4>Cost-Aware Control</h4><p style="font-size:.85rem;color:var(--muted)">Decides how much numerical effort to spend for a target accuracy, and runs the whole thing as a live tool.</p></div>
+  </div>
+  <div class="grid g3" style="margin-top:22px">
+    <div class="card"><h3>Trust contract</h3><p><code>(state, t) → trust∈[0,1] + flag</code><br>M1 → M2 and M3</p></div>
+    <div class="card"><h3>Hybrid-rollout contract</h3><p><code>(IC, ML, numerical, trigger) → u(x,t)</code><br>M2 → M3</p></div>
+    <div class="card me" style="border-color:var(--coral)"><h3>Run / deploy contract</h3><p><code>(IC, accuracy target) → solution + cost</code><br>M3 → final demo</p></div>
+  </div>
+  <div class="note">Clean interfaces let each member build and test independently against a stub, then swap stubs for real modules at integration — no internal rewrite.</div>
+</section>
+
+<!-- 07 COST MODULE -->
+<section id="cost" class="view">
+  <div class="kicker">My contribution · Module 3</div>
+  <h2>Cost-Aware Adaptive Control <span class="tag">214133E</span></h2>
+  <p class="lead">Not a trained model — a <b>method</b>: a profiler, a measured accuracy–cost frontier, an adaptive controller, and a deployable runtime. This is the practical justification for the entire project: proof the hybrid actually beats both extremes.</p>
+  <div class="grid g4" id="costStats" style="margin-bottom:24px"></div>
+  <div class="grid g2">
+    <div class="chartbox"><h3>Cost vs accuracy — the Pareto frontier <span class="badge b-real">REAL · IC 900</span></h3><canvas id="frontierChart" height="260"></canvas>
+      <div class="legend">
+        <span><span class="dot" style="background:var(--hybrid)"></span>Hybrid frontier</span>
+        <span><span class="dot" style="background:var(--ml)"></span>Pure ML</span>
+        <span><span class="dot" style="background:var(--truth)"></span>Pure numerical</span>
+      </div>
+    </div>
+    <div class="chartbox"><h3>Adaptive vs fixed controller <span class="badge b-real">REAL</span></h3><canvas id="controllerChart" height="260"></canvas>
+      <div class="legend"><span>Numerical steps spent to hit each accuracy target. Lower = cheaper.</span></div>
+    </div>
+  </div>
+  <div class="callout"><b>The honest headline finding.</b> The hybrid beats pure-ML by ~6× accuracy and reaches a 2×-better-than-ML solution at <b>2.34× lower cost</b> than pure-numerical. Its accuracy floor (0.10) is set by the <em>surrogate's hand-over error</em>, not the numerical solver — a quantified result that predicts a sharper surrogate (FNO) will push the floor lower. We report this limitation openly, not hide it.</div>
+</section>
+
+<!-- 08 LIVE DEMO -->
+<section id="demo" class="view">
+  <div class="kicker">See it run — all solvers side by side</div>
+  <h2>Live Demo <span class="tag">INTERACTIVE</span></h2>
+  <p class="lead">Every solver runs against the same true answer at once. Toggle any of them, press play, and compare error and cost live in the table. Watch ML diverge while the hybrid stays locked on the truth.</p>
+
+  <div class="chartbox">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;margin-bottom:14px">
+      <div class="seg" id="solverChips"></div>
+      <div class="seg">
+        <button class="btn play" id="playBtn">▶ Play</button>
+        <button class="btn" id="resetBtn">⟲ Reset</button>
+      </div>
+    </div>
+    <canvas id="demoCanvas" height="320"></canvas>
+    <div style="margin-top:4px">
+      <div style="display:flex;justify-content:space-between;font-size:.82rem;color:var(--muted)"><span>time t — drag to scrub</span><span id="tReadout">0.00</span></div>
+      <input type="range" id="timeSlider" min="0" max="99" value="0">
+      <div id="regimeTag" style="font-size:.84rem;margin-top:4px"></div>
+    </div>
+
+    <h3 style="margin:22px 0 6px;font-size:1rem">Side-by-side comparison <span style="font-size:.78rem;color:var(--muted);font-weight:400">— "now" column updates as it plays</span></h3>
+    <table id="cmpTable">
+      <thead><tr><th>Solver</th><th>Family</th><th>Error now</th><th>Mean extrap (t&gt;1)</th><th>In-window (t≤1)</th><th>Cost (steps)</th><th>Cost (ms)</th></tr></thead>
+      <tbody id="cmpBody"></tbody>
+    </table>
+
+    <div id="hybridControls" style="margin-top:18px;max-width:520px">
+      <div style="display:flex;justify-content:space-between;font-size:.84rem;color:var(--muted)"><span>Hybrid accuracy knob (target error)</span><span id="knobReadout">0.20</span></div>
+      <input type="range" id="knob" min="0" max="4" value="3">
+      <div style="font-size:.8rem;color:var(--muted);margin-top:4px">Moves the hybrid along the measured frontier — tighter target spends more numerical steps.</div>
+    </div>
+    <div id="demoExplain" class="note" style="margin-top:16px"></div>
+  </div>
+  <div class="callout"><b>What to watch for.</b> Pure ML (DeepONet) tracks the truth until t=1, then explodes. Spectral is perfect everywhere but pays full cost. FDM is cheap but biased. The hybrid stays locked on the truth <em>and</em> keeps cost down. <b>FNO &amp; PINN</b> populate once you run <code>generate_web_data.py</code> on a machine with PyTorch — PINN is per-IC and has no model for this unseen test IC, which is itself the point.</div>
+</section>
+
+<!-- 09 VALIDATION -->
+<section id="validation" class="view">
+  <div class="kicker">Why every number here is trustworthy</div>
+  <h2>Validation <span class="tag">RIGOR</span></h2>
+  <p class="lead">Each claim is backed by an independent check, with no test-set leakage and full reproducibility.</p>
+  <div class="grid g3" id="valCards"></div>
+  <div class="note">All sandbox results use the real trained DeepONet field on held-out test IC 900 and pure-NumPy solvers. The identical code produces the official multi-model, multi-IC, GPU numbers on the training host.</div>
+</section>
+
+<!-- 10 SUMMARY -->
+<section id="summary" class="view">
+  <div class="kicker">Where we are</div>
+  <h2>Summary &amp; Next Steps <span class="tag">STATUS</span></h2>
+  <div class="grid g2">
+    <div class="card"><h3 style="color:var(--green)">✓ Done</h3><p>Phase 1 platform (data, 3 numerical solvers, 3 ML surrogates, shared eval). DeepONet fully evaluated. Extrapolation failure quantified. Module 3 built end-to-end: profiler, accuracy–cost model, Pareto frontier, adaptive controller, deployable runtime — 12/12 verification tests passing on real data.</p></div>
+    <div class="card"><h3 style="color:var(--amber)">→ Next</h3><p>Run the full FNO / DeepONet / PINN multi-IC sweep on the GPU host. Integrate M1's calibrated trust and M2's re-anchoring coupling into the runtime (drop-in, no rewrite). Confirm a sharper surrogate lowers the hybrid floor toward full dominance.</p></div>
+  </div>
+  <div class="callout" style="margin-top:20px"><b>One line for the panel.</b> Module 3 is not a trained model — it is a measured cost-aware control method and a deployable runtime that, on a real shock-forming PDE, turns the ML/numerical trade-off into a single tunable knob, with every number reproducible and the one failure mode quantified rather than hidden.</div>
+  <p style="margin-top:30px;color:var(--muted);font-size:.85rem">Turingz · Group 74 · University of Moratuwa — prepared for supervisor review.</p>
+</section>
+
+
+<div id="tour">
+  <div id="tourCard">
+    <div class="step" id="tourStep">STEP 1 / 10</div>
+    <h4 id="tourTitle"></h4>
+    <p id="tourText"></p>
+    <div class="row">
+      <div id="tourBar"><div></div></div>
+      <div style="display:flex;gap:8px">
+        <button class="navbtn" id="tourPause" title="Pause">❚❚</button>
+        <button class="navbtn" id="tourNext" title="Next">›</button>
+        <button class="tourbtn" id="tourExit" style="padding:8px 14px">Exit tour</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</main>
+<script src="web_data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
