@@ -11,7 +11,9 @@ sys.path.insert(0, _ROOT)
 from hybrid_pde.common import AbstractSolver, evaluate, load, split
 
 OUT = os.path.join(_ROOT, "results", "deeponet")
-M, P, W, D, NFF = 100, 256, 256, 4, 6
+_SWEEP = os.path.join(OUT, "sensor_sweep.json")
+M = json.load(open(_SWEEP)).get("recommended_n_sensors", 100) if os.path.exists(_SWEEP) else 100
+P, W, D, NFF = 256, 256, 4, 6
 LR, ITERS, BATCH, PT = 1e-3, 30000, 64, 8192
 SEEDS = [0, 1, 2, 3, 4]
 
@@ -112,7 +114,7 @@ def main(smoke=False):
         print("  seed %d  train_in=%.4f val_in=%.4f test_in=%.4f test_extrap=%.4f" %
               (sd, r["train_in_dist"], r["val_in_dist"], r["test_in_dist"], r["test_extrap"]), flush=True)
         if best is None or r["val_in_dist"] < best[0]:
-            best = (r["val_in_dist"], sd)
+            best = (r["val_in_dist"], sd, solver)
 
     def agg(k):
         v = np.array([r[k] for r in runs])
@@ -125,6 +127,14 @@ def main(smoke=False):
             "runs": runs}
     os.makedirs(OUT, exist_ok=True)
     json.dump(info, open(os.path.join(OUT, "training_info.json"), "w"), indent=2)
+
+    best_solver = best[2]
+    torch.save(best_solver.model.net.state_dict(), os.path.join(OUT, "model.pt"))
+    json.dump({"n_sensors": M, "latent_dim": P, "width": W, "depth": D,
+               "n_fourier": NFF, "T": Tmax, "library": "deepxde",
+               "checkpoint_seed": best[1]},
+              open(os.path.join(OUT, "config.json"), "w"), indent=2)
+    print("saved model.pt (seed %d) and config.json" % best[1])
     print("test in_dist=%.4f±%.4f | test extrap=%.4f±%.4f" %
           (info["test_in_dist"]["mean"], info["test_in_dist"]["std"],
            info["test_extrap"]["mean"], info["test_extrap"]["std"]))

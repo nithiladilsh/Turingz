@@ -6,7 +6,7 @@ import deepxde as dde
 
 NU = 1.0 / (100 * np.pi)
 T_TRAIN = 1.0
-N_ICS = 10
+EVAL_IDS = list(range(900, 910))
 ADAM_ITERS = 15000
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -18,7 +18,7 @@ os.makedirs(SAVE, exist_ok=True)
 d = torch.load(DATA)
 x_grid = d["x"].numpy()
 ICs = d["ICs"].numpy()
-np.save(os.path.join(SAVE, "train_ics.npy"), ICs[:N_ICS])
+np.save(os.path.join(SAVE, "train_ics.npy"), ICs[EVAL_IDS])
 
 geom = dde.geometry.Interval(-1, 1)
 timedomain = dde.geometry.TimeDomain(0, T_TRAIN)
@@ -50,8 +50,8 @@ def train_one(i):
     model.train()
     torch.save(net.state_dict(), os.path.join(SAVE, f"pinn_ic{i}.pt"))
 
-for i in range(N_ICS):
+for i in EVAL_IDS:
     print(f"\n=== training PINN for IC {i} ===")
     train_one(i)
 
-print(f"\nDone. {N_ICS} trained PINNs saved to {SAVE}")
+print(f"\nDone. {len(EVAL_IDS)} trained PINNs saved to {SAVE}")

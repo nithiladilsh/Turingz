@@ -4,7 +4,7 @@ import torch
 from torch.utils.data import TensorDataset, DataLoader
 from neuralop.models import FNO
 
-N_TRAIN = 900
+N_TRAIN = 800
 EPOCHS = 50
 BATCH = 64
 LR = 1e-3
