@@ -23,7 +23,6 @@ def summarize(c):
             "extrapolation": float(c[t > te].mean()),
             "reliable_horizon": float(t[over[0]]) if len(over) else float(t[-1])}
 
-# ---------- Experiment 1: fair 3-way comparison on operator-unseen ICs ----------
 ut = data["u_true_eval"]
 keymap = {"PINN": "PINN", "FNO": "FNO_eval", "DeepONet": "DeepONet_eval"}
 eval_pred = {m: data[k] for m, k in keymap.items() if k in data.files}
@@ -38,7 +37,7 @@ for m in eval_pred:
 
 plt.figure(figsize=(8, 5))
 for m in eval_pred:
-    plt.plot(t, curves[m] * 100, lw=2, label=f"{m} (reliable to t={summary[m]['reliable_horizon']:.2f})")
+    plt.plot(t, curves[m] * 100, lw=2, label=f"{m}")
 plt.axvline(te, color="k", ls="--", lw=1, label="train / extrapolation split")
 plt.axhline(THRESHOLD * 100, color="gray", ls=":", lw=1)
 plt.xlabel("time t"); plt.ylabel("relative error vs Cole-Hopf (%)")
@@ -66,7 +65,6 @@ for j, tt in enumerate(snaps):
 ax[0].set_ylabel("u"); ax[0].legend(fontsize=8)
 plt.tight_layout(); plt.savefig(os.path.join(OUT, "3_snapshots.png"), dpi=150); plt.close()
 
-# ---------- Experiment 2: operator generalization (seen vs unseen ICs) ----------
 us = data["u_true_seen"]
 gen = {}
 plt.figure(figsize=(8, 5))

@@ -13,10 +13,10 @@ from hybrid_pde.common import AbstractSolver, evaluate, load, split
 OUT = os.path.join(_ROOT, "results", "deeponet")
 _SWEEP = os.path.join(OUT, "sensor_sweep.json")
 M = json.load(open(_SWEEP)).get("recommended_n_sensors", 100) if os.path.exists(_SWEEP) else 100
-P, W, D, NFF = 512, 256, 4, 6
-ACT = "tanh"
-LR, ITERS, BATCH, PT = 1e-3, 30000, 64, 16384
-SEEDS = [0, 1, 2]
+P, W, D, NFF = 256, 256, 4, 6
+ACT = "relu"
+LR, ITERS, BATCH, PT = 1e-3, 30000, 64, 8192
+SEEDS = [0, 1, 2, 3, 4]
 
 
 def _grid(x, tt):
