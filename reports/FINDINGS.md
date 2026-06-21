@@ -1,47 +1,59 @@
-# Findings so far — Burgers operator/PINN study
+# Findings — Burgers operator / PINN extrapolation study
 
-## Solvers & data quality
-- The spectral (IFRK4) solver had a hidden bug that made it only 2nd-order accurate; fixed, it is now properly 4th-order.
-- Cole-Hopf (analytical) and spectral agree to ~8x10^-4 on a random 64-IC subset, so the training data is trustworthy (verified against an independent method).
-- The original dataset had only 8 initial conditions (ICs) — far too few; it caused the operators to memorize rather than learn.
-- Dataset scaled to 1000 ICs (Cole-Hopf), each on a 512-point space grid x 200 time steps (x in [-1, 1], t in [0, 2]).
+## Problem & data
+- 1D viscous Burgers, nu = 1/(100*pi) (sharp near-shock regime).
+- Cole-Hopf analytical dataset: 1000 ICs, 512 space points (x in [-1,1]) x 200 time steps (t in [0,2]).
+- Data verified against an independent pseudo-spectral (IFRK4) solver: max relative L2 ~8.5e-4 on a random 64-IC subset.
+- IC 0 is sin(pi x); the rest are random 4-mode Fourier ICs (max amplitude 1).
 
-## DeepONet
-- With 8 ICs: ~4% error on training ICs but ~87% on unseen ICs — pure memorization.
-- With 1000 ICs: generalization to unseen ICs improved from ~87% to ~28%.
+## Splits & protocol
+- Operators: train on ICs 0..N-1, held-out test on ICs 900..999 (never trained/tuned on).
+  - DeepONet trains on 800 ICs; FNO currently on 900 ICs (see caveats).
+- PINN: one network per IC, trained on ICs 0..9 (a PINN is not an operator — it solves a single IC).
+- Time split: train on t <= 1; t > 1 is the held-out extrapolation window.
+- All ML models trained with a relative-L2 objective (consistent across methods).
+- Metric: per-IC relative L2 over the space-time block, mean +/- std across ICs.
 
-### Final DeepONet results (1000 ICs, 5 seeds, mean +/- std)
-- Train, in-distribution (seen ICs, t <= 1): 14.0% +/- 0.4%
-- Validation, in-distribution (unseen ICs, t <= 1): 27.4% +/- 0.4%
-- Test, in-distribution (unseen ICs, t <= 1): 28.1% +/- 0.3%
-- Test, extrapolation (unseen ICs, t > 1): 68.2% +/- 6.2%
-- The tight std across seeds shows the ~14% training ceiling and the 28% -> 68% in-distribution-to-extrapolation cliff are robust, not noise.
+## Implementations
+- DeepONet: DeepXDE `DeepONetCartesianProd`, 100 sensors, latent 256, width 256, depth 4, 6 Fourier trunk features, ReLU, relative-L2 loss, 30k iters, 5 seeds.
+- FNO: `neuraloperator` FNO, modes 16, width 64, channels [IC, t, x], relative-L2 loss.
+- PINN: DeepXDE FNN [2,64,64,64,64,1], tanh, PDE residual + IC + periodic BC.
 
-### Extrapolation analysis (held-out test ICs, t > 1)
-- Error grows with time past t = 1, reaching ~99% (near-total) at the final time t = 2.
-- DeepONet extrapolation error (~70%) is WORSE than a naive persistence baseline (~53%) that just freezes the solution at t = 1.
-- Interpretation: in the extrapolation window the operator has not learned the forward-time dynamics at all — it would have done better assuming the solution stopped evolving. Strong, clean evidence of extrapolation failure.
+## Cross-method comparison (compare.py — one metric, same ICs)
 
-- The model then hit a ceiling: training error will not go below ~14%. It underfits.
-- Standard fixes tried (bigger network, spatial Fourier features, space-time Fourier features) did NOT break the ~14% plateau.
-- Conclusion: this is a known limitation of vanilla DeepONet on shock-forming problems — not a bug. The sharp, IC-dependent shock front is what its separable structure cannot represent well.
-- Extrapolation in time (t > 1) fails badly (~60-100% error) — expected, and characterizing this failure is a goal of the study.
-- Sensor count (64 to 256) makes no meaningful difference — reported as "insensitive."
-- ReLU is used, not tanh: tanh fits marginally better in-distribution but destroys extrapolation, which is the metric of interest.
+Held-out test ICs (900-999), operators:
 
-## Data splits
-- IC split: 800 train / 100 validation / 100 test (ICs 0-799 / 800-899 / 900-999). Test ICs are never used in training or tuning.
-- Time split: train only on t <= 1 (in-distribution window, ~100 steps); t > 1 is held out as the extrapolation window.
+| Method | in-dist (t<=1) | extrapolation (t>1) |
+|---|---|---|
+| FNO | 0.005 | 0.176 |
+| DeepONet | 0.331 | 0.758 |
+| persistence (freeze at t=1) | - | 0.537 |
 
-## DeepONet training setup
-- Trains on the 800 training ICs, restricted to t <= 1.
-- Mini-batched: 64 random ICs and 8,192 random space-time points per step.
-- Evaluated on train/val/test ICs in both time windows.
+Same ICs (0-9), all three methods head-to-head:
 
-## Sensor sweep setup
-- Trains on the same 800 training ICs (t <= 1).
-- Selects sensor count using the 100 validation ICs (in-distribution error); test ICs stay untouched.
+| Method | in-dist (t<=1) | extrapolation (t>1) |
+|---|---|---|
+| FNO | 0.004 | 0.192 |
+| PINN | 0.057 | 0.289 |
+| DeepONet | 0.123 | 0.687 |
+| persistence | - | 0.568 |
 
-## Cross-method comparison (the actual contribution)
-- Vanilla DeepONet plateauing and failing to extrapolate is the baseline.
-- FNO is designed for shock/transport problems and is expected to do better; the gap between methods is the finding.
+## Key results
+- The FNO is far stronger than the DeepONet in-distribution (~0.5% vs ~33%) and extrapolates best.
+- FNO and PINN both beat the persistence baseline in extrapolation; the **DeepONet is the only method that does worse than persistence** (0.76 vs 0.54), i.e. it would have done better assuming the solution stopped evolving.
+- Field heatmaps (results/fields_ic0.png) confirm the DeepONet prediction is a recognizable but noisy/blurred version of the true field — a genuine architectural limitation on the IC-dependent shock front, not a bug. The FNO field is near-exact; the PINN field is clean.
+
+## DeepONet detail (the baseline)
+- Final (DeepXDE, relative-L2, 5 seeds, test ICs): in-dist 33.8% +/- 0.6%, extrapolation 79.3% +/- 4.6%.
+- The separable branch x trunk structure cannot represent the sharp IC-dependent front; training error plateaus and unseen-IC error sits ~30%.
+- Overfitting in time: extrapolation degrades as training continues (the validation in-dist metric rises from ~0.29 to ~0.32 over 30k iters, and an early-stopped model extrapolated ~0.57 vs ~0.79 at full budget). The operator fits the t<=1 window harder rather than learning forward-time dynamics.
+- Loss-choice ablation: at equal (full) training budget, MSE and relative-L2 give essentially the same result (~34% / ~79%); the loss choice is not what drives the high error.
+
+## Caveats / to finalise
+- Train-set size is not yet matched (DeepONet 800 vs FNO 900) — align for a strictly apples-to-apples table.
+- FNO is currently single-seed (no error bars); run multiple seeds to match the DeepONet's 5-seed reporting.
+- PINNs are on ICs 0-9, which are operator training ICs; operators have an in-distribution edge on that set.
+
+## Contribution
+- The vanilla DeepONet plateau and extrapolation failure is the baseline, not the result.
+- The gap between methods — FNO and PINN holding up while the DeepONet fails worse than persistence — is the finding, established on identical data, splits, time windows, and metric.

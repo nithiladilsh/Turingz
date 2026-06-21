@@ -33,7 +33,7 @@ def grid():
 
 
 # ---- DeepONet (DeepXDE) ----
-dmeta = np.load(os.path.join(R, "deeponet", "deeponet_meta.npz"))
+dmeta = np.load(os.path.join(R, "deeponet_relL2", "deeponet_meta.npz"))
 sidx, Tmax, nff = dmeta["sidx"], float(dmeta["Tmax"]), int(dmeta["nff"])
 FF = 2.0 ** np.arange(nff)
 
@@ -46,7 +46,7 @@ def don_feats(pts):
 
 don = dde.nn.DeepONetCartesianProd([len(sidx)] + [256] * 4 + [256],
                                    [2 + 2 * nff] + [256] * 4 + [256], "relu", "Glorot normal").to(dev)
-don.load_state_dict(torch.load(os.path.join(R, "deeponet", "deeponet_net.pt"),
+don.load_state_dict(torch.load(os.path.join(R, "deeponet_relL2", "deeponet_net.pt"),
                                map_location=dev, weights_only=False))
 don.eval()
 don_trunk = torch.tensor(don_feats(grid()), device=dev)

@@ -1,0 +1,86 @@
+{
+  "model": "DeepONet(DeepXDE, relL2)",
+  "library": "deepxde",
+  "loss": "relative_l2",
+  "n_sensors": 100,
+  "latent_dim": 256,
+  "width": 256,
+  "depth": 4,
+  "n_fourier": 6,
+  "lr": 0.001,
+  "iterations": 30000,
+  "batch": 64,
+  "points": 8192,
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "mode": "full",
+  "checkpoint_seed": 4,
+  "train_in_dist": {
+    "mean": 0.11826537400484086,
+    "std": 0.0020117722055235246
+  },
+  "val_in_dist": {
+    "mean": 0.32453046441078187,
+    "std": 0.0042431596038237365
+  },
+  "test_in_dist": {
+    "mean": 0.337898850440979,
+    "std": 0.005603861348679877
+  },
+  "test_extrap": {
+    "mean": 0.7931557536125183,
+    "std": 0.046135375064001255
+  },
+  "runs": [
+    {
+      "seed": 0,
+      "wall_s": 1637.4478368999553,
+      "n_parameters": 556033,
+      "train_in_dist": 0.11585895717144012,
+      "val_in_dist": 0.32800814509391785,
+      "test_in_dist": 0.33896470069885254,
+      "test_extrap": 0.8456782698631287
+    },
+    {
+      "seed": 1,
+      "wall_s": 1795.8847595000407,
+      "n_parameters": 556033,
+      "train_in_dist": 0.11802036315202713,
+      "val_in_dist": 0.32040005922317505,
+      "test_in_dist": 0.3347664773464203,
+      "test_extrap": 0.7620362043380737
+    },
+    {
+      "seed": 2,
+      "wall_s": 1584.450851200032,
+      "n_parameters": 556033,
+      "train_in_dist": 0.11725057661533356,
+      "val_in_dist": 0.32738932967185974,
+      "test_in_dist": 0.3390704393386841,
+      "test_extrap": 0.7580536603927612
+    },
+    {
+      "seed": 3,
+      "wall_s": 1840.3514008999919,
+      "n_parameters": 556033,
+      "train_in_dist": 0.11896102875471115,
+      "val_in_dist": 0.327443391084671,
+      "test_in_dist": 0.3458593785762787,
+      "test_extrap": 0.8416037559509277
+    },
+    {
+      "seed": 4,
+      "wall_s": 832.4929885999882,
+      "n_parameters": 556033,
+      "train_in_dist": 0.12123594433069229,
+      "val_in_dist": 0.31941139698028564,
+      "test_in_dist": 0.3308332562446594,
+      "test_extrap": 0.7584068775177002
+    }
+  ]
+}

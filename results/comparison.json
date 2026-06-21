@@ -1,0 +1,40 @@
+{
+  "metric": "per-IC relative L2 over the space-time block (norm over t,x); mean +/- std across ICs",
+  "t_train_end": 1.0,
+  "test_ICs_900_999": {
+    "DeepONet": {
+      "in_dist_mean": 0.3308332562446594,
+      "in_dist_std": 0.053319789469242096,
+      "extrap_mean": 0.7584068775177002,
+      "extrap_std": 0.12572845816612244
+    },
+    "FNO": {
+      "in_dist_mean": 0.004680001642554998,
+      "in_dist_std": 0.002393209608271718,
+      "extrap_mean": 0.17615903913974762,
+      "extrap_std": 0.06796521693468094
+    },
+    "persistence_extrap": 0.5367042422294617
+  },
+  "pinn_ICs_0_9_same_ICs_all_methods": {
+    "DeepONet": {
+      "in_dist_mean": 0.12265504896640778,
+      "in_dist_std": 0.007947874255478382,
+      "extrap_mean": 0.6865900754928589,
+      "extrap_std": 0.10435202717781067
+    },
+    "FNO": {
+      "in_dist_mean": 0.004137200769037008,
+      "in_dist_std": 0.002420589793473482,
+      "extrap_mean": 0.1919879913330078,
+      "extrap_std": 0.0483589731156826
+    },
+    "PINN": {
+      "in_dist_mean": 0.05688118189573288,
+      "in_dist_std": 0.0832684338092804,
+      "extrap_mean": 0.28901544213294983,
+      "extrap_std": 0.1898260861635208
+    },
+    "persistence_extrap": 0.5677204132080078
+  }
+}
