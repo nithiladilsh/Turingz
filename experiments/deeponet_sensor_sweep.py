@@ -4,7 +4,7 @@ import numpy as np
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, ROOT)
 from hybrid_pde.common import load, split, evaluate
-from hybrid_pde.solvers.ml.deepOnet.deeponet import DeepONetDDE
+from hybrid_pde.solvers.ml.deepOnet.deeponet import DeepONet
 
 SENSORS = [64, 100, 128, 256]
 SEEDS = [0, 1, 2]
@@ -12,21 +12,19 @@ ITERS = 4000
 OUT = os.path.join(ROOT, "results", "deeponet", "sensor_sweep.json")
 
 U, ICs, x, t, te, Tmax = load()
-train_idx, val_idx, _ = split(U.shape[0])
-ds = {"u": U, "ICs": ICs, "x": x, "t": t, "t_train_end": te, "T": Tmax,
-      "train_idx": train_idx, "val_idx": val_idx}
+tr_idx, va_idx, _ = split(U.shape[0])
 
 summary = []
 for m in SENSORS:
     vals = []
     for sd in SEEDS:
-        solver = DeepONetDDE(m=m, iterations=ITERS, seed=sd)
-        solver.fit(ds)
-        vals.append(evaluate(solver, U, ICs, x, t, te, val_idx)["in_dist_mean"])
+        s = DeepONet(m, Tmax, x)
+        s.fit(U, ICs, x, t, te, tr_idx, va_idx, iterations=ITERS, seed=sd)
+        vals.append(evaluate(s, U, ICs, x, t, te, va_idx)["in_dist_mean"])
     vals = np.array(vals)
     summary.append({"n_sensors": m, "val_in_dist_mean": float(vals.mean()),
                     "val_in_dist_std": float(vals.std(ddof=1) if len(vals) > 1 else 0.0)})
-    print(f"m={m:3d}  val_in_dist={vals.mean():.4f}±{vals.std(ddof=1):.4f}")
+    print(f"m={m:3d}  val_in_dist={vals.mean()*100:.2f}% +/- {vals.std(ddof=1)*100:.2f}")
 
 means = np.array([s["val_in_dist_mean"] for s in summary])
 best = summary[int(means.argmin())]
