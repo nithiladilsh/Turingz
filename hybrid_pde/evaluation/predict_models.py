@@ -16,8 +16,8 @@ U = d["u"].numpy()
 ICs, x, t = d["ICs"], d["x"], d["t"]
 te = float(d["t_train_end"])
 nx = U.shape[-1]
-EVAL = np.arange(900, 910)     # operator-unseen, PINN-trained -> fair 3-way set
-SEEN_OP = np.arange(10)        # operator training ICs -> generalization check
+EVAL = np.arange(900, 910)
+SEEN_OP = np.arange(10)
 
 def fno_pred(idx):
     from neuralop.models import FNO
@@ -48,27 +48,9 @@ def pinn_pred(idx):
     return out
 
 def deeponet_pred(idx):
-    import deepxde as dde
-    cfg = json.load(open(os.path.join(RES, "deeponet", "config.json")))
-    M, P, W, D, NFF, Tmax = cfg["n_sensors"], cfg["latent_dim"], cfg["width"], cfg["depth"], cfg["n_fourier"], cfg["T"]
-    FF = 2.0 ** np.arange(NFF)
-    sidx = np.linspace(0, nx - 1, M).astype(int)
-    net = dde.nn.DeepONetCartesianProd(
-        [M] + [W] * D + [P], [2 + 2 * NFF] + [W] * D + [P], "relu", "Glorot normal")
-    net.load_state_dict(torch.load(os.path.join(RES, "deeponet", "model.pt"), map_location="cpu", weights_only=False))
-    net.eval()
-
-    def feats(z):
-        xc, tc = z[:, 0:1], z[:, 1:2] / Tmax
-        ang = np.pi * xc * FF[None, :]
-        return np.concatenate([xc, tc, np.sin(ang), np.cos(ang)], 1).astype(np.float32)
-
-    Xg, Tg = np.meshgrid(x.numpy(), t.numpy(), indexing="xy")
-    trunk = torch.tensor(feats(np.stack([Xg.ravel(), Tg.ravel()], 1)))
-    br = torch.tensor(ICs.numpy()[idx][:, sidx], dtype=torch.float32)
-    with torch.no_grad():
-        out = net((br, trunk)).numpy()
-    return out.reshape(len(idx), len(t), nx)
+    from hybrid_pde.solvers.ml.deepOnet.deeponet import load_model
+    s = load_model(os.path.join(RES, "deeponet"), x.numpy())
+    return s.predict_grid(ICs.numpy()[idx], x.numpy(), t.numpy())
 
 preds = {"u_true_eval": U[EVAL], "u_true_seen": U[SEEN_OP]}
 jobs = [("PINN", pinn_pred, EVAL),
