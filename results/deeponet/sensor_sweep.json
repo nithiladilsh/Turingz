@@ -1,0 +1,39 @@
+{
+  "sensors": [
+    64,
+    100,
+    128,
+    256
+  ],
+  "seeds": [
+    0,
+    1,
+    2
+  ],
+  "iterations": 4000,
+  "per_m": [
+    {
+      "n_sensors": 64,
+      "val_in_dist_mean": 0.2972385585308075,
+      "val_in_dist_std": 0.0032490462519883584
+    },
+    {
+      "n_sensors": 100,
+      "val_in_dist_mean": 0.3023574153582255,
+      "val_in_dist_std": 0.003142753791916694
+    },
+    {
+      "n_sensors": 128,
+      "val_in_dist_mean": 0.299786498149236,
+      "val_in_dist_std": 0.0002790548606101858
+    },
+    {
+      "n_sensors": 256,
+      "val_in_dist_mean": 0.30791998902956647,
+      "val_in_dist_std": 0.003671112910859952
+    }
+  ],
+  "best_n_sensors": 64,
+  "recommended_n_sensors": 64,
+  "rule": "smallest sensor count within one std of the best validation error"
+}

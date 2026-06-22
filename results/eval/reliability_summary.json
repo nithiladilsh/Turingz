@@ -1,0 +1,45 @@
+{
+  "reliability_unseen": {
+    "PINN": {
+      "in_window": 0.014726332388818264,
+      "extrapolation": 0.35802972316741943,
+      "reliable_horizon": 1.246212124824524
+    },
+    "FNO": {
+      "in_window": 0.004798495676368475,
+      "extrapolation": 0.11584987491369247,
+      "reliable_horizon": 1.5477272272109985
+    },
+    "DeepONet": {
+      "in_window": 0.2931210994720459,
+      "extrapolation": 0.611067533493042,
+      "reliable_horizon": 0.0
+    }
+  },
+  "generalization": {
+    "FNO": {
+      "seen": {
+        "in_window": 0.0032023219391703606,
+        "extrapolation": 0.12384007126092911,
+        "reliable_horizon": 1.517575740814209
+      },
+      "unseen": {
+        "in_window": 0.004798495676368475,
+        "extrapolation": 0.11584987491369247,
+        "reliable_horizon": 1.5477272272109985
+      }
+    },
+    "DeepONet": {
+      "seen": {
+        "in_window": 0.12434706091880798,
+        "extrapolation": 0.6853668689727783,
+        "reliable_horizon": 0.12055555731058121
+      },
+      "unseen": {
+        "in_window": 0.2931210994720459,
+        "extrapolation": 0.611067533493042,
+        "reliable_horizon": 0.0
+      }
+    }
+  }
+}
