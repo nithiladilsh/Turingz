@@ -28,10 +28,6 @@ def build_net(m):
     return dde.nn.DeepONetCartesianProd(
         [m] + [W] * D + [P], [2 + 2 * NFF] + [W] * D + [P], "relu", "Glorot normal")
 
-def rel_l2_loss(y_true, y_pred):
-    return torch.mean(torch.linalg.norm(y_pred - y_true, dim=1) /
-                      (torch.linalg.norm(y_true, dim=1) + 1e-8))
-
 class DeepONet:
     def __init__(self, m, Tmax, x):
         self.m, self.Tmax = m, Tmax
@@ -51,7 +47,7 @@ class DeepONet:
         data = dde.data.TripleCartesianProd((br_tr, trunk[sel]), y_tr[:, sel],
                                             (br_va, trunk[sel]), y_va[:, sel])
         model = dde.Model(data, build_net(self.m))
-        model.compile("adam", lr=LR, loss=rel_l2_loss, metrics=["l2 relative error"])
+        model.compile("adam", lr=LR, metrics=["l2 relative error"])
         model.train(iterations=iterations, batch_size=min(BATCH, len(train_idx)),
                     display_every=max(iterations // 10, 1))
         self.net = model.net
