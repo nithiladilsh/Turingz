@@ -21,6 +21,7 @@ SEEN_OP = np.arange(10)
 
 def fno_pred(idx):
     from neuralop.models import FNO
+    torch.set_default_device("cpu")
     cfg = torch.load(os.path.join(RES, "fno", "fno_config.pt"), map_location="cpu", weights_only=False)
     m = FNO(n_modes=(cfg["n_modes"],), hidden_channels=cfg["hidden_channels"], in_channels=3, out_channels=1)
     m.load_state_dict(torch.load(os.path.join(RES, "fno", "fno.pt"), map_location="cpu", weights_only=False))
@@ -36,6 +37,7 @@ def fno_pred(idx):
 
 def pinn_pred(idx):
     import deepxde as dde
+    torch.set_default_device("cpu")
     X, T = np.meshgrid(x.numpy(), t.numpy())
     XT = torch.tensor(np.stack([X.ravel(), T.ravel()], 1), dtype=torch.float32)
     out = np.zeros((len(idx), len(t), nx), np.float32)
