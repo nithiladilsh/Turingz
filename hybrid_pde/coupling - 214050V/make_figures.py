@@ -8,7 +8,6 @@ Stages:  python make_figures.py compute   # heavy: restarts, caches arrays
          python make_figures.py all       # both
 Outputs: results/module2/figures/*.png
 """
-
 import os, sys, json
 import numpy as np
 from restart_spectral import solve_from, nearest_index, TGRID
