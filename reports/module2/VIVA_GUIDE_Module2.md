@@ -64,6 +64,18 @@ and measuring that boundary is the heart of my contribution.
 
 ---
 
+## 2b. Scope of my module (say this so the boundary is clear)
+
+My module does **not** decide *when* to switch. It receives the **switch time as an input**
+from outside; later, a teammate's "trust" signal will supply it. My module answers: *given
+this supplied switch time, what happens to the accuracy when I hand the FNO's wave over to the
+numerical solver?* The handoff is a **one-way** switch to the numerical solver -- we do not
+switch back to the ML model.
+
+> **Research question (updated):** How does an externally supplied switch time -- and the
+> quality of the FNO's wave at that moment -- affect the accuracy of FNO-to-numerical
+> continuation?
+
 ## 3. Small glossary (for quick viva recall)
 
 | Word | Simple meaning |
@@ -181,6 +193,10 @@ improves on the pure FNO.
 | 1.6 | 16% | 25.4% | **16.3%** | 34% | 10/10 |
 | 1.8 | 25% | 30.1% | **25.0%** | 16% | 9/10 |
 
+> **STATUS: PRELIMINARY -- not final thesis numbers.** These come from n=10 unseen waves, a
+> raw handoff (no cleaning), and a numpy restart wrapper whose exact match to the team solver
+> is still to be verified. They are strong early evidence of the *pattern*, not final values.
+
 ### 6.4 What this table means (three conclusions)
 
 1. **The hybrid works, and strongly when done early.** Switching at t = 1.0 cuts the future
@@ -279,3 +295,4 @@ will be filled in with a plain-language explanation of each one:
 | Date | Phase | What was added |
 |---|---|---|
 | 2026-07-08 | Day 1 (Audit) + Day 2 (Restart gate & first sweep) | Initial document: big picture, glossary, audit findings (direct-map FNO discovery), restart gate PASS, first 10-IC hybrid result table + conclusions, novelty-through-code section. Figures pending. |
+| 2026-07-08 | Corrections + commit prep | Reworded research question to "externally supplied switch time" (§2b); added PRELIMINARY banner on results; relabelled restart wrapper as a team-scheme port (equivalence to be verified); added viscosity assertions in code; moved results JSON to results/module2/. |

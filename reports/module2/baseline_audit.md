@@ -36,6 +36,14 @@ to a *different, older* FNO variant and must not be used with this checkpoint.
 
 ---
 
+## 1b. Scope and research question
+
+The switch time is an **external input** to this module (a teammate's trust signal will later
+supply it); my module studies **what happens at a supplied switch time**, not when to trigger
+it. The handoff is one-way (no return to the FNO). **Research question:** *How does an
+externally supplied switch time, and the FNO state quality at that moment, affect
+FNO-to-numerical continuation performance?*
+
 ## 2. Data contract (verified)
 
 | Item | Value | Source |

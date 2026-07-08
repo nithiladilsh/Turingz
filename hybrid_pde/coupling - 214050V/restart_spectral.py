@@ -1,16 +1,25 @@
 """
-Pseudo-spectral RESTART wrapper -- Module 2 (Coupling), Dharmapala R.D. (214050V)
+Restart-capable pseudo-spectral CONTINUATION wrapper
+Module 2 (Coupling) -- Dharmapala R.D. (214050V)
 
-Faithful numpy port of hybrid_pde/solvers/numerical/spectral.py (identical k,
-2/3 mask, integrating-factor RK4 step, dt_target=1e-4, Nyquist zeroing), exposed
-as a restartable, batched driver. solve() in the team file only runs t=0->T on a
-fixed grid; the coupling module needs to restart from an arbitrary state.
-THESIS NOTE: once torch is available, assert solve_from(u0,0) reproduces
-spectral.solve(u0) to ~1e-12 so this is provably the same solver.
+This is NOT a new solver. It reproduces the numerical scheme and configuration of
+the existing team pseudo-spectral solver (hybrid_pde/solvers/numerical/spectral.py)
+-- identical wavenumbers k, 2/3 dealias mask, integrating-factor RK4 step,
+dt_target=1e-4, Nyquist zeroing -- and exposes it as a RESTARTABLE, batched driver.
+The team file only offers solve(u0) from t=0; the coupling module needs to restart
+from an arbitrary handed-over field at a chosen switch index and continue to T.
+
+EQUIVALENCE STILL TO BE VERIFIED: once torch is available, assert
+solve_from(u0, 0) reproduces spectral.solve(u0) to ~1e-12, proving this driver
+is the same solver, not a different implementation.
 """
 import numpy as np
 
 NU = 1.0 / (100 * np.pi)                       # real viscosity ~0.0031831
+# Viscosity is a fixed physical constant of the dataset. When the dataset .pt is
+# regenerated, prefer nu = float(metadata["nu"]); here we assert the known value.
+assert np.isclose(NU, 1.0 / (100.0 * np.pi)), "viscosity must be 1/(100 pi)"
+
 L, NX = 2.0, 512
 T, NT = 2.0, 200
 X = np.linspace(-1, 1, NX, endpoint=False)
@@ -41,6 +50,7 @@ def solve_from(u0, i_start, nu=NU):
     """Restart from field(s) u0 at time index i_start; integrate to T.
     u0 is (NX,) -> returns (NT-i_start, NX); u0 is (B,NX) -> (B, NT-i_start, NX).
     Slice 0 equals u0; samples lie on TGRID[i_start:]."""
+    assert np.isclose(nu, 1.0 / (100.0 * np.pi)), "unexpected viscosity"
     u0 = np.asarray(u0, dtype=np.float64)
     batched = (u0.ndim == 2)
     U0 = u0 if batched else u0[None, :]
