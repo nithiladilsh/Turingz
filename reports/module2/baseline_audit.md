@@ -1,6 +1,6 @@
-# Module 2 — Baseline Audit (Day 1) + Restart Gate (Day 2)
+# Module 2 — Baseline Audit + Restart Gate
 
-**Author:** Dharmapala R.D. (214050V) · **Branch:** `new` (HEAD `7813902`) · **ν = 1/(100π) ≈ 0.0031831**
+**Author:** Dharmapala R.D. (214050V) · **Branch:** `Ruwandie-PhaseTwo` · **ν = 1/(100π) ≈ 0.0031831**
 
 This is the data contract every coupling experiment depends on. It was produced by
 reading the actual repo files, not the older proposal/interim documents.
@@ -78,7 +78,7 @@ FNO in-window **0.57%**, extrapolation **14.1%**, reliable horizon **1.457**
 
 ---
 
-## 4. Day-2 GATE — PASS
+## 4. Restart Gate — PASS
 
 Restarting the spectral wrapper from the **true Cole–Hopf state** at t_s and continuing
 to T reproduces the Cole–Hopf tail to **time-integrated rel-L2 ≈ 3.6e-7 … 5.7e-6** across
@@ -127,4 +127,4 @@ Tail = time-integrated rel-L2 over [t_s, 2]. B_int = mean benefit vs pure FNO.
 - Reword the research identity to drop "autoregressive"; keep the direct-map framing above.
 - Regenerate the dataset (`scripts/generate_dataset.py`) + install deps to (a) verify the
   wrapper against the imported team solver, (b) extend to 10–20 ICs, (c) add DeepONet.
-- Build the five figures from `day2_sweep_results.json`.
+- Figures built in `results/module2/figures/` (see the viva guide, Section 8).

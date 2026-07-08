@@ -108,7 +108,7 @@ We refined the plan several times before writing code. The important decisions:
 
 ---
 
-## 5. Phase 1 — The Audit (Day 1)
+## 5. Phase 1 — The Audit
 
 **What we did.** Before writing any hybrid code, we read the team's real code and files to
 write down a exact "contract": grid size, viscosity, time steps, which model is real, and
@@ -139,14 +139,14 @@ whether numbers are "normalised"), the hybrid can look correct but be silently w
    anything.
 
 **How to say it in the viva:**
-> "In my Day-1 audit I discovered our FNO is a direct space-time operator, not an
+> "In my audit I discovered our FNO is a direct space-time operator, not an
 > autoregressive one — so I corrected the whole framing of the problem before writing code.
 > I also found the numerical solver couldn't restart mid-run, which became my first engineering
 > task."
 
 ---
 
-## 6. Phase 2 — The Restart Gate + First Hybrid Result (Day 2)
+## 6. Phase 2 — The Restart Gate + First Hybrid Result
 
 ### 6.1 The code we wrote (explained simply)
 
@@ -262,23 +262,43 @@ ANCHOR and PDE-Refiner exist). We do not claim to invent hybrid solving.
 
 ---
 
-## 8. Graphs / figures
+## 8. Figures (what each one shows, in plain words)
 
-**Status: not generated yet.** So far our evidence is the numbers in Section 6.3
-(saved in `day2_sweep_results.json`). The next phase produces the figures below, and this section
-will be filled in with a plain-language explanation of each one:
+All five figures are in `results/module2/figures/`, built by
+`hybrid_pde/coupling - 214050V/make_figures.py`, which recomputes the trajectories from
+`results/eval/predictions.npz` and renders the plots (10 held-out waves, real viscosity).
 
-- **Figure 1 — Error over time (three lines):** pure FNO vs hybrid vs the numerical reference.
-  *(Will show FNO drifting up after t=1 while the hybrid stays low.)*
-- **Figure 2 — Switch time vs benefit:** the "viability boundary" curve.
-- **Figure 3 — Handover-wave error vs benefit:** shows benefit shrinking as the handed-over wave
-  gets worse.
-- **Figure 4 — Hybrid vs the true-state yardstick (UB):** shows the gap equals the inherited ML error.
-- **Figure 5 — Accuracy vs compute used:** the cost/accuracy trade-off.
+**Figure 1 — Error over time (`fig1_error_over_time.png`).** Three lines over time, averaged
+across the 10 unseen waves (shaded = spread): *FNO alone* (red) is low until t=1 then shoots up
+to ~35%; *Numerical alone* (blue) stays near zero; *Hybrid* (green) follows the FNO early, then
+after the handoff stays flat and low like the numerical solver. **Conclusion:** the handoff stops
+the model's error blow-up. **Say:** "Red is the fast model failing in the future; green is my
+hybrid staying accurate by handing over to blue."
 
-*(This section auto-updates when the figures are made.)*
+**Figure 2 — When to switch vs how much it helps (`fig2_switch_time_vs_benefit.png`).**
+x = handoff time; y = average benefit (error removed vs pure FNO), with error bars. Benefit is
+highest for an early handoff (~92% at t=1.0) and falls to ~16% at t=1.8; the dashed line is our
+pre-set 10% "worth it" bar. **Conclusion:** there is a **viability window** — switch early, win
+big; switch late, gain shrinks. **Say:** "This curve is my main finding: earlier handoff helps more."
 
----
+**Figure 3 — Why late handoffs help less (`fig3_handoff_error_vs_benefit.png`).** One dot per
+wave per handoff time. x = how wrong the FNO wave already is at handoff; y = benefit. Dots drift
+down-right. **Conclusion:** benefit is controlled by the **quality of the wave at handoff**.
+**Say:** "Benefit depends on how good the ML state is when I hand it over."
+
+**Figure 4 — Proof the numerical part is clean (`fig4_hybrid_vs_upper_bound.png`).** Log scale.
+*Pure FNO* (red) highest; *Hybrid from FNO state* (green) lower; *Upper bound — restart from the
+TRUE state* (grey) sits near 1e-6; the black dashed line is the FNO's error at handoff. The green
+line lies almost exactly on the black dashed line. **Conclusion (key point):** numerical
+continuation adds almost no error (grey ~0), so the hybrid's error is the error it **inherited**
+from the FNO state — the solver **stops** growth but cannot **undo** existing error. **Say:** "My
+true-state yardstick proves the numerical step is clean; the remaining error came from the ML model."
+
+**Figure 5 — Accuracy vs cost (`fig5_accuracy_vs_cost.png`).** x = fraction of the trajectory done
+by the numerical solver (a cost stand-in); y = hybrid error. Earlier handoff = more numerical work
+= lower error. **Conclusion:** a clean accuracy-vs-cost trade-off — exactly the input a cost
+controller (teammate's module) needs. **Say:** "Earlier switching costs more compute but buys
+accuracy; that trade-off is what the controller will optimise."
 
 ## 9. What's next (roadmap)
 
@@ -296,3 +316,4 @@ will be filled in with a plain-language explanation of each one:
 |---|---|---|
 | 2026-07-08 | Day 1 (Audit) + Day 2 (Restart gate & first sweep) | Initial document: big picture, glossary, audit findings (direct-map FNO discovery), restart gate PASS, first 10-IC hybrid result table + conclusions, novelty-through-code section. Figures pending. |
 | 2026-07-08 | Corrections + commit prep | Reworded research question to "externally supplied switch time" (§2b); added PRELIMINARY banner on results; relabelled restart wrapper as a team-scheme port (equivalence to be verified); added viscosity assertions in code; moved results JSON to results/module2/. |
+| 2026-07-08 | Figures + naming | Generated the five figures (Section 8 filled in); consolidated the sweep into `make_figures.py`; removed day-based file/section names; added phase-based project plan. |

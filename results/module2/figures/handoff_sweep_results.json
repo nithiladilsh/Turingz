@@ -1,0 +1,66 @@
+{
+  "status": "PRELIMINARY -- not final thesis results",
+  "n_ic": 10,
+  "handoff": "raw FNO state (no filtering)",
+  "reference": "Cole-Hopf (u_true_eval)",
+  "continuation_solver": "restart wrapper (team-scheme port; equivalence to be verified)",
+  "switch_time_source": "externally supplied",
+  "metric": "time-integrated relative L2 over [t_s, T]",
+  "results": [
+    {
+      "t_s": 1.0,
+      "idx": 100,
+      "numerical_fraction": 0.5,
+      "e_s": 0.014317060914333398,
+      "fno_tail": 0.14085382211689784,
+      "hybrid_tail": 0.010884612397932421,
+      "upper_bound_tail": 5.734686604709229e-06,
+      "benefit": 0.9205062917699165,
+      "ics_improved": 10
+    },
+    {
+      "t_s": 1.2,
+      "idx": 119,
+      "numerical_fraction": 0.405,
+      "e_s": 0.03234596378132305,
+      "fno_tail": 0.1690306063637968,
+      "hybrid_tail": 0.021434471682046808,
+      "upper_bound_tail": 2.8407885697346345e-06,
+      "benefit": 0.8628456691696768,
+      "ics_improved": 10
+    },
+    {
+      "t_s": 1.4,
+      "idx": 139,
+      "numerical_fraction": 0.305,
+      "e_s": 0.07646562629400933,
+      "fno_tail": 0.20869198304884212,
+      "hybrid_tail": 0.07449394936285433,
+      "upper_bound_tail": 1.4526520873383768e-06,
+      "benefit": 0.6237985233341206,
+      "ics_improved": 10
+    },
+    {
+      "t_s": 1.6,
+      "idx": 159,
+      "numerical_fraction": 0.205,
+      "e_s": 0.1618282065588881,
+      "fno_tail": 0.25395147832058773,
+      "hybrid_tail": 0.1627747216221122,
+      "upper_bound_tail": 6.942660406511146e-07,
+      "benefit": 0.33988093683328935,
+      "ics_improved": 10
+    },
+    {
+      "t_s": 1.8,
+      "idx": 179,
+      "numerical_fraction": 0.105,
+      "e_s": 0.2527865229810166,
+      "fno_tail": 0.3010409119960723,
+      "hybrid_tail": 0.2496243758555548,
+      "upper_bound_tail": 3.599248179446439e-07,
+      "benefit": 0.1607754930154915,
+      "ics_improved": 9
+    }
+  ]
+}
