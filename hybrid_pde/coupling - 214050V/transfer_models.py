@@ -54,7 +54,7 @@ def make_fig():
         ax.plot(xs, ys, "o-", color=col[name], lw=2, label=name)
     ax.axhline(0.10, ls="--", color="grey")
     ax.set(xlabel="FNO/ML wave error at handoff", ylabel="benefit (1 - hybrid/ML)",
-           title="One law across models: benefit falls as the handed-over wave degrades")
+           title="Consistent across models: benefit falls as the handed-over wave degrades")
     ax.legend(); ax.grid(alpha=0.3); fig.tight_layout()
     fig.savefig(os.path.join(FIG,"fig7_transfer_benefit_vs_stateerror.png"), dpi=140)
     print("wrote fig7")

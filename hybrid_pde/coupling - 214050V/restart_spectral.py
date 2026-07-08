@@ -76,3 +76,14 @@ def solve_full(u0, nu=NU):
 
 def nearest_index(t_s):
     return int(np.argmin(np.abs(TGRID - t_s)))
+
+
+def lowpass(u, frac):
+    """Keep a fraction `frac` of the resolved Fourier band (frac>=1 => identity)."""
+    u = np.asarray(u, dtype=np.float64)
+    if frac >= 1.0:
+        return u.copy()
+    cut = int(frac * (NX // 3))
+    uh = np.fft.rfft(u, axis=-1)
+    uh[..., cut + 1:] = 0.0
+    return np.fft.irfft(uh, n=NX, axis=-1)
