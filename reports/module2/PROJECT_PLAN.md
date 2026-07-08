@@ -15,7 +15,7 @@ must be done in order; **optional** phases are dropped first if time runs short 
 | Phase | Objective | Key deliverables | Effort | Est. days | Priority | Status |
 |---|---|---|---:|---:|---|---|
 | 0 | Foundation, audit & restart gate | Data contract, restart wrapper, gate PASS, preliminary sweep, 5 figures | 20% | ~2 | Critical | **Done** |
-| 1 | Solver equivalence & full restart validation | Wrapper == team solver (~1e-12); restart gate on regenerated dataset, multiple ICs | 10% | ~1 | Critical | Next |
+| 1 | Solver equivalence & full restart validation | Wrapper == team solver (**done: bit-identical**); regenerated-dataset restart on 10-20 ICs (needs torch) | 10% | ~1 | Critical | **In progress** |
 | 2 | Core handoff experiment (viability region) | Switch-time sweep on 10-20 ICs; benefit metrics (rel-L2 + spectral distance); a-priori viability rule; final figures | 25% | ~2.5 | Critical | Planned |
 | 3 | State-preparation study | Raw vs filtered handoff ablation; decide if cleaning is needed | 10% | ~1 | Should | Planned |
 | 4 | Generalisation | One OOD case; transfer to DeepONet (same pipeline) | 15% | ~1.5 | Optional | Planned |
@@ -36,7 +36,7 @@ preliminary hybrid sweep + five figures. Deliverables: `baseline_audit.md`, `res
 **Objective:** prove the restart wrapper is the team solver, and validate restart on a
 regenerated dataset. **Tasks:** install deps + regenerate the Cole-Hopf dataset; assert
 `solve_from(u0, 0)` reproduces `spectral.solve(u0)` to ~1e-12; re-run the true-state restart gate
-on several ICs. **Exit criteria:** equivalence assertion passes; gate passes beyond the cached 10.
+on several ICs. **Exit criteria:** equivalence assertion passes (**DONE — bit-identical, `verify_restart.py`**); gate passes on a regenerated set beyond the cached 10 (needs torch on your machine to run FNO on more test ICs).
 
 ### Phase 2 - Core handoff experiment (viability region)  [CRITICAL PATH]
 **Objective:** the defensible result. **Tasks:** switch-time sweep over 10-20 held-out ICs;

@@ -69,8 +69,7 @@ FNO in-window **0.57%**, extrapolation **14.1%**, reliable horizon **1.457**
    fixed grid. → Wrote `coupling - 214050V/restart_spectral.py`: a faithful numpy port
    of the exact team scheme (same k, mask, integrating-factor RK4 step, dt_target,
    Nyquist zeroing) exposed as `solve_from(u0, i_start)`, batched over ICs.
-   *TODO(thesis): once torch is installed, assert `solve_from(u0,0)` ≈ `spectral.solve(u0)`
-   to ~1e-12 to prove identity.*
+   *VERIFIED (Phase 1): `solve_from(u0,0)` reproduces the team `spectral.solve(u0)` **bit-for-bit** (rel diff 0.0e+00) via `verify_restart.py`, which runs the team's real `solve()` code. The wrapper IS the team solver.*
 2. **Dataset not on disk** (`data/colehopf/` is empty; gitignored). But
    `results/eval/predictions.npz` contains Cole–Hopf truth (`u_true_eval`) and FNO
    predictions (`FNO_eval`) for **10 held-out ICs**, full (200,512) — enough to run the
@@ -115,8 +114,7 @@ Tail = time-integrated rel-L2 over [t_s, 2]. B_int = mean benefit vs pure FNO.
    in the state.** That is Result category B/C from the plan, measured.
 
 ### Caveats
-- Uses the faithful numpy port, not the imported team module (torch unavailable here) —
-  verify identity later.
+- Restart wrapper is now **verified bit-for-bit identical** to the team solver (Phase 1, `verify_restart.py`).
 - n=10 held-out ICs; regenerate to 10–20 for the final table.
 - Raw handoff, no filtering — and it is stable at the real low ν (no NaNs), so filtering
   may be unnecessary (confirm via ablation).
