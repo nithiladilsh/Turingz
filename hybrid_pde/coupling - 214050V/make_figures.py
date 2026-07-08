@@ -25,6 +25,12 @@ def rl2(U, Uref):            # rel-L2 along last axis (space)
     return np.sqrt(((U - Uref) ** 2).sum(-1)) / (np.sqrt((Uref ** 2).sum(-1)) + EPS)
 
 
+def spectral_distance(a, b, alpha=1.0):   # shape (Fourier-amplitude) distance
+    A = np.abs(np.fft.rfft(a, axis=-1)); B = np.abs(np.fft.rfft(b, axis=-1))
+    k = np.arange(A.shape[-1]); w = (1.0 + k) ** alpha
+    return np.sqrt((w * (A - B) ** 2).sum(-1)) / (np.sqrt((w * B ** 2).sum(-1)) + EPS)
+
+
 def integ(curve, times):     # time-averaged error
     return np.trapezoid(curve, times) / (times[-1] - times[0] + EPS)
 
@@ -38,6 +44,7 @@ def compute():
 
     # per-(t_s, IC) tail metrics
     es   = np.zeros((len(SWITCH_TIMES), n_ic))
+    sd_es = np.zeros((len(SWITCH_TIMES), n_ic))
     fno  = np.zeros_like(es); hyb = np.zeros_like(es); ub = np.zeros_like(es)
     idx  = []
     numfrac = []
@@ -49,6 +56,7 @@ def compute():
         H  = solve_from(Ufno[:,  i], i)
         for j in range(n_ic):
             es[s, j]  = np.linalg.norm(Ufno[j, i] - Utrue[j, i]) / (np.linalg.norm(Utrue[j, i]) + EPS)
+            sd_es[s, j] = spectral_distance(Ufno[j, i], Utrue[j, i])
             fno[s, j] = integ(rl2(Ufno[j, i:], true_tail[j]), tail_t)
             hyb[s, j] = integ(rl2(H[j],        true_tail[j]), tail_t)
             ub[s, j]  = integ(rl2(UB[j],       true_tail[j]), tail_t)
@@ -72,7 +80,29 @@ def compute():
                  hybrid_tail=float(hyb[s].mean()), upper_bound_tail=float(ub[s].mean()),
                  benefit=float(b[s].mean()), ics_improved=int((hyb[s] < fno[s]).sum()))
             for s in range(len(SWITCH_TIMES))]
+    # a-priori viability rule (frozen BEFORE looking at results):
+    #   viable if mean benefit >= 10% AND mean absolute hybrid tail error < E_MAX
+    E_MAX = 0.10
+    bmean = b.mean(1); hmean = hyb.mean(1)
+    viable = [(bmean[s] >= 0.10 and hmean[s] < E_MAX) for s in range(len(SWITCH_TIMES))]
+    # boundary: interpolate t_s where hybrid tail error crosses E_MAX
+    boundary = None
+    for s in range(len(SWITCH_TIMES) - 1):
+        if hmean[s] < E_MAX <= hmean[s+1]:
+            f = (E_MAX - hmean[s]) / (hmean[s+1] - hmean[s])
+            boundary = float(SWITCH_TIMES[s] + f * (SWITCH_TIMES[s+1] - SWITCH_TIMES[s]))
+    for s in range(len(rows)):
+        rows[s]["sd_at_handoff"] = float(sd_es[s].mean())
+        rows[s]["viable"] = bool(viable[s])
+    print("\nViability rule (frozen a priori): benefit >= 10%% AND hybrid tail < %.2f" % E_MAX)
+    for s in range(len(SWITCH_TIMES)):
+        print("   t_s=%.1f  benefit=%.2f  hybrid_tail=%.3f  ->  %s" %
+              (SWITCH_TIMES[s], bmean[s], hmean[s], "VIABLE" if viable[s] else "not viable"))
+    print("   viability boundary (hybrid tail hits %.0f%%): t_s ~ %s   [FNO reliable horizon = 1.457]"
+          % (E_MAX*100, ("%.2f" % boundary) if boundary else "n/a"))
     summary = {"status": "PRELIMINARY -- not final thesis results",
+               "viability_rule": {"benefit_min": 0.10, "abs_error_max": E_MAX,
+                                  "boundary_t_s": boundary, "fno_reliable_horizon": 1.457},
                "n_ic": int(n_ic), "handoff": "raw FNO state (no filtering)",
                "reference": "Cole-Hopf (u_true_eval)",
                "continuation_solver": "restart wrapper (team-scheme port; equivalence to be verified)",
@@ -82,7 +112,7 @@ def compute():
     json.dump(summary, open(os.path.join(FIGDIR, "handoff_sweep_results.json"), "w"), indent=2)
 
     np.savez(CACHE, t=t, ts=np.array(SWITCH_TIMES), idx=np.array(idx),
-             numfrac=np.array(numfrac), es=es, fno=fno, hyb=hyb, ub=ub,
+             numfrac=np.array(numfrac), es=es, sd_es=sd_es, fno=fno, hyb=hyb, ub=ub,
              fno_curve=fno_curve, hyb_curve=hyb_curve, num_curve=num_curve,
              i1=i1, fig1_ts=FIG1_TS, n_ic=n_ic)
     print("cached ->", CACHE)
@@ -95,6 +125,7 @@ def plot():
     c = np.load(CACHE)
     t = c["t"]; ts = c["ts"]; es = c["es"]; fno = c["fno"]; hyb = c["hyb"]; ub = c["ub"]
     numfrac = c["numfrac"]; n_ic = int(c["n_ic"]); i1 = int(c["i1"]); fig1_ts = float(c["fig1_ts"])
+    sd_es = c["sd_es"]
     C = dict(fno="#d1495b", hyb="#2e7d32", num="#1f6feb", ub="#8a8d91")
 
     # ---- Figure 1: error over time (mean +/- std across ICs) ----
@@ -155,7 +186,18 @@ def plot():
            title="Accuracy vs cost: earlier handoff = more numerical work, lower error")
     ax.grid(alpha=0.3); fig.tight_layout()
     fig.savefig(os.path.join(FIGDIR, "fig5_accuracy_vs_cost.png"), dpi=140); plt.close(fig)
-    print("wrote 5 figures ->", FIGDIR)
+    # ---- Figure 6: shape (spectral) distance at handoff vs benefit ----
+    fig, ax = plt.subplots(figsize=(7, 4.3))
+    sc = ax.scatter(sd_es.ravel(), b.ravel(), c=np.repeat(ts, sd_es.shape[1]),
+                    cmap="plasma", s=40, edgecolor="k", linewidth=0.3)
+    ax.axhline(0.10, ls="--", color="grey")
+    cb = fig.colorbar(sc); cb.set_label("handoff time t_s")
+    ax.set(xlabel="shape (spectral) distance of FNO wave at handoff",
+           ylabel="benefit  (1 - hybrid/FNO)",
+           title="Shape drift at handoff also predicts the benefit")
+    ax.grid(alpha=0.3); fig.tight_layout()
+    fig.savefig(os.path.join(FIGDIR, "fig6_spectral_distance_vs_benefit.png"), dpi=140); plt.close(fig)
+    print("wrote 6 figures ->", FIGDIR)
 
 
 if __name__ == "__main__":

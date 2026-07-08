@@ -1,5 +1,11 @@
 {
   "status": "PRELIMINARY -- not final thesis results",
+  "viability_rule": {
+    "benefit_min": 0.1,
+    "abs_error_max": 0.1,
+    "boundary_t_s": 1.4577839318447305,
+    "fno_reliable_horizon": 1.457
+  },
   "n_ic": 10,
   "handoff": "raw FNO state (no filtering)",
   "reference": "Cole-Hopf (u_true_eval)",
@@ -16,7 +22,9 @@
       "hybrid_tail": 0.010884612397932421,
       "upper_bound_tail": 5.734686604709229e-06,
       "benefit": 0.9205062917699165,
-      "ics_improved": 10
+      "ics_improved": 10,
+      "sd_at_handoff": 0.015151925804140837,
+      "viable": true
     },
     {
       "t_s": 1.2,
@@ -27,7 +35,9 @@
       "hybrid_tail": 0.021434471682046808,
       "upper_bound_tail": 2.8407885697346345e-06,
       "benefit": 0.8628456691696768,
-      "ics_improved": 10
+      "ics_improved": 10,
+      "sd_at_handoff": 0.030755208431435123,
+      "viable": true
     },
     {
       "t_s": 1.4,
@@ -38,7 +48,9 @@
       "hybrid_tail": 0.07449394936285433,
       "upper_bound_tail": 1.4526520873383768e-06,
       "benefit": 0.6237985233341206,
-      "ics_improved": 10
+      "ics_improved": 10,
+      "sd_at_handoff": 0.060258709140528464,
+      "viable": true
     },
     {
       "t_s": 1.6,
@@ -49,7 +61,9 @@
       "hybrid_tail": 0.1627747216221122,
       "upper_bound_tail": 6.942660406511146e-07,
       "benefit": 0.33988093683328935,
-      "ics_improved": 10
+      "ics_improved": 10,
+      "sd_at_handoff": 0.10890900343961012,
+      "viable": false
     },
     {
       "t_s": 1.8,
@@ -60,7 +74,9 @@
       "hybrid_tail": 0.2496243758555548,
       "upper_bound_tail": 3.599248179446439e-07,
       "benefit": 0.1607754930154915,
-      "ics_improved": 9
+      "ics_improved": 9,
+      "sd_at_handoff": 0.1613388054274121,
+      "viable": false
     }
   ]
 }
