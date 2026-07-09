@@ -7,6 +7,8 @@ what the results mean, and how to explain it in the viva. It is updated at the e
 > **How to read this:** each phase has four parts — *What we did*, *Why*, *What we found*,
 > *How to say it in the viva*. Technical words are explained the first time they appear.
 > A change log at the bottom tracks every update.
+>
+> **Note:** the fully up-to-date version (all phases, n=20) is the Word file `VIVA_Guide_Module2.docx`. This Markdown copy covers the core story through the main result.
 
 ---
 
@@ -179,7 +181,7 @@ the perfectly correct wave, does it reproduce the correct future?*
 **Why this matters:** it proves our restart machinery (indexing, timing, the maths) is correct.
 So any error we see later is genuinely the ML model's fault, not a bug in our plumbing.
 
-### 6.3 The first real result (10 unseen test waves, real viscosity)
+### 6.3 The main result (20 held-out test waves)
 
 The table below is our first genuine evidence. "Tail error" = how wrong the method is, on
 average, over the future part of the prediction (0 = perfect). "Benefit" = how much the hybrid
@@ -187,15 +189,16 @@ improves on the pure FNO.
 
 | Switch time t_s | FNO's wave error at handover | Pure-FNO future error | **Hybrid future error** | Benefit | Waves improved |
 |----:|----:|----:|----:|----:|:--:|
-| 1.0 | 1.4% | 14.1% | **1.1%** | 92% | 10/10 |
-| 1.2 | 3.2% | 16.9% | **2.1%** | 86% | 10/10 |
-| 1.4 | 7.7% | 20.9% | **7.5%** | 62% | 10/10 |
-| 1.6 | 16% | 25.4% | **16.3%** | 34% | 10/10 |
-| 1.8 | 25% | 30.1% | **25.0%** | 16% | 9/10 |
+| 1.0 | 1.1% | 13.4% | **1.0%** | 92% | 20/20 |
+| 1.2 | 2.9% | 16.2% | **2.3%** | 84% | 20/20 |
+| 1.4 | 7.7% | 20.0% | **7.2%** | 63% | 20/20 |
+| 1.6 | 15.4% | 24.3% | **14.9%** | 39% | 20/20 |
+| 1.8 | 24.2% | 28.8% | **23.6%** | 19% | 19/20 |
 
-> **STATUS: PRELIMINARY -- not final thesis numbers.** These come from n=10 unseen waves, a
-> raw handoff (no cleaning), and a numpy restart wrapper whose exact match to the team solver
-> is still to be verified. They are strong early evidence of the *pattern*, not final values.
+> **Final numbers: 20 held-out waves.** The restart wrapper is verified bit-for-bit identical to
+> the team solver, and the viability boundary is t_s ≈ 1.47 (matching the FNO reliable horizon 1.457).
+> The complete current guide — with the viability window, filtering ablation, cross-model transfer,
+> and tests — is the Word version **`VIVA_Guide_Module2.docx`** (shared in chat).
 
 ### 6.4 What this table means (three conclusions)
 

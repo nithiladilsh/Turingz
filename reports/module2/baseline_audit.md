@@ -80,8 +80,8 @@ FNO in-window **0.57%**, extrapolation **14.1%**, reliable horizon **1.457**
 ## 4. Restart Gate — PASS
 
 Restarting the spectral wrapper from the **true Cole–Hopf state** at t_s and continuing
-to T reproduces the Cole–Hopf tail to **time-integrated rel-L2 ≈ 3.6e-7 … 5.7e-6** across
-all switch times and 10 ICs. The restart machinery (indexing, local-time, output
+to T reproduces the Cole–Hopf tail to **time-integrated rel-L2 ≈ 2e-7 … 3.3e-6** across
+all switch times and 20 held-out waves. The restart machinery (indexing, local-time, output
 sampling, real ν) is therefore correct. Any error in the real hybrid below is the FNO
 state's fault, not the plumbing.
 
@@ -90,32 +90,32 @@ Sanity cross-check: pure-FNO tail error at t_s=1.0 = 0.1409, matching the indepe
 
 ---
 
-## 5. Preliminary hybrid result (10 held-out ICs, real data)
+## 5. Hybrid result (20 held-out waves, real data)
 
 Tail = time-integrated rel-L2 over [t_s, 2]. B_int = mean benefit vs pure FNO.
 
-| t_s | idx | FNO handoff-state err e_s | UB tail (gate) | pure-FNO tail | **hybrid tail** | B_int | ICs improved |
+| t_s | idx | FNO handoff-state err e_s | UB tail (gate) | pure-FNO tail | **hybrid tail** | B_int | waves improved |
 |----:|----:|--------------------------:|---------------:|--------------:|----------------:|------:|:---:|
-| 1.0 | 100 | 0.0143 | 5.7e-6 | 0.1409 | **0.0109** | 0.92 | 10/10 |
-| 1.2 | 119 | 0.0323 | 2.8e-6 | 0.1690 | **0.0214** | 0.86 | 10/10 |
-| 1.4 | 139 | 0.0765 | 1.4e-6 | 0.2087 | **0.0745** | 0.62 | 10/10 |
-| 1.6 | 159 | 0.1618 | 6.9e-7 | 0.2540 | **0.1628** | 0.34 | 10/10 |
-| 1.8 | 179 | 0.2528 | 3.6e-7 | 0.3010 | **0.2496** | 0.16 | 9/10 |
+| 1.0 | 100 | 0.0110 | 3.3e-6 | 0.1344 | **0.0098** | 0.92 | 20/20 |
+| 1.2 | 119 | 0.0288 | 1.6e-6 | 0.1620 | **0.0230** | 0.84 | 20/20 |
+| 1.4 | 139 | 0.0765 | 8.0e-7 | 0.1996 | **0.0723** | 0.63 | 20/20 |
+| 1.6 | 159 | 0.1535 | 3.8e-7 | 0.2425 | **0.1492** | 0.39 | 20/20 |
+| 1.8 | 179 | 0.2415 | 2.0e-7 | 0.2883 | **0.2355** | 0.19 | 19/20 |
 
 ### What this shows (the contribution, quantified)
 1. **The hybrid works, strongly, for early switches.** At t_s=1.0 it cuts extrapolation
-   error from 14.1% to **1.1%** — a 92% reduction — on all 10 unseen ICs.
+   error from 13.4% to **1.0%** — a 92% reduction — on all 20 held-out waves.
 2. **The handoff viability region is early.** Benefit falls monotonically as t_s rises,
-   because the FNO state handed over is already more degraded (e_s: 1.4% → 25%).
+   because the FNO state handed over is already more degraded (e_s: 1.1% → 24%).
 3. **The clean scientific result:** UB ≈ 0 everywhere, and **hybrid tail ≈ e_s** at each
-   t_s (e.g. t_s=1.4: e_s=7.65%, hybrid=7.45%). So the spectral continuation adds almost
+   t_s (e.g. t_s=1.4: e_s=7.65%, hybrid=7.23%). So the spectral continuation adds almost
    no error — the hybrid's accuracy is **bounded by the FNO state quality at handoff**.
    Numerical continuation **halts further error growth but does not recover error already
    in the state.** That is Result category B/C from the plan, measured.
 
 ### Caveats
 - Restart wrapper is now **verified bit-for-bit identical** to the team solver (Phase 1, `verify_restart.py`).
-- n=10 held-out ICs; regenerate to 10–20 for the final table.
+- n=20 held-out waves (extended via `extend_predictions.py`); viability boundary t_s≈1.47 ≈ FNO reliable horizon 1.457.
 - Raw handoff, no filtering — and it is stable at the real low ν (no NaNs), so filtering
   may be unnecessary (confirm via ablation).
 
