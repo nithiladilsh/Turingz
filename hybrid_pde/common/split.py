@@ -1,7 +1,9 @@
+import os
 import numpy as np
 import torch
 
-DATA = "data/colehopf/burgers_colehopf.pt"
+_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+DATA = os.path.join(_ROOT, "data", "colehopf", "burgers_colehopf.pt")
 N_TRAIN, N_VAL = 800, 100
 
 
