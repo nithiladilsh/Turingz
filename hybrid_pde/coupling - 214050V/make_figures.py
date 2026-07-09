@@ -13,7 +13,7 @@ import numpy as np
 from restart_spectral import solve_from, nearest_index, TGRID
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-PRED = os.path.join(ROOT, "results", "eval", "predictions.npz")
+PRED = os.environ.get("MODULE2_PRED", os.path.join(ROOT, "results", "eval", "predictions.npz"))
 FIGDIR = os.path.join(ROOT, "results", "module2", "figures")
 CACHE = os.path.join(FIGDIR, "_figure_data.npz")
 SWITCH_TIMES = [1.0, 1.2, 1.4, 1.6, 1.8]
@@ -100,7 +100,7 @@ def compute():
               (SWITCH_TIMES[s], bmean[s], hmean[s], "VIABLE" if viable[s] else "not viable"))
     print("   viability boundary (hybrid tail hits %.0f%%): t_s ~ %s   [FNO reliable horizon = 1.457]"
           % (E_MAX*100, ("%.2f" % boundary) if boundary else "n/a"))
-    summary = {"status": "PRELIMINARY -- not final thesis results",
+    summary = {"status": f"n={n_ic} held-out waves",
                "viability_rule": {"benefit_min": 0.10, "abs_error_max": E_MAX,
                                   "boundary_t_s": boundary, "fno_reliable_horizon": 1.457},
                "n_ic": int(n_ic), "handoff": "raw FNO state (no filtering)",
@@ -172,7 +172,7 @@ def plot():
     ax.plot(ts, es.mean(1),  "x--", color="k", lw=1, alpha=0.7, label="FNO handoff-state error e_s")
     ax.set_yscale("log")
     ax.set(xlabel="handoff time t_s", ylabel="tail error (log scale)",
-           title="Hybrid tail error ≈ inherited state error; numerical part adds ~none")
+           title="Oracle restart: numerical discretisation error negligible vs. handoff-state error")
     ax.legend(); ax.grid(alpha=0.3, which="both"); fig.tight_layout()
     fig.savefig(os.path.join(FIGDIR, "fig4_hybrid_vs_upper_bound.png"), dpi=140); plt.close(fig)
 

@@ -8,7 +8,7 @@ import os, numpy as np
 from restart_spectral import solve_from, nearest_index, TGRID, NX
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-PRED = os.path.join(ROOT, "results", "eval", "predictions.npz")
+PRED = os.environ.get("MODULE2_PRED", os.path.join(ROOT, "results", "eval", "predictions.npz"))
 EPS = 1e-12
 BAND = NX // 3                      # resolved band (dealias): modes 0..170
 FILTERS = [("raw", 1.00), ("keep90%", 0.90), ("keep75%", 0.75), ("keep50%", 0.50)]
@@ -27,6 +27,7 @@ def integ(c, tt): return np.trapezoid(c, tt)/(tt[-1]-tt[0]+EPS)
 d = np.load(PRED)
 t = d["t"]; Utrue = d["u_true_eval"].astype(np.float64); Ufno = d["FNO_eval"].astype(np.float64)
 n = Utrue.shape[0]
+print(f"[filtering ablation on n={n} waves - set MODULE2_PRED=results/eval/predictions_ext.npz for n=20]")
 print("Phase 3 - handoff filtering ablation (mean hybrid tail error over %d waves)\n" % n)
 print("%5s  %-8s  %-12s  %-14s" % ("t_s","filter","hybrid_tail","state_change"))
 print("-"*46)
