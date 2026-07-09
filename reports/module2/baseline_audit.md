@@ -121,8 +121,10 @@ Tail = time-integrated rel-L2 over [t_s, 2]. B_int = mean benefit vs pure FNO.
 
 ---
 
-## 6. Immediate next steps
-- Reword the research identity to drop "autoregressive"; keep the direct-map framing above.
-- Regenerate the dataset (`scripts/generate_dataset.py`) + install deps to (a) verify the
-  wrapper against the imported team solver, (b) extend to 10–20 ICs, (c) add DeepONet.
-- Figures built in `results/module2/figures/` (see the viva guide, Section 8).
+## 6. Status — complete
+- Direct-map framing adopted throughout; "autoregressive" language removed.
+- Restart wrapper **verified bit-for-bit identical** to the team solver (`verify_restart.py`).
+- Evaluation **extended to n=20** (`extend_predictions.py`); figures in `results/module2/figures/`.
+- Done: cross-model transfer (FNO/PINN/DeepONet), filtering ablation, two OOD cases,
+  automated tests (`tests/test_coupling.py`), and a trust-integration scaffold (`trust_integration.py`).
+- Remaining is team-level integration: wiring the reference-free trust signal and the cost controller.

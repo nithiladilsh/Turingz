@@ -228,7 +228,7 @@ improves on the pure FNO.
 ### 6.5 Honest limitations (be ready for these)
 - ~~We used a copy of the team's numerical recipe; confirm it matches.~~ **Resolved:** the
   restart tool is now proven **bit-for-bit identical** to the team's solver (Section 6c).
-- Only **10** test waves so far; we will extend to 10–20 for the final numbers.
+- Final numbers use **20** held-out waves (extended via `extend_predictions.py`).
 - We used the raw ML wave with **no cleaning/filtering**, and it was already stable — so cleaning
   may not even be needed (we will check).
 
@@ -259,11 +259,11 @@ ANCHOR and PDE-Refiner exist). We do not claim to invent hybrid solving.
 
 **What *is* novel here, and where it lives in the code:**
 
-1. **A working, solver-agnostic restart bridge — `restart_spectral.py`, function `solve_from`.**
+1. **A working, ML-model-agnostic restart bridge — `restart_spectral.py`, function `solve_from`.**
    The team's solver could only start from the beginning. My `solve_from(u0, i_start)` turns it
    into something that can **continue from any ML-produced wave at any moment**. That single
    capability is what makes a hybrid possible at all. It is written to accept *any* wave, so the
-   same bridge works for FNO, DeepONet or PINN — that is the "solver-agnostic" claim.
+   same bridge works for FNO, DeepONet or PINN — that is the "ML-model-agnostic" claim.
 
 2. **A fair, self-checking measurement design — `day2_gate_and_sweep.py`.** The novelty is not
    just "it works" but "we can *prove* when and why it works". Two code ideas do this:
@@ -275,7 +275,7 @@ ANCHOR and PDE-Refiner exist). We do not claim to invent hybrid solving.
      lucky single example.
 
 **One-line novelty statement for the viva:**
-> "My novelty is not hybrid solving itself — it is a **validated, solver-agnostic handoff** plus a
+> "My novelty is not hybrid solving itself — it is a **validated, ML-model-agnostic handoff** plus a
 > **measurement that quantifies exactly when it helps**. In code: `solve_from` makes the handoff
 > possible, and the true-state yardstick in the sweep proves the numerical part adds no error, so
 > the remaining error is purely inherited from the ML model. That turns 'it seems to work' into
@@ -323,11 +323,7 @@ accuracy; that trade-off is what the controller will optimise."
 
 ## 9. What's next (roadmap)
 
-- Reword the written report to drop "autoregressive" and use the direct-map framing.
-- Install dependencies + regenerate the dataset → extend the held-out set to 10-20 waves (restart-copy match already verified),
-  extend to 10–20 waves, and test the same handoff on DeepONet.
-- Generate the five figures and fill in Section 8.
-- Write automated tests and the final results tables.
+- **All complete:** direct-map rewrite, dataset extension to n=20, the five figures (Section 8), automated tests, cross-model transfer, two OOD cases, and a trust-integration scaffold. Remaining work is team-level integration (real trust signal + cost controller).
 
 ---
 
