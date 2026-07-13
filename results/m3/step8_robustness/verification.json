@@ -1,0 +1,45 @@
+{
+  "step": 8,
+  "title": "Robustness (multi-problem, OOD, ablation)",
+  "status": "verified",
+  "design_evidence": {
+    "metrics": "target hit-rate on unseen/OOD + adaptive-vs-fixed ablation (research plan Sec.7,10)",
+    "setup": "8 in-distribution ICs (freq 1-2) + 4 OOD ICs (freq 3-4, ML fails harder); illustrative 10:1 cost ratio"
+  },
+  "checks": {
+    "frontier_has_variance_across_ICs": true,
+    "ood_harder_than_indist": {
+      "indist_mean_err_loose": 0.00649,
+      "ood_mean_err_loose": 0.01205,
+      "pass": true
+    },
+    "adaptive_beats_fixed_matched_budget": {
+      "adaptive_mean_err": 0.0,
+      "fixed_mean_err": 0.08605,
+      "adaptive_corr": 102.0,
+      "fixed_corr": 100.0,
+      "pass": true,
+      "note": "matched budget (102 vs 100 corrections); adaptive far more accurate (0.0 vs 0.086)"
+    }
+  },
+  "hit_rate": {
+    "adaptive": {
+      "0.3": 1.0,
+      "0.2": 1.0,
+      "0.1": 1.0,
+      "0.05": 1.0,
+      "0.02": 1.0,
+      "0.01": 1.0
+    },
+    "fixed_every2": {
+      "0.3": 1.0,
+      "0.2": 0.833,
+      "0.1": 0.667,
+      "0.05": 0.333,
+      "0.02": 0.0,
+      "0.01": 0.0
+    }
+  },
+  "note": "stand-in solvers + illustrative cost ratio; regenerate with real FNO/spectral + real M1 trust at integration",
+  "scope": "M3 owns the robustness ANALYSIS of its own controller (hit-rate, adaptive-vs-fixed). OOD/unseen initial conditions are drawn from the SHARED project test set (restructured plan Sec.10), not authored by M3. Synthetic OOD ICs here are stand-ins for that shared set, swapped in at integration."
+}

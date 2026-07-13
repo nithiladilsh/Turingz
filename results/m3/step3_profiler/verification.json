@@ -1,0 +1,30 @@
+{
+  "step": 3,
+  "title": "Cost / latency profiler",
+  "status": "verified",
+  "design_evidence": {
+    "method": "warmup + repeats + median; single workload; np.polyfit log-log slope",
+    "mirrors": "hybrid_pde/evaluation/deployment_cost_analysis.py (REPEAT=30, WARMUP=5, median)",
+    "target": "cost_summary.json measured exponents ~1.0 for ML/Cole-Hopf"
+  },
+  "checks": {
+    "timeit_sane": true,
+    "scaling_fit_recovers_1.5": {
+      "value": 1.5,
+      "pass": true
+    }
+  },
+  "stand_in_solver_costs": {
+    "ml": {
+      "latency_s": 7.227150126709603e-05,
+      "per_step_s": 3.6135750633548016e-07,
+      "scaling_exponent": 0.889
+    },
+    "numerical": {
+      "latency_s": 7.365899909927975e-05,
+      "per_step_s": 3.682949954963988e-07,
+      "scaling_exponent": 0.947
+    }
+  },
+  "note": "latencies are stand-in (numpy) values; real FNO/spectral costs come from running this profiler in the torch env"
+}

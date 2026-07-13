@@ -1,0 +1,28 @@
+{
+  "step": 2,
+  "title": "Stub harness and hello-hybrid smoke test",
+  "status": "PASS",
+  "design_evidence": {
+    "stub_first": "synthetic trigger / knob in place of M1,M2 (research plan Sec.6,7)",
+    "handoff": "hard-switch coupling = plan component 10",
+    "acceptance_criterion": "hybrid error between baselines (research plan Sec.9 demo)",
+    "closest_prior_work": "ANCHOR, arXiv:2512.19643 (trust-gated NO-numerical coupling)"
+  },
+  "solvers": "analytic stand-ins (no torch): truth=sin(pi x)e^{-t}; ML exact for t<=1 then linear drift; numerical exact",
+  "switch_time": 1.005,
+  "errors": {
+    "all_t": {
+      "pure_ml": 0.03762,
+      "pure_numerical": 0.0,
+      "hybrid": 0.0
+    },
+    "extrap_t_gt_1": {
+      "pure_ml": 0.10944,
+      "pure_numerical": 0.0,
+      "hybrid": 0.0
+    }
+  },
+  "acceptance": "num <= hybrid < ML",
+  "result": "PASS",
+  "note": "harness validation with stand-in solvers; regenerate with real FNO/spectral at integration"
+}

@@ -1,0 +1,80 @@
+{
+  "step": "9b",
+  "title": "First real-solver results (real FNO + real spectral; stub M1/M2)",
+  "status": "real numbers obtained",
+  "setup": "real FNO surrogate + verified spectral corrector, SyntheticTrust + CouplingStub, test ICs 900-909",
+  "frontier": [
+    {
+      "target": 0.3,
+      "cost": 1.0468527434556745,
+      "mean_error": 0.009651884140124124,
+      "std_error": 0.005105505255917946,
+      "hit_rate": 1.0
+    },
+    {
+      "target": 0.2,
+      "cost": 1.0976102924556472,
+      "mean_error": 0.008607911837958889,
+      "std_error": 0.005245918027409321,
+      "hit_rate": 1.0
+    },
+    {
+      "target": 0.1,
+      "cost": 1.131448658455629,
+      "mean_error": 0.008093143341569072,
+      "std_error": 0.005087416475853874,
+      "hit_rate": 1.0
+    },
+    {
+      "target": 0.05,
+      "cost": 1.1568274329556152,
+      "mean_error": 0.007675484438933071,
+      "std_error": 0.004804191262570529,
+      "hit_rate": 1.0
+    },
+    {
+      "target": 0.02,
+      "cost": 1.1652870244556108,
+      "mean_error": 0.0075173275762308615,
+      "std_error": 0.0046891961898620094,
+      "hit_rate": 1.0
+    },
+    {
+      "target": 0.01,
+      "cost": 1.1652870244556108,
+      "mean_error": 0.0075173275762308615,
+      "std_error": 0.0046891961898620094,
+      "hit_rate": 0.8
+    }
+  ],
+  "findings": {
+    "extrapolation_error_cut": "pure FNO ~14% (cost study) -> hybrid ~0.75-0.97% : long-horizon error cut ~15-18x",
+    "knob_traces_tradeoff": "tighter target raises cost (1.05->1.17) and lowers error (0.97%->0.75%)",
+    "honest_hit_rate": "100% for targets >= 0.02; 80% at 0.01 (accuracy floor ~0.75%, so 0.01 is near the limit)",
+    "error_floor": "~0.75% = FNO in-window error, uncorrected by the stub coupling (expected)"
+  },
+  "caveats": [
+    "stub M1/M2 (real solvers only)",
+    "baseline points (pure-ML, pure-numerical) still to be added via partial_baselines()"
+  ],
+  "baselines": {
+    "pure_ml": {
+      "cost": 0.4478931499179452,
+      "error": 0.07768677347122185
+    },
+    "pure_numerical": {
+      "cost": 3.090448149945587,
+      "error": 0.00010729612262563978
+    }
+  },
+  "honest_comparison": {
+    "hybrid_best": {
+      "cost": 1.1652870244556108,
+      "error": 0.0075173275762308615
+    },
+    "vs_numerical": "62% cheaper but 70x less accurate",
+    "vs_ml": "10.3x more accurate at 2.6x cost",
+    "all_three_pareto_optimal": true,
+    "corrected_framing": "With REAL solvers the hybrid is a genuine TRADE-OFF filling the middle of the frontier - NOT free numerical-grade accuracy (that was an artifact of the idealized stand-in). It cuts ML's 7.8% error to <1% at ~1/3 of numerical cost, but does not reach numerical's 0.01%."
+  }
+}

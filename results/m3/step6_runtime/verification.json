@@ -1,0 +1,33 @@
+{
+  "step": 6,
+  "title": "Deployment runtime",
+  "status": "verified",
+  "design_evidence": {
+    "entry_point": "run(problem, accuracy_target) -> (solution, cost report) = plan contract 3 (Sec.8)",
+    "role": "single entry point orchestrating trust + controller + coupling + solvers (component 18)"
+  },
+  "checks": {
+    "solution_shape_correct": true,
+    "cost_accounting_exact": {
+      "ml_steps": 100,
+      "correction_steps": 100,
+      "sum": 200,
+      "pass": true
+    },
+    "corrects_only_after_trust_drops": {
+      "first_switch_t": 1.005,
+      "pass": true
+    },
+    "hybrid_beats_pure_ml": {
+      "hybrid_error": 0.0,
+      "pure_ml_error": 0.03762,
+      "pass": true
+    },
+    "met_target": {
+      "target": 0.05,
+      "achieved": 0.0,
+      "met": true
+    }
+  },
+  "note": "stand-in solvers; run() is solver-agnostic, real FNO/spectral drop in unchanged at integration"
+}
