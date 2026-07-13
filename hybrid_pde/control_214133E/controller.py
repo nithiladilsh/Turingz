@@ -51,7 +51,7 @@ class AdaptiveController(Controller):
             if trust > self.theta_hi:
                 self._correcting = False
         else:
-            if trust < self.theta_lo or flag:
+            if trust < self.theta_lo:
                 self._correcting = True
         return SwitchDecision(self._correcting, self._horizon, "adaptive")
 

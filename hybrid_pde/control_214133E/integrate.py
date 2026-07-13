@@ -83,8 +83,12 @@ def load_numerical_solver():
     return FunctionSolver("spectral", spectral_rollout)
 
 
-def load_trust():
-    raise NotImplementedError("Return M1 trust: a callable (state,t) -> (trust in [0,1], flag). Wrap with RealTrust. (waiting on M1)")
+def load_trust(model_name="FNO"):
+    from . import config
+    from hybrid_pde.trust.monitor import load_params, TrustMonitor
+    from .trigger import TrustMonitorAdapter
+    params = load_params(str(config.RESULTS_DIR / "trust" / ("trust_params_%s.npz" % model_name)))
+    return TrustMonitorAdapter(TrustMonitor(params))
 
 
 def load_coupling():
@@ -126,7 +130,7 @@ def main(targets=None):
     return run_frontier(ml, num, trust, coupling, problems, R.x, R.t, tg, ml_c, num_c)
 
 
-def partial_main(targets=None):
+def partial_main(targets=None, real_trust=False):
     from . import config
     from .groundtruth import load_reference
     from .trigger import SyntheticTrust
@@ -136,7 +140,7 @@ def partial_main(targets=None):
     R = load_reference()
     idx = config.TEST_IC_INDICES
     problems = [(R.ICs[i], R.u[i]) for i in idx]
-    trust = SyntheticTrust(R.t_train_end, width=0.08, flag_at=0.0)
+    trust = load_trust() if real_trust else SyntheticTrust(R.t_train_end, width=0.08, flag_at=0.0)
     ml_c, num_c = per_step_costs(ml, num, R.ICs[idx[0]], R.x, R.t)
     tg = targets if targets is not None else config.DEFAULT_ACCURACY_TARGETS
     return run_frontier(ml, num, trust, CouplingStub(), problems, R.x, R.t, tg, ml_c, num_c)

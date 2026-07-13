@@ -16,6 +16,8 @@ class HybridRuntime:
     def run(self, ic, x, t, accuracy_target, reference=None):
         self.controller.configure(accuracy_target)
         self.controller.reset()
+        if hasattr(self.trust, "reset"):
+            self.trust.reset()
         t = np.asarray(t, dtype=float)
         u_ml = np.asarray(self.ml.rollout(ic, x, t), dtype=float)
         out = u_ml.copy()

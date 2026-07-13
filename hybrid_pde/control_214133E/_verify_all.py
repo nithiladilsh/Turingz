@@ -100,11 +100,10 @@ def main():
     check("S9 integration engine dry-run", all("mean_error" in r for r in _rows) and all(0.0<=r["hit_rate"]<=1.0 for r in _rows))
     _sp=integrate.load_numerical_solver().rollout(np.sin(np.pi*xx), xx, tt)
     check("S9 spectral adapter works torch-free", _sp.shape==(200,512) and np.isfinite(_sp).all())
-    _pending=0
-    for _n in ["load_trust","load_coupling"]:
-        try: getattr(integrate,_n)()
-        except NotImplementedError: _pending+=1
-    check("S9 M1/M2 hooks pending (raise with note)", _pending==2)
+    _m2_pending=False
+    try: integrate.load_coupling()
+    except NotImplementedError: _m2_pending=True
+    check("S9 M1 trust wired (real), M2 pending", _m2_pending and hasattr(integrate.load_trust(),"reset"))
     _p=default_standins(); _fr=demo_frame(0.10,**_p)
     check("S10 demo backend frame complete", {"x","t","truth","ml","num","hybrid","trust","switch","cost","comparison"}.issubset(_fr) and _fr["hybrid"].shape==(200,512))
     _lo=demo_frame(0.30,**_p); _ti=demo_frame(0.01,**_p)

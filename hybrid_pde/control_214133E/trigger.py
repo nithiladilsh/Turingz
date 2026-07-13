@@ -20,3 +20,15 @@ class RealTrust:
 
     def __call__(self, state, t):
         return self._m1(state, t)
+
+
+class TrustMonitorAdapter:
+    def __init__(self, monitor):
+        self._m = monitor
+
+    def __call__(self, state, t):
+        r = self._m.update(state, t)
+        return float(r["trust"]), (not bool(r["ok"]))
+
+    def reset(self):
+        self._m.reset()
