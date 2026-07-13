@@ -68,15 +68,22 @@ def fit_trust(preds, err, x, t, u_true_train):
         c -= 0.2 * g.mean()
     te = t[START:]
     true_h = np.array([te[_first(row > FAIL, 1)] for row in e])
+    trust = 1 - _sigmoid(a * (fsm - smean) / sstd + c)
     best = None
-    for K in range(4, 19):
-        trust = 1 - _sigmoid(a * (fsm - smean) / sstd + c)
-        pred = np.array([te[_first(tr < CUT, K)] for tr in trust])
-        mae = np.abs(pred - true_h).mean()
-        if best is None or mae < best[1] - 1e-9:
-            best = (K, mae)
+    for cut in np.arange(0.5, 0.91, 0.05):
+        for K in range(4, 26):
+            late, early = 0, []
+            for i in range(len(trust)):
+                ph = te[_first(trust[i] < cut, K)]
+                if ph > true_h[i] + 1e-9:
+                    late += 1
+                else:
+                    early.append(true_h[i] - ph)
+            cost = 100 * late + (np.mean(early) if early else 0.0)
+            if best is None or cost < best[0] - 1e-9:
+                best = (cost, float(cut), K)
     return dict(coeff=coeff, dx=dx, dt=dt, mean=mean, std=std, w=w,
-               smean=smean, sstd=sstd, a=a, c=c, K=best[0])
+               smean=smean, sstd=sstd, a=a, c=c, CUT=best[1], K=best[2])
 
 def save_params(path, params):
     np.savez(path, **params)
@@ -118,7 +125,7 @@ class TrustMonitor:
         self.fbuf.append(fused)
         fsm = np.mean(self.fbuf[-WIN:])
         trust = float(1 - _sigmoid(p["a"] * (fsm - p["smean"]) / p["sstd"] + p["c"]))
-        self.run = self.run + 1 if trust < CUT else 0
+        self.run = self.run + 1 if trust < float(p.get("CUT", CUT)) else 0
         if self.run >= int(p["K"]):
             self.failed = True
         return {"trust": trust, "ok": not self.failed}
