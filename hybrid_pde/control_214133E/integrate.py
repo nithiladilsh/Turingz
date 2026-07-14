@@ -199,3 +199,20 @@ def partial_baselines():
     num_errs = [relative_l2(num.rollout(R.ICs[i], x, t), R.u[i]) for i in idx]
     return {"pure_ml": {"cost": nt * ml_c, "mean_error": mean_std(ml_errs)[0], "std_error": mean_std(ml_errs)[1]},
             "pure_numerical": {"cost": nt * num_c, "mean_error": mean_std(num_errs)[0], "std_error": mean_std(num_errs)[1]}}
+
+
+def spectral_rollout_coarse(ic, x, t, dt=2e-2):
+    ic = np.asarray(ic, dtype=float)
+    t = np.asarray(t, dtype=float)
+    uh = np.fft.rfft(ic)
+    out = np.empty((len(t), _NX))
+    out[0] = ic
+    for j in range(1, len(t)):
+        h = t[j] - t[j - 1]
+        m = max(1, round(h / dt))
+        h /= m
+        E, E2 = np.exp(-_NU * _K ** 2 * h), np.exp(-_NU * _K ** 2 * h * 0.5)
+        for _ in range(m):
+            uh = _step(uh, E, E2, h)
+        out[j] = np.fft.irfft(uh * _MASK, n=_NX)
+    return out

@@ -1,0 +1,41 @@
+{
+  "step": 11,
+  "title": "Coarse-solver drift detector (concept prototype)",
+  "status": "concept verified (stand-ins)",
+  "idea": "compare the ML prediction to a cheap numerical solve; divergence reveals drift even when the prediction still obeys the physics",
+  "results": {
+    "coarse_corr_with_true_error": 0.999,
+    "residual_corr_with_true_error": 0.683,
+    "coarse_beats_residual": true,
+    "true_failure_onset_t": 1.1457286432160805,
+    "detector_fires_t": 1.1457286432160805
+  },
+  "note": "stand-in physics; the residual barely moves while the true error grows, but the coarse-drift signal tracks the true error and fires near the real failure. Next: wire to real FNO.",
+  "real_fno_detection": {
+    "reference": "spectral solve (full, for detection validation)",
+    "per_ic": {
+      "900": {
+        "true_fail_t": 1.44,
+        "detector_t": 1.44,
+        "corr": 1.0
+      },
+      "901": {
+        "true_fail_t": 1.49,
+        "detector_t": 1.49,
+        "corr": 1.0
+      },
+      "902": {
+        "true_fail_t": 1.63,
+        "detector_t": 1.63,
+        "corr": 1.0
+      },
+      "905": {
+        "true_fail_t": 1.68,
+        "detector_t": 1.68,
+        "corr": 1.0
+      }
+    },
+    "conclusion": "On REAL FNO the coarse-drift detector times the failure exactly (corr 1.0), where M1 residual trust fired at t=0.1-0.3. Detects the smooth-drift failure that ANCHOR residual-based triggering structurally cannot.",
+    "open_question": "cost - the reference must be made CHEAP (coarse) to still beat pure-numerical; next step."
+  }
+}
