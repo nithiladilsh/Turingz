@@ -73,7 +73,8 @@ def load_ml_solver():
     from neuralop.models import FNO
     from . import config
     cfg = torch.load(config.RESULTS_DIR / "fno" / "fno_config.pt", weights_only=False, map_location="cpu")
-    model = FNO(n_modes=(cfg["n_modes"],), hidden_channels=cfg["hidden_channels"], in_channels=3, out_channels=1)
+    model = FNO(n_modes=(cfg["n_modes"],), hidden_channels=cfg["hidden_channels"], in_channels=3, out_channels=1,
+                lifting_channel_ratio=2, projection_channel_ratio=2)
     model.load_state_dict(torch.load(config.RESULTS_DIR / "fno" / "fno.pt", map_location="cpu", weights_only=False))
     model.eval()
     return FunctionSolver("FNO", lambda ic, x, t: fno_rollout(model, ic, x, t))
@@ -216,3 +217,32 @@ def spectral_rollout_coarse(ic, x, t, dt=2e-2):
             uh = _step(uh, E, E2, h)
         out[j] = np.fft.irfft(uh * _MASK, n=_NX)
     return out
+
+
+def partial_main_coarse(targets=None):
+    from . import config
+    from .groundtruth import load_reference
+    from .coupling import CouplingStub
+    from .trigger import TrustMonitorAdapter
+    from hybrid_pde.trust.coarse_reference import CoarseReferenceMonitor
+    ml = load_ml_solver()
+    num = load_numerical_solver()
+    R = load_reference()
+    idx = config.TEST_IC_INDICES
+    x, t = R.x, R.t
+    ml_c, num_c = per_step_costs(ml, num, R.ICs[idx[0]], x, t)
+    tg = targets if targets is not None else config.DEFAULT_ACCURACY_TARGETS
+    rows = []
+    for target in tg:
+        lo, _ = thresholds_for_target(target)
+        errs = []
+        cost = None
+        for i in idx:
+            ic, ref = R.ICs[i], R.u[i]
+            trust = TrustMonitorAdapter(CoarseReferenceMonitor(ic, x, n=256))
+            res = HybridRuntime(ml, num, trust, CouplingStub(), AdaptiveController(lo, 1.1)).run(ic, x, t, target, reference=ref)
+            errs.append(res.cost.achieved_error)
+            cost = res.cost.ml_steps * ml_c + res.cost.correction_steps * num_c
+        m, sd = mean_std(errs)
+        rows.append({"target": float(target), "cost": float(cost), "mean_error": m, "std_error": sd, "hit_rate": hit_rate(errs, target)})
+    return rows
