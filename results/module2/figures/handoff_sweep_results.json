@@ -1,0 +1,75 @@
+{
+  "status": "n=20 held-out waves (FNO extended via extend_predictions.py)",
+  "n_ic": 20,
+  "handoff": "raw FNO state",
+  "reference": "Cole-Hopf",
+  "continuation_solver": "restart wrapper (bit-identical to team spectral.py)",
+  "viability_rule": {
+    "benefit_min": 0.1,
+    "abs_error_max": 0.1,
+    "boundary_t_s": 1.4719913097142505,
+    "fno_reliable_horizon": 1.457
+  },
+  "results": [
+    {
+      "t_s": 1.0,
+      "numerical_fraction": 0.5,
+      "e_s": 0.010968701769916319,
+      "sd_at_handoff": 0.011956042244505484,
+      "fno_tail": 0.1344435610041301,
+      "hybrid_tail": 0.009759195659929184,
+      "upper_bound_tail": 3.3447435425088907e-06,
+      "benefit": 0.9167679571854954,
+      "ics_improved": 20,
+      "viable": true
+    },
+    {
+      "t_s": 1.2,
+      "numerical_fraction": 0.405,
+      "e_s": 0.028780117784634095,
+      "sd_at_handoff": 0.030307947332908917,
+      "fno_tail": 0.16204945334966886,
+      "hybrid_tail": 0.023042966056860185,
+      "upper_bound_tail": 1.5955952601957607e-06,
+      "benefit": 0.8433560881451726,
+      "ics_improved": 20,
+      "viable": true
+    },
+    {
+      "t_s": 1.4,
+      "numerical_fraction": 0.305,
+      "e_s": 0.07646962589521121,
+      "sd_at_handoff": 0.06998606831385656,
+      "fno_tail": 0.19962717437980912,
+      "hybrid_tail": 0.07233273482673508,
+      "upper_bound_tail": 7.978593913059163e-07,
+      "benefit": 0.6277374491682772,
+      "ics_improved": 20,
+      "viable": true
+    },
+    {
+      "t_s": 1.6,
+      "numerical_fraction": 0.205,
+      "e_s": 0.1535448735530612,
+      "sd_at_handoff": 0.12169411738193252,
+      "fno_tail": 0.24245891666236002,
+      "hybrid_tail": 0.14919552641389316,
+      "upper_bound_tail": 3.812489675152758e-07,
+      "benefit": 0.3874016097217465,
+      "ics_improved": 20,
+      "viable": false
+    },
+    {
+      "t_s": 1.8,
+      "numerical_fraction": 0.105,
+      "e_s": 0.2414586461022608,
+      "sd_at_handoff": 0.17868255481880252,
+      "fno_tail": 0.2883161396599459,
+      "hybrid_tail": 0.23547141928146936,
+      "upper_bound_tail": 2.0049306877966167e-07,
+      "benefit": 0.1860684334519953,
+      "ics_improved": 19,
+      "viable": false
+    }
+  ]
+}

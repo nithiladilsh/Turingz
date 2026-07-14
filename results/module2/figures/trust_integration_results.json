@@ -1,0 +1,110 @@
+{
+  "note": "stand-in oracle trigger; real trust output plugs into first_switch()",
+  "n": 10,
+  "fixed_switch_time": 1.4,
+  "trust_threshold": 0.1,
+  "viability_boundary": 1.47,
+  "eval_window": [
+    1.0,
+    2.0
+  ],
+  "means": {
+    "pure_fno": 0.14085382211689784,
+    "fixed_1p4": 0.05952167805295942,
+    "trust_triggered": 0.07404182314140248,
+    "trigger_time": 1.5014949440956116,
+    "numerical_workload_frac": 0.253
+  },
+  "per_ic": [
+    {
+      "ic": 0,
+      "trigger_time": 1.4371716976165771,
+      "inside_viability": true,
+      "pure_fno": 0.0964814908520343,
+      "fixed_1p4": 0.053068013872847014,
+      "trust_triggered": 0.06085949276520302,
+      "numerical_workload_frac": 0.285
+    },
+    {
+      "ic": 1,
+      "trigger_time": 1.4874242544174194,
+      "inside_viability": false,
+      "pure_fno": 0.14691092068820516,
+      "fixed_1p4": 0.05511510575976378,
+      "trust_triggered": 0.08254801721934454,
+      "numerical_workload_frac": 0.26
+    },
+    {
+      "ic": 2,
+      "trigger_time": 1.6281312704086304,
+      "inside_viability": false,
+      "pure_fno": 0.12268578368302652,
+      "fixed_1p4": 0.04409033244751375,
+      "trust_triggered": 0.07878841512966711,
+      "numerical_workload_frac": 0.19
+    },
+    {
+      "ic": 3,
+      "trigger_time": 1.4371716976165771,
+      "inside_viability": true,
+      "pure_fno": 0.14474823777997392,
+      "fixed_1p4": 0.08598368588893486,
+      "trust_triggered": 0.0967960952395999,
+      "numerical_workload_frac": 0.285
+    },
+    {
+      "ic": 4,
+      "trigger_time": 1.3266161680221558,
+      "inside_viability": true,
+      "pure_fno": 0.24960778978845546,
+      "fixed_1p4": 0.09740877158441097,
+      "trust_triggered": 0.0685245015000212,
+      "numerical_workload_frac": 0.34
+    },
+    {
+      "ic": 5,
+      "trigger_time": 1.6783838272094727,
+      "inside_viability": false,
+      "pure_fno": 0.07463084940080542,
+      "fixed_1p4": 0.04589615772846284,
+      "trust_triggered": 0.0684466974959597,
+      "numerical_workload_frac": 0.165
+    },
+    {
+      "ic": 6,
+      "trigger_time": 1.5075252056121826,
+      "inside_viability": false,
+      "pure_fno": 0.12639866649623305,
+      "fixed_1p4": 0.04249268413585731,
+      "trust_triggered": 0.06910805435105305,
+      "numerical_workload_frac": 0.25
+    },
+    {
+      "ic": 7,
+      "trigger_time": 1.3969696760177612,
+      "inside_viability": true,
+      "pure_fno": 0.22511998198225658,
+      "fixed_1p4": 0.07261114717054022,
+      "trust_triggered": 0.07261114717054022,
+      "numerical_workload_frac": 0.305
+    },
+    {
+      "ic": 8,
+      "trigger_time": 1.6180808544158936,
+      "inside_viability": false,
+      "pure_fno": 0.09615520550030192,
+      "fixed_1p4": 0.03268828928329693,
+      "trust_triggered": 0.06006098713127314,
+      "numerical_workload_frac": 0.195
+    },
+    {
+      "ic": 9,
+      "trigger_time": 1.4974747896194458,
+      "inside_viability": false,
+      "pure_fno": 0.12579929499768597,
+      "fixed_1p4": 0.06586259265796655,
+      "trust_triggered": 0.08267482341136287,
+      "numerical_workload_frac": 0.255
+    }
+  ]
+}
