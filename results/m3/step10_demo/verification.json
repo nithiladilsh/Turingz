@@ -1,0 +1,40 @@
+{
+  "step": 10,
+  "title": "Live one-knob demo",
+  "status": "verified (backend); UI runs on user machine",
+  "design_evidence": {
+    "matches_plan_demo": "three curves + trust signal + one accuracy knob (restructured plan Sec.9)",
+    "run": "streamlit run hybrid_pde/control_214133E/app.py"
+  },
+  "checks": {
+    "backend_frame_complete": true,
+    "knob_changes_outcome": {
+      "loose_corr": 89,
+      "tight_corr": 103,
+      "loose_err": 0.01298,
+      "tight_err": 0.0,
+      "pass": true
+    },
+    "cost_report_populated": true,
+    "comparison_present": {
+      "methods": [
+        "pure-ML",
+        "pure-numerical",
+        "hybrid"
+      ],
+      "errors": [
+        0.0376,
+        0.0,
+        0.0007
+      ],
+      "costs": [
+        200.0,
+        2000.0,
+        1091.0
+      ],
+      "hybrid_saving_pct": 45.5,
+      "pass": true
+    }
+  },
+  "note": "backend verified headless with stand-ins; the Streamlit UI needs a display + (for real solvers) the integration hooks"
+}

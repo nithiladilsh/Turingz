@@ -1,0 +1,41 @@
+{
+  "step": 1,
+  "title": "Ground-truth loader and scoring metric",
+  "status": "verified",
+  "design_evidence": {
+    "metric_convention": "matches hybrid_pde/common/evaluate.py (||pred-ref|| / (||ref||+1e-12))",
+    "data_keys": "u, ICs, x, t, t_train_end (same keys as deployment_cost_analysis.py)",
+    "principle": "ground truth used for scoring only, never inside the solver (research plan Sec.1,5)"
+  },
+  "metric_checks_on_real_reference": {
+    "self_distance": 0.0,
+    "scaled_0.9": 0.1,
+    "zero_prediction": 1.0,
+    "matches_evaluate_py": true,
+    "grid": {
+      "nx": 512,
+      "x_min": -1.0,
+      "x_max": 0.99609375,
+      "L": 1.99609375
+    }
+  },
+  "load_reference_confirmed_locally": {
+    "u_shape": [
+      1000,
+      200,
+      512
+    ],
+    "ICs_shape": [
+      1000,
+      512
+    ],
+    "x_shape": [
+      512
+    ],
+    "t_shape": [
+      200
+    ],
+    "t_train_end": 1.0,
+    "note": "executed by user in torch env; sandbox has no torch"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "step": 5,
+  "title": "Adaptive controller",
+  "status": "verified",
+  "design_evidence": {
+    "hysteresis": "two-threshold deadband prevents chattering (bang-bang/hysteresis control)",
+    "cost_logic": "correct only when trust is low = plan's core cost claim (Sec.12)",
+    "baseline": "FixedIntervalController = ablation baseline and safe fallback (plan Step 3.2)"
+  },
+  "checks": {
+    "anti_chatter": {
+      "hysteresis_toggles": 1,
+      "single_threshold_toggles": 3,
+      "pass": true
+    },
+    "budget_sets_correction": {
+      "horizon_target_0.10": 50,
+      "horizon_target_0.01": 150,
+      "pass": true
+    },
+    "adaptive_is_targeted": {
+      "adaptive_corrections_while_trusted": 0,
+      "fixed_corrections_while_trusted": 16,
+      "pass": true
+    }
+  },
+  "note": "stand-in trust curve; real trust signal comes from M1 at integration"
+}

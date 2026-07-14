@@ -1,0 +1,60 @@
+{
+  "step": 9,
+  "title": "Integration scaffolding",
+  "status": "scaffolding verified (dry-run); real run is user-side",
+  "design_evidence": {
+    "method": "integration by substitution behind fixed contracts (restructured plan Sec.8)",
+    "engine": "run_frontier() is solver-agnostic: identical code path for stand-ins and real modules"
+  },
+  "checks": {
+    "dry_run_engine_end_to_end": true,
+    "function_solver_adapter_conforms": true,
+    "real_hooks_fail_with_instructions": true
+  },
+  "dry_run_frontier": [
+    {
+      "target": 0.3,
+      "cost": 0.00017447282029024792,
+      "mean_error": 0.012981230689407463,
+      "std_error": 3.6799042000400975e-18,
+      "hit_rate": 1.0
+    },
+    {
+      "target": 0.1,
+      "cost": 0.0001738463945366675,
+      "mean_error": 0.0006900449343245277,
+      "std_error": 1.5428467391206206e-18,
+      "hit_rate": 1.0
+    },
+    {
+      "target": 0.05,
+      "cost": 0.0001736584668105934,
+      "mean_error": 5.682172309787731e-16,
+      "std_error": 2.278216666870237e-18,
+      "hit_rate": 1.0
+    },
+    {
+      "target": 0.02,
+      "cost": 0.00017359582423523534,
+      "mean_error": 5.763261199028904e-16,
+      "std_error": 1.2435999693046588e-18,
+      "hit_rate": 1.0
+    }
+  ],
+  "user_side_run": "implement the 4 load_* hooks with your real FNO/spectral + M1 trust + M2 coupling, then call integrate.main(); this regenerates the frontier with REAL numbers.",
+  "note": "cannot execute the real path here (no torch / no M1,M2 in sandbox); the wiring is verified, the real run happens in the project env",
+  "real_adapters": {
+    "spectral_numerical": {
+      "status": "VERIFIED torch-free against Cole-Hopf reference (CSV)",
+      "rel_l2_all_t": 0.00036,
+      "rel_l2_extrap": 6e-05,
+      "per_step_corrector_error": 0.00015,
+      "note": "matches the cost study's ~0.01% spectral accuracy; works as full solver and as per-step corrector"
+    },
+    "fno_ml": {
+      "status": "WRITTEN, needs your torch env to run",
+      "note": "loads results/fno/fno.pt via neuralop FNO; run partial_main() on your machine"
+    }
+  },
+  "how_to_run_partial": "python -c \"from hybrid_pde.control_214133E.integrate import partial_main, save_report; save_report(partial_main(), 'results/m3/step9b_partial_integration', 'real_solver_frontier')\""
+}

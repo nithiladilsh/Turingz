@@ -1,0 +1,70 @@
+{
+  "step": 4,
+  "title": "Accuracy-cost model",
+  "status": "verified",
+  "design_evidence": {
+    "additive_cost": "ml_steps*ml_cost + correction_steps*num_cost (ANCHOR-style intervention count)",
+    "diminishing_returns": "accuracy-cost plateau (arXiv:2512.24776)",
+    "per_model": "baseline errors differ ~100x across solvers (cost_summary.json)"
+  },
+  "checks": {
+    "additive_cost_correct": true,
+    "cost_increases_with_effort": true,
+    "correction_reduces_error": true,
+    "inversion_meets_target": {
+      "target": 0.02,
+      "min_effort_steps": 100,
+      "achieved_error": 0.0,
+      "pass": true
+    }
+  },
+  "finding": "error is NOT strictly monotone in effort for the crude stub: switching AFTER drift (e.g. k=25) re-seeds numerical from an already-wrong state and is no better than pure-ML. Strictly improves only when switching at/before the failure horizon. Motivates M1 (switch on time) and M2 (smooth re-anchoring); and the plateau past k=100 is wasted cost.",
+  "sweep": [
+    {
+      "effort": 0.0,
+      "error": 0.03762,
+      "cost": 8.643500041216612e-05
+    },
+    {
+      "effort": 25.0,
+      "error": 0.03884,
+      "cost": 9.665650054557773e-05
+    },
+    {
+      "effort": 50.0,
+      "error": 0.03741,
+      "cost": 0.00010687800067898934
+    },
+    {
+      "effort": 75.0,
+      "error": 0.02577,
+      "cost": 0.00011709950081240095
+    },
+    {
+      "effort": 100.0,
+      "error": 0.0,
+      "cost": 0.00012732100094581256
+    },
+    {
+      "effort": 125.0,
+      "error": 0.0,
+      "cost": 0.00013754250107922417
+    },
+    {
+      "effort": 150.0,
+      "error": 0.0,
+      "cost": 0.00014776400121263578
+    },
+    {
+      "effort": 175.0,
+      "error": 0.0,
+      "cost": 0.00015798550134604739
+    },
+    {
+      "effort": 199.0,
+      "error": 0.0,
+      "cost": 0.00016779814147412255
+    }
+  ],
+  "note": "stand-in solvers; real curve regenerates with FNO/spectral per-step costs"
+}
