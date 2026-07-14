@@ -20,15 +20,17 @@ def _frame(u, prev_u, ecum, eprev, dx, dt, coeff, hi):
     ecum = ecum + max(0.0, e - eprev)
     p = np.abs(np.fft.fft(u)) ** 2
     rough = p[hi].sum() / (p.sum() + 1e-12)
-    return np.array([res, ecum, rough]), ecum, e
+    mom = u.sum() * dx
+    return np.array([res, ecum, rough, mom]), ecum, e
 
 def _raw_signals(u, dx, dt, coeff, hi):
     T = u.shape[0]
-    F = np.zeros((T, 3))
+    F = np.zeros((T, 4))
     ecum, eprev = 0.0, 0.5 * dx * (u[0] ** 2).sum()
     for n in range(T):
         prev = u[n - 1] if n >= 1 else u[n]
         F[n], ecum, eprev = _frame(u[n], prev, ecum, eprev, dx, dt, coeff, hi)
+    F[:, 3] = np.maximum.accumulate(np.abs(F[:, 3] - F[0, 3]))
     return F
 
 def _trail(a, w):
@@ -48,11 +50,11 @@ def fit_trust(preds, err, x, t, u_true_train):
     coeff = shock_coeff(u_true_train, x, t)
     F = np.array([_raw_signals(w, dx, dt, coeff, hi)[START:] for w in preds])
     e = err[:, START:]
-    flat = F.reshape(-1, 3)
+    flat = F.reshape(-1, 4)
     mean, std = flat.mean(0), flat.std(0) + 1e-8
     Z = (flat - mean) / std
     ef = e.reshape(-1)
-    w = np.array([max(0.0, np.corrcoef(Z[:, i], ef)[0, 1]) for i in range(3)])
+    w = np.array([max(0.0, np.corrcoef(Z[:, i], ef)[0, 1]) for i in range(4)])
     w = w / (w.sum() + 1e-9)
     fused = ((F - mean) / std) @ w
     fsm = np.array([_trail(f, WIN) for f in fused])
@@ -62,8 +64,7 @@ def fit_trust(preds, err, x, t, u_true_train):
     zz = (fsm.reshape(-1) - smean) / sstd
     yy = fail.reshape(-1)
     for _ in range(3000):
-        p = _sigmoid(a * zz + c)
-        g = p - yy
+        g = _sigmoid(a * zz + c) - yy
         a -= 0.2 * (g * zz).mean()
         c -= 0.2 * g.mean()
     te = t[START:]
@@ -72,14 +73,15 @@ def fit_trust(preds, err, x, t, u_true_train):
     best = None
     for cut in np.arange(0.5, 0.91, 0.05):
         for K in range(4, 26):
-            late, early = 0, []
+            late, early = 0, 0.0
             for i in range(len(trust)):
                 ph = te[_first(trust[i] < cut, K)]
-                if ph > true_h[i] + 1e-9:
+                d = ph - true_h[i]
+                if d > 1e-9:
                     late += 1
                 else:
-                    early.append(true_h[i] - ph)
-            cost = 100 * late + (np.mean(early) if early else 0.0)
+                    early += -d
+            cost = 100 * late + early / len(trust)
             if best is None or cost < best[0] - 1e-9:
                 best = (cost, float(cut), K)
     return dict(coeff=coeff, dx=dx, dt=dt, mean=mean, std=std, w=w,
@@ -103,6 +105,8 @@ class TrustMonitor:
         self.ecum = 0.0
         self.eprev = None
         self.fbuf = []
+        self.M0 = None
+        self.mdmax = 0.0
         self.run = 0
         self.n = 0
         self.failed = False
@@ -119,6 +123,11 @@ class TrustMonitor:
                                           p["dx"], p["dt"], float(p["coeff"]), self.hi)
         self.prev_u = u
         self.n += 1
+        if self.M0 is None:
+            self.M0 = s[3]
+        self.mdmax = max(self.mdmax, abs(s[3] - self.M0))
+        s = s.copy()
+        s[3] = self.mdmax
         if self.n <= START:
             return {"trust": 1.0, "ok": True}
         fused = float(((s - p["mean"]) / p["std"]) @ p["w"])
