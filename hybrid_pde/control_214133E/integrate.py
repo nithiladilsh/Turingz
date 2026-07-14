@@ -92,7 +92,9 @@ def load_trust(model_name="FNO"):
 
 
 def load_coupling():
-    raise NotImplementedError("Return M2 coupling: object with correct(state,x,t0,t1,num) and rollout(...). Wrap with RealCoupling. (waiting on M2)")
+    from hybrid_pde.coupling_214050V.m2_coupling import M2Coupling
+    from .coupling import RealCoupling
+    return RealCoupling(M2Coupling())
 
 
 def per_step_costs(ml, num, ic, x, t, repeats=20, warmup=3):
