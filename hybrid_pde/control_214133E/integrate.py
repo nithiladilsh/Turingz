@@ -277,7 +277,7 @@ def partial_main_coarse_timed(targets=None):
         for i in idx:
             ic, ref = R.ICs[i], R.u[i]
             trust = TrustMonitorAdapter(CoarseReferenceMonitor(ic, x, n=256))
-            rt = HybridRuntime(ml, num, trust, CouplingStub(), AdaptiveController(lo, 1.1))
+            rt = HybridRuntime(ml, num, trust, load_coupling(), AdaptiveController(lo, 1.1))
             a = time.perf_counter(); res = rt.run(ic, x, t, target, reference=ref); wall = time.perf_counter() - a
             errs.append(res.cost.achieved_error); costs.append(wall)
         me, se = mean_std(errs); cm, cs = mean_std(costs)

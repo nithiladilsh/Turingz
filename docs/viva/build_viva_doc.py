@@ -73,6 +73,23 @@ def qa(pairs):
         p=doc.add_paragraph(); r=p.add_run("Q: "); r.bold=True; p.add_run(q)
         p2=doc.add_paragraph(); r2=p2.add_run("A: "); r2.bold=True; _color(r2,GREEN); p2.add_run(a)
 
+def rtable(headers, rows):
+    tbl = doc.add_table(rows=1, cols=len(headers))
+    try: tbl.style = "Table Grid"
+    except Exception: pass
+    hc = tbl.rows[0].cells
+    for i, h in enumerate(headers):
+        p = hc[i].paragraphs[0]; r = p.add_run(h); r.bold = True; _color(r, BLUE); r.font.size = Pt(9.5)
+        shd = OxmlElement("w:shd"); shd.set(qn("w:val"), "clear"); shd.set(qn("w:fill"), "DDEBF7")
+        hc[i]._tc.get_or_add_tcPr().append(shd)
+    for row in rows:
+        cs = tbl.add_row().cells
+        for i, v in enumerate(row):
+            pp = cs[i].paragraphs[0]; rr = pp.add_run(str(v)); rr.font.size = Pt(9.5)
+            if str(v) in ("YES", "NO"):
+                rr.bold = True; _color(rr, GREEN if v == "YES" else RGBColor(0xC0,0x39,0x2B))
+    doc.add_paragraph()
+
 # ---------------- TITLE ----------------
 t=doc.add_paragraph(); t.alignment=WD_ALIGN_PARAGRAPH.CENTER
 r=t.add_run("Module 3 — Viva Preparation Guide"); r.bold=True; r.font.size=Pt(24); _color(r,BLUE)
@@ -81,7 +98,7 @@ r=s.add_run("Cost-Aware Adaptive Control & Deployment of the Hybrid PDE Solver")
 s2=doc.add_paragraph(); s2.alignment=WD_ALIGN_PARAGRAPH.CENTER
 s2.add_run("Mendis B.N.D. (214133E) · Team Turingz").font.size=Pt(11)
 d=doc.add_paragraph(); d.alignment=WD_ALIGN_PARAGRAPH.CENTER
-r=d.add_run("Living document — auto-updated each phase.  Last updated: coarse-drift detector + real cost result · "+datetime.date.today().isoformat())
+r=d.add_run("Living document — auto-updated each phase.  Last updated: full M1+M2+M3 integration + real cost result · "+datetime.date.today().isoformat())
 r.italic=True; r.font.size=Pt(9); _color(r,GREY)
 doc.add_paragraph()
 
@@ -316,14 +333,15 @@ qa([("How is this different from ANCHOR?",
     ("Whose scope is the detector?",
      "The detection signal belongs in M1 trust module (he integrated it). My contribution is the cost-aware orchestration: deciding when the free signal is enough and when it is worth paying for a check.")])
 
-h2("The real cost result (FNO + coarse trust, honest timing)")
-label("What we did:", "Ran the full hybrid - real FNO + M1 coarse-reference trust + my controller - and measured real wall-clock cost that INCLUDES the coarse checks and corrections. Nothing hidden.")
-label("The result:", "Hybrid: 0.66 to 0.94 s at 3 to 5 percent error. Pure-numerical: 2.41 s at 0.01 percent. Pure-ML: 0.20 s at 7.8 percent. So the hybrid is about 2.5 to 3.6x cheaper than numerical (62 percent saving) and about 2x more accurate than pure-ML - measured, honest, knob working.")
+h2("The real cost result (full system: FNO + M1 trust + M2 coupling, honest timing)")
+label("What we did:", "Ran the FULL integrated system - real FNO + M1 coarse-reference trust + M2 coupling + my controller - and measured real wall-clock cost that INCLUDES the coarse checks and the M2 corrections. Nothing hidden.")
+label("The result:", "Hybrid: 0.70 to 1.32 s at 3.0 to 5.3 percent error. Pure-numerical: 2.54 s at 0.01 percent. Pure-ML: 0.21 s at 7.8 percent. So the hybrid is about 2 to 3.6x cheaper than numerical and up to about 2.6x more accurate than pure-ML - measured end to end with M2 wired, knob working.")
 
-image("step9d_coarse_integration/timed_pareto.png", caption="Figure: REAL wall-clock cost vs error. The hybrid fills the middle - cheaper than numerical, more accurate than ML.")
+image("step9d_coarse_integration/timed_pareto.png", caption="Figure: REAL wall-clock cost vs error for the FULL system (FNO + M1 trust + M2 coupling). The hybrid fills the middle - cheaper than numerical, more accurate than ML.")
 label("What the graph shows:", "Red square = pure-ML (cheap, inaccurate). Blue triangle = pure-numerical (accurate, expensive). Green = the hybrid across knob settings, sitting in the good middle: numerical-beating cost at ML-beating accuracy.")
-label("Honest limits (say these):", "Error floor about 3 percent - the coarse monitor is permissive (it lets FNO drift to about 10 percent before switching), so it cannot hit targets tighter than 3 percent. Costs are wall-clock and noisy, but the 2.5 to 3.6x gap versus numerical is far outside the noise.")
-label("The headline (your REAL result):", "With all real components, the cost-aware hybrid delivers about 2x the accuracy of pure-ML at about one third of the numerical cost - a genuine, measured, tunable middle operating point. This supersedes the earlier idealised (stand-in) numbers.")
+label("Honest limits (say these):", "Error floor about 3 percent - the coarse monitor is permissive (it lets FNO drift to about 10 percent before switching), so it cannot hit targets tighter than 3 percent (targets 0.02 and 0.01 give identical error at only 10 percent hit-rate; the knob saturates there). Costs are wall-clock and noisy, but the cost gap versus numerical is far outside the noise.")
+label("The headline (your REAL result):", "With ALL real components wired (FNO + M1 trust + M2 coupling), the cost-aware hybrid delivers up to about 2.6x the accuracy of pure-ML at roughly one third of the numerical cost - a genuine, measured, tunable middle operating point on the complete integrated system.")
+label("Key cross-check (M2 vs stub):", "Wiring in M2 gives IDENTICAL accuracy to the earlier hard-switch stub at slightly higher cost. That confirms the ~3 percent floor is set by WHEN M1 switches (the coarse monitor), not by HOW M2 corrects. M2s real value is a jump-free, physically continuous hand-over - the principled mechanism - which matches the crude switch on L2 error here but is correct by construction.")
 qa([("Is this a real number or a stand-in?",
      "Real. Real FNO, real coarse-reference trust from M1, and real wall-clock seconds that include the monitoring overhead. Nothing is idealised."),
     ("Why is the error 3-5 percent and not numerical-grade?",
@@ -331,6 +349,30 @@ qa([("Is this a real number or a stand-in?",
     ("What is your single strongest claim?",
      "A cost-aware adaptive controller that, with a teammate real trust signal, delivers roughly one third of the numerical solver cost at twice the ML accuracy - measured end to end, and catching a failure mode the state-of-the-art residual approach cannot.")])
 
+
+# ---------------- RESULTS SUMMARY ----------------
+h1("Results summary (the comparison to show)")
+para("Honest headline: pure-ML is fast but too inaccurate; pure-numerical is accurate but too slow; ONLY the hybrid clears both bars at once - usable accuracy at a fraction of the cost, tunable with one knob. Numbers are the full integrated system (real FNO + M1 coarse trust + M2 coupling + M3 controller), real wall-clock timing.")
+rtable(["Method", "Cost (s)", "Error", "Fast enough?", "Accurate enough?", "Usable?"],
+ [["Pure-ML (FNO)", "0.21", "7.8%", "yes", "no (7.8%)", "NO"],
+  ["Pure-numerical (spectral)", "2.54", "0.01%", "no (2.5 s)", "yes", "NO"],
+  ["Hybrid - target 0.05", "1.02", "3.6%", "yes (2.5x cheaper)", "yes (~2x ML)", "YES"],
+  ["Hybrid - target 0.30", "0.70", "5.3%", "yes (3.6x cheaper)", "yes (beats ML)", "YES"]])
+para("Full hybrid frontier (the accuracy knob):", bold=True)
+rtable(["Target", "Cost (s)", "Error", "Hit-rate"],
+ [["0.30", "0.70", "5.3%", "100%"], ["0.20", "0.87", "4.8%", "100%"],
+  ["0.10", "0.99", "4.0%", "100%"], ["0.05", "1.02", "3.6%", "100%"],
+  ["0.02", "1.27", "3.0%", "10%"], ["0.01", "1.32", "3.0%", "10%"]])
+para("Key module metrics:", bold=True)
+rtable(["Module", "Metric", "Value", "Type"],
+ [["M1", "Coarse detector vs true error (corr)", "1.00 (residual 0.68)", "real"],
+  ["M1", "Coarse reference speed", "~75x faster than full solver", "real"],
+  ["M1", "Fires at true FNO failure", "t = 1.44-1.68", "real"],
+  ["M3", "Spectral solver vs exact Cole-Hopf", "3.6e-4 rel-L2", "real"],
+  ["M3", "Adaptive vs fixed (matched budget)", "0.00 vs 0.086 error", "stand-in"],
+  ["M1->M2->M3", "End-to-end integration test", "2/2 passed", "real"],
+  ["M2", "Coupling vs hard switch (this benchmark)", "same L2, slightly higher cost", "real"]])
+box("One-line verdict", ["Pure-ML fails on accuracy; pure-numerical fails on cost; only the hybrid clears both - about 2 to 3.6x cheaper than numerical while about 2x more accurate than pure-ML, on one tunable knob. If asked 'but numerical is more accurate': yes, at 2.5x the cost - the hybrid occupies the operating point neither extreme can reach."])
 
 # ---------------- CODE I WROTE ----------------
 h1("Code I wrote (original vs shared / boilerplate)")
@@ -378,9 +420,9 @@ qa([("Which single file is your core contribution?",
 
 # ---------------- STATUS ----------------
 h1("Where we are, and what's next")
-para("Done and verified: Steps 1-10 (scoring, one hybrid run, cost profiler, accuracy-cost map, the controller, the runtime, the Pareto frontier, robustness, integration scaffolding, the live demo). Real integration: real FNO + spectral solvers plugged in; M1 coarse-reference trust integrated; the coarse-drift detector demonstrated; and an honest end-to-end timed cost result measured (~2.5-3.6x cheaper than numerical at ~2x pure-ML accuracy).")
+para("Done and verified: Steps 1-10 (scoring, one hybrid run, cost profiler, accuracy-cost map, the controller, the runtime, the Pareto frontier, robustness, integration scaffolding, the live demo). Real integration: real FNO + spectral solvers plugged in; M1 coarse-reference trust integrated; the coarse-drift detector demonstrated; and M2 coupling wired via the fixed contract (end-to-end integration test passes); and an honest full-system timed cost result measured (~2-3.6x cheaper than numerical at up to ~2.6x pure-ML accuracy).")
 para("Still to come:", bold=True)
-bullet("Integrate M2 coupling (currently a hard-switch stand-in) through the fixed Coupling contract, then re-run the frontier.")
+bullet("M2 coupling is now wired via the fixed contract and the M1->M2->M3 end-to-end integration test passes; optionally feature M2 across all figures and re-run robustness on the full system.")
 bullet("Optional: tune the coarse monitor for a lower error floor; broaden beyond 1D Burgers / FNO.")
 
 # ---------------- GLOSSARY ----------------
