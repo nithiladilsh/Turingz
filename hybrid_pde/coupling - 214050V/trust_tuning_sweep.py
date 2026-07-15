@@ -97,9 +97,15 @@ def evaluate(pred_file, base_params, configs, tag):
 
     per_cfg_sw = {c["name"]: switches_for(c) for c in configs}
     uniq = sorted({s for sws in per_cfg_sw.values() for s in sws if s is not None})
+    print(f"[{tag}] {len(configs)} configs, {n} waves, {len(uniq)} unique switch points to solve",
+          flush=True)
 
     # batched numerical continuation from each needed switch index (over all waves)
-    Hcache = {s: solve_from(fno[:, s], s) for s in uniq}        # (n, nt-s, NX)
+    Hcache = {}
+    for qi, s in enumerate(uniq, 1):
+        print(f"[{tag}]   solving switch {qi}/{len(uniq)} (index {s}, t={float(TGRID[s]):.3f}) ...",
+              flush=True)
+        Hcache[s] = solve_from(fno[:, s], s)                    # (n, nt-s, NX)
 
     pure = np.array([tail_rel_l2(fno[j], true[j], t, i1) for j in range(n)])
 
@@ -120,10 +126,14 @@ def evaluate(pred_file, base_params, configs, tag):
                          hybrid_err=he, pure_fno_err=pe,
                          benefit=float((pe - he) / (pe + EPS)),
                          numerical_work=float(np.mean(works))))
+        print(f"[{tag}]   {c['name']:<22s} trig={float(np.nanmean(trigs)):.3f} "
+              f"hyb_err={he:.3f} work={float(np.mean(works)):.2f}", flush=True)
     return rows, int(n)
 
 
 def main():
+    print("Trust-tuning sweep starting. Full grid on CPU can take several minutes;",
+          "progress is printed per switch-solve below.", flush=True)
     base = load_params(TRUST_PARAMS)
     base_cut, base_K = float(base.get("CUT", 0.5)), int(base["K"])
 
