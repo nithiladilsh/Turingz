@@ -3,6 +3,8 @@ import { Sun, Moon } from "lucide-react";
 import Overview from "./pages/Overview.jsx";
 import TrustPage from "./pages/TrustPage.jsx";
 import Placeholder from "./pages/Placeholder.jsx";
+import HybridPipeline from "./pages/HybridPipeline.jsx";
+import CostControl from "./pages/CostControl.jsx";
 
 const SECTIONS = [
   { id: "overview", label: "Overview", group: "Project" },
@@ -83,7 +85,9 @@ export default function App() {
       <main className="ml-64 p-8">
         {active === "overview" && <Overview go={setActive} />}
         {active === "trust" && <TrustPage />}
-        {active !== "overview" && active !== "trust" && (
+        {active === "hybrid" && <HybridPipeline />}
+        {active === "costcontrol" && <CostControl />}
+        {active !== "overview" && active !== "trust" && active !== "hybrid" && active !== "costcontrol" && (
           <Placeholder title={sec.label} group={sec.group} note={NOTES[active]} />
         )}
       </main>

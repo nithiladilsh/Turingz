@@ -52,3 +52,9 @@ async def ws_trust(ws: WebSocket):
         return
     except Exception as e:
         await ws.send_text(json.dumps({"error": str(e)}))
+
+import pipeline
+app.include_router(pipeline.router)
+
+import m3
+app.include_router(m3.router)
