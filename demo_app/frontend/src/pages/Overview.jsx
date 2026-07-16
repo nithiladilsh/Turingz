@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   Zap, ShieldCheck, GitMerge, Gauge, Link2, SlidersHorizontal, ArrowRight,
-  AlertTriangle, ArrowLeftRight, Rocket,
+  AlertTriangle, ArrowLeftRight, Rocket, Layers, CheckCircle2,
 } from "lucide-react";
 
 /* ---- animated concept chart: ML diverges, hybrid stays accurate ---- */
@@ -93,13 +93,21 @@ function ModuleCard({ n, icon: Icon, name, owner, one, tone }) {
   );
 }
 
-function Node({ label, tone }) {
-  const c = {
-    infra: "bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-200",
-    m: "bg-indigo-600 text-white",
-    out: "bg-emerald-500 text-white",
-  }[tone];
-  return <div className={`rounded-xl px-3 py-2 text-xs font-semibold ${c}`}>{label}</div>;
+function Stage({ icon: Icon, chip, step, title, sub }) {
+  return (
+    <div className="flex flex-col items-center text-center w-[112px]">
+      <div className={`relative w-14 h-14 rounded-2xl grid place-items-center ring-4 shadow-sm ${chip}`}>
+        <Icon size={22} />
+        {step && (
+          <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white dark:bg-slate-800 text-[11px] font-bold grid place-items-center text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600">
+            {step}
+          </span>
+        )}
+      </div>
+      <div className="mt-2.5 text-sm font-semibold text-slate-800 dark:text-slate-100">{title}</div>
+      <div className="text-[11px] text-slate-500 dark:text-slate-400">{sub}</div>
+    </div>
+  );
 }
 
 const H2 = ({ children }) => (
@@ -185,16 +193,27 @@ export default function Overview({ go }) {
       {/* PIPELINE */}
       <div>
         <H2>How it works</H2>
-        <div className={`${cardCls} p-5 flex flex-wrap items-center justify-center gap-2`}>
-          <Node label="Shared foundation" tone="infra" />
-          <ArrowRight size={16} className="text-slate-300 dark:text-slate-600" />
-          <Node label="1 · Trust" tone="m" />
-          <ArrowRight size={16} className="text-slate-300 dark:text-slate-600" />
-          <Node label="2 · Coupling" tone="m" />
-          <ArrowRight size={16} className="text-slate-300 dark:text-slate-600" />
-          <Node label="3 · Control" tone="m" />
-          <ArrowRight size={16} className="text-slate-300 dark:text-slate-600" />
-          <Node label="Hybrid output" tone="out" />
+        <div className={`${cardCls} px-8 py-7`}>
+          <div className="relative">
+            <div className="absolute top-7 left-[9%] right-[9%] h-0.5 rounded-full opacity-70 bg-gradient-to-r from-slate-300 via-violet-400 to-emerald-400 dark:from-slate-600 dark:via-violet-500 dark:to-emerald-500" />
+            <div className="relative flex justify-between">
+              <Stage icon={Layers} title="Foundation" sub="data · solvers · ML"
+                chip="bg-slate-100 text-slate-600 ring-slate-100 dark:bg-slate-700 dark:text-slate-200 dark:ring-slate-700" />
+              <Stage icon={Gauge} step="1" title="Trust" sub="when to switch"
+                chip="bg-indigo-600 text-white ring-indigo-100 dark:ring-indigo-500/30" />
+              <Stage icon={Link2} step="2" title="Coupling" sub="how to correct"
+                chip="bg-violet-600 text-white ring-violet-100 dark:ring-violet-500/30" />
+              <Stage icon={SlidersHorizontal} step="3" title="Control" sub="how much effort"
+                chip="bg-fuchsia-600 text-white ring-fuchsia-100 dark:ring-fuchsia-500/30" />
+              <Stage icon={CheckCircle2} title="Output" sub="fast + accurate"
+                chip="bg-emerald-500 text-white ring-emerald-100 dark:ring-emerald-500/30" />
+            </div>
+          </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 text-center mt-6 max-w-2xl mx-auto">
+            The ML model runs while <span className="font-medium text-indigo-600 dark:text-indigo-400">Trust</span> watches it. When trust drops,
+            <span className="font-medium text-violet-600 dark:text-violet-400"> Coupling</span> injects numerical correction and
+            <span className="font-medium text-fuchsia-600 dark:text-fuchsia-400"> Control</span> keeps the cost minimal — producing one fast, accurate solution.
+          </p>
         </div>
       </div>
 
