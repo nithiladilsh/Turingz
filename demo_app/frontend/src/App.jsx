@@ -2,9 +2,13 @@ import { useState, useEffect } from "react";
 import { Sun, Moon } from "lucide-react";
 import Overview from "./pages/Overview.jsx";
 import TrustPage from "./pages/TrustPage.jsx";
+import FDMPage from "./pages/FDMPage.jsx";
 import Placeholder from "./pages/Placeholder.jsx";
 import HybridPipeline from "./pages/HybridPipeline.jsx";
 import CostControl from "./pages/CostControl.jsx";
+import CouplingPage from "./pages/CouplingPage.jsx";
+import ColeHopfPage from "./pages/ColeHopfPage.jsx";
+import RobustnessPage from "./pages/RobustnessPage.jsx";
 
 const SECTIONS = [
   { id: "overview", label: "Overview", group: "Project" },
@@ -87,7 +91,11 @@ export default function App() {
         {active === "trust" && <TrustPage />}
         {active === "hybrid" && <HybridPipeline />}
         {active === "costcontrol" && <CostControl />}
-        {active !== "overview" && active !== "trust" && active !== "hybrid" && active !== "costcontrol" && (
+        {active === "fdm" && <FDMPage />}
+        {active === "coupling" && <CouplingPage />}
+        {active === "colehopf" && <ColeHopfPage />}
+        {active === "robustness" && <RobustnessPage />}
+        {!["overview", "trust", "hybrid", "costcontrol", "fdm", "coupling", "colehopf", "robustness"].includes(active) && (
           <Placeholder title={sec.label} group={sec.group} note={NOTES[active]} />
         )}
       </main>
