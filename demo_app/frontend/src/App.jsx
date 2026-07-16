@@ -84,7 +84,7 @@ export default function App() {
         </button>
       </aside>
 
-      <main className="ml-64 p-8">
+      <main className="ml-72 mx-10 p-8">
         {active === "overview" && <Overview go={setActive} />}
         {active === "trust" && <TrustPage />}
         {active === "fdm" && <FDMPage />}
