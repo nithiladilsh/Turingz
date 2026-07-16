@@ -1,0 +1,37 @@
+{
+  "note": "Handoff Viability Gate (HVG) prototype. Reference-free state-quality features predict the hybrid tail error at a candidate switch. Leave-one-wave-out CV. M2 answers handoff usefulness, distinct from M1 trust (failure) and M3 cost.",
+  "n_samples": 50,
+  "n_waves": 10,
+  "viable_threshold": 0.1,
+  "regression": {
+    "full_features": {
+      "pearson_r": 0.7905269236918608,
+      "mae": 0.05225609480195027
+    },
+    "t_s_only_baseline": {
+      "pearson_r": 0.8191248810869173,
+      "mae": 0.04484149412676037
+    },
+    "within_switchtime_r": 0.3071751415022145
+  },
+  "classification": {
+    "accuracy": 0.84,
+    "auc": 0.90311986863711
+  },
+  "feature_coefficients": {
+    "pde_residual": 0.03817489223564783,
+    "highfreq_frac": -0.01054899628679781,
+    "spectral_slope": 0.01432057854527874,
+    "grad_energy": -0.010657774124157745,
+    "total_energy": 0.011902470719975263,
+    "t_s": 0.0652480617154396
+  },
+  "features": [
+    "pde_residual",
+    "highfreq_frac",
+    "spectral_slope",
+    "grad_energy",
+    "total_energy",
+    "t_s"
+  ]
+}

@@ -1,0 +1,115 @@
+{
+  "refinement": {
+    "1/(1600pi)": {
+      "1024": {
+        "rel_l2_full": 0.07480058599538618,
+        "rel_l2_tail": 0.08104376126583743
+      },
+      "2048": {
+        "rel_l2_full": 0.06986734232600596,
+        "rel_l2_tail": 0.0815259901730228
+      }
+    },
+    "1/(800pi)": {
+      "1024": {
+        "rel_l2_full": 0.037675094825153944,
+        "rel_l2_tail": 0.032785581046315654
+      }
+    },
+    "1/(400pi)": {
+      "1024": {
+        "rel_l2_full": 0.01598437310264798,
+        "rel_l2_tail": 0.01157644146123008
+      }
+    },
+    "1/(200pi)": {
+      "1024": {
+        "rel_l2_full": 0.004550616738984132,
+        "rel_l2_tail": 0.0016957839853569399
+      }
+    },
+    "1/(100pi)": {
+      "1024": {
+        "rel_l2_full": 0.0003553059903818995,
+        "rel_l2_tail": 3.236065085661217e-05
+      }
+    }
+  },
+  "boundary": {
+    "1/(100pi)": {
+      "nu": 0.0031830988618379067,
+      "re_cell": 0.8718393033104667,
+      "highk_energy_frac": 3.6772986223886444e-05,
+      "verified_tail": 1.609104399909085e-12,
+      "verified_unstable": false,
+      "careless_tail": 3.1720463253167036e-05,
+      "careless_unstable": false
+    },
+    "1/(200pi)": {
+      "nu": 0.0015915494309189533,
+      "re_cell": 1.7815572534203838,
+      "highk_energy_frac": 0.0007177909520804189,
+      "verified_tail": 7.76116739973951e-12,
+      "verified_unstable": false,
+      "careless_tail": 0.001869512977893305,
+      "careless_unstable": false
+    },
+    "1/(400pi)": {
+      "nu": 0.0007957747154594767,
+      "re_cell": 3.7176494595071703,
+      "highk_energy_frac": 0.0028511155774668976,
+      "verified_tail": 1.569215494354839e-11,
+      "verified_unstable": false,
+      "careless_tail": 0.019821824544399947,
+      "careless_unstable": false
+    },
+    "1/(600pi)": {
+      "nu": 0.0005305164769729845,
+      "re_cell": 5.809665727856719,
+      "highk_energy_frac": 0.004792233897379643,
+      "verified_tail": 1.3024804789032152e-11,
+      "verified_unstable": false,
+      "careless_tail": 0.055979267175234604,
+      "careless_unstable": false
+    },
+    "1/(800pi)": {
+      "nu": 0.00039788735772973834,
+      "re_cell": 8.158400376290727,
+      "highk_energy_frac": 0.0065797865884181,
+      "verified_tail": 9.629165985569223e-12,
+      "verified_unstable": false,
+      "careless_tail": 0.10809748925202703,
+      "careless_unstable": false
+    },
+    "1/(1200pi)": {
+      "nu": 0.00026525823848649226,
+      "re_cell": 12.872809553935605,
+      "highk_energy_frac": 0.009952676128303915,
+      "verified_tail": 5.483479015321016e-12,
+      "verified_unstable": false,
+      "careless_tail": 0.2516626061575263,
+      "careless_unstable": false
+    },
+    "1/(1600pi)": {
+      "nu": 0.00019894367886486917,
+      "re_cell": 17.593595492516584,
+      "highk_energy_frac": 0.0132211995140702,
+      "verified_tail": 3.424079039409878e-12,
+      "verified_unstable": false,
+      "careless_tail": null,
+      "careless_unstable": true
+    }
+  },
+  "config": {
+    "t_s": 1.0,
+    "dt": 0.0001,
+    "grid_nx": 512,
+    "ic": "sin(pi x)",
+    "re_cell_def": "max|u(t_s)| * dx / nu",
+    "diag_def": "energy fraction in top octave of resolved band (k in [K3/2, K3], K3 = NX/3) of the handoff state"
+  },
+  "boundary_crossings_re_cell": {
+    "1pct": 3.1566108740606125,
+    "5pct": 5.582049389339743
+  }
+}
