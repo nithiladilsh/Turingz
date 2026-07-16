@@ -52,3 +52,31 @@ async def ws_trust(ws: WebSocket):
         return
     except Exception as e:
         await ws.send_text(json.dumps({"error": str(e)}))
+
+
+@app.get("/api/coupling_meta")
+def coupling_meta():
+    return core.coupling_meta()
+
+
+@app.websocket("/ws/coupling")
+async def ws_coupling(ws: WebSocket):
+    await ws.accept()
+    try:
+        req = json.loads(await ws.receive_text())
+        gen = core.stream_coupling(
+            req.get("model", "FNO"),
+            ic=req.get("ic"),
+            pinn_index=req.get("pinn_index", 0),
+            switch_mode=req.get("switch_mode", "manual"),
+            t_s=req.get("t_s", 1.0),
+        )
+        for frame in gen:
+            await ws.send_text(json.dumps(frame))
+            if "summary" not in frame:
+                await asyncio.sleep(0.03)
+        await ws.send_text(json.dumps({"done": True}))
+    except WebSocketDisconnect:
+        return
+    except Exception as e:
+        await ws.send_text(json.dumps({"error": str(e)}))
