@@ -20,9 +20,9 @@ export async function pinnIC(index) {
   return r.json();
 }
 
-// opens a websocket, calls onFrame(frame) for each streamed frame, onDone when finished
-export function runTrust(payload, onFrame, onDone, onError) {
-  const ws = new WebSocket(`${WS}/ws/trust`);
+// opens a websocket at `path`, calls onFrame(frame) for each streamed frame, onDone when finished
+function runWS(path, payload, onFrame, onDone, onError) {
+  const ws = new WebSocket(`${WS}${path}`);
   ws.onopen = () => ws.send(JSON.stringify(payload));
   ws.onmessage = (e) => {
     const msg = JSON.parse(e.data);
@@ -32,4 +32,12 @@ export function runTrust(payload, onFrame, onDone, onError) {
   };
   ws.onerror = () => onError && onError("Could not reach backend at " + WS + ". Is it running?");
   return ws;
+}
+
+export const runTrust = (payload, onFrame, onDone, onError) => runWS("/ws/trust", payload, onFrame, onDone, onError);
+export const runFDM = (payload, onFrame, onDone, onError) => runWS("/ws/fdm", payload, onFrame, onDone, onError);
+
+export async function fdmEval() {
+  const r = await fetch(`${API}/api/fdm_eval`);
+  return r.json();
 }

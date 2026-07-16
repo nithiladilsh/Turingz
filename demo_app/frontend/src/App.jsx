@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Sun, Moon } from "lucide-react";
 import Overview from "./pages/Overview.jsx";
 import TrustPage from "./pages/TrustPage.jsx";
+import FDMPage from "./pages/FDMPage.jsx";
 import Placeholder from "./pages/Placeholder.jsx";
 
 const SECTIONS = [
@@ -83,7 +84,8 @@ export default function App() {
       <main className="ml-64 p-8">
         {active === "overview" && <Overview go={setActive} />}
         {active === "trust" && <TrustPage />}
-        {active !== "overview" && active !== "trust" && (
+        {active === "fdm" && <FDMPage />}
+        {!["overview", "trust", "fdm"].includes(active) && (
           <Placeholder title={sec.label} group={sec.group} note={NOTES[active]} />
         )}
       </main>
