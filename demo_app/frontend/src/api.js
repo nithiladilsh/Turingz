@@ -54,3 +54,20 @@ export function runCoupling(payload, onFrame, onSummary, onDone, onError) {
   ws.onerror = () => onError && onError("Could not reach backend at " + WS + ". Is it running?");
   return ws;
 }
+
+function wsRun(path, payload, onFrame, onSummary, onDone, onError) {
+  const ws = new WebSocket(`${WS}${path}`);
+  ws.onopen = () => ws.send(JSON.stringify(payload));
+  ws.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    if (msg.error) return onError && onError(msg.error);
+    if (msg.done) { onDone && onDone(); ws.close(); return; }
+    if (msg.summary) return onSummary && onSummary(msg.summary);
+    onFrame(msg);
+  };
+  ws.onerror = () => onError && onError("Could not reach backend at " + WS + ". Is it running?");
+  return ws;
+}
+
+export const runColeHopf = (payload, ...cbs) => wsRun("/ws/colehopf", payload, ...cbs);
+export const runRobustness = (payload, ...cbs) => wsRun("/ws/robustness", payload, ...cbs);

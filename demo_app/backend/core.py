@@ -261,3 +261,68 @@ def coupling_meta():
             "crossings": b.get("boundary_crossings_re_cell", {}),
         }
     return out
+
+
+# ============ Cole-Hopf page (Dharmapala R.D. 214050V -- ground truth) ============
+def stream_colehopf(ic):
+    """Exact Cole-Hopf solution + live cross-verification against the
+    independent pseudo-spectral solver (the project's trust argument for
+    the reference: two independent methods agree)."""
+    ic = np.asarray(ic, float)
+    ch = cole_hopf(ic)
+    sp = _SpectralNum().rollout(ic, X, T)
+    dis = np.sqrt(((ch - sp) ** 2).sum(-1)) / (np.sqrt((sp ** 2).sum(-1)) + 1e-12)
+    summary = {"mean_disagreement": float(dis[1:].mean()),
+               "max_disagreement": float(dis[1:].max())}
+    for n in range(len(T)):
+        yield {"t": float(T[n]),
+               "ch": np.round(ch[n], 4).tolist(),
+               "sp": np.round(sp[n], 4).tolist(),
+               "disagreement": float(dis[n])}
+    yield {"summary": summary}
+
+
+# ========= Robustness page (Dharmapala R.D. 214050V -- OOD + spectral signal) =========
+def spectral_distance(a, b, alpha=1.0):
+    """Shape (Fourier-amplitude) distance -- same definition as the Module 2
+    evaluation code (make_figures.py)."""
+    A = np.abs(np.fft.rfft(a, axis=-1))
+    B = np.abs(np.fft.rfft(b, axis=-1))
+    k = np.arange(A.shape[-1])
+    w = (1.0 + k) ** alpha
+    return np.sqrt((w * (A - B) ** 2).sum(-1)) / (np.sqrt((w * B ** 2).sum(-1)) + 1e-12)
+
+
+def robustness_ic(preset):
+    """OOD presets -- identical definitions to ood_experiment.py."""
+    norm = lambda u: u / (np.abs(u).max() + 1e-12)
+    if preset == "in_dist":
+        return norm(np.sin(np.pi * X))
+    if preset == "high_freq":
+        return norm(np.sin(6 * np.pi * X))          # beyond trained band (modes 1-4)
+    if preset == "gaussian":
+        return norm(np.exp(-(X ** 2) / (2 * 0.10 ** 2)))  # localized bump
+    raise ValueError("unknown preset " + str(preset))
+
+
+def stream_robustness(model, preset=None, ic=None, pinn_index=0):
+    ic0 = robustness_ic(preset) if preset else ic
+    ic0, pred, true = get_prediction(model, ic=ic0, pinn_index=pinn_index)
+    i1 = int(np.argmin(np.abs(T - 1.0)))
+    err = np.sqrt(((pred - true) ** 2).sum(-1)) / (np.sqrt((true ** 2).sum(-1)) + 1e-12)
+    sd = np.array([float(spectral_distance(pred[n], true[n])) for n in range(len(T))])
+    cross = np.nonzero(err > FAIL)[0]
+    summary = {
+        "in_window_err": round(float(np.trapezoid(err[:i1 + 1], T[:i1 + 1]) / (T[i1] - T[0] + 1e-12)), 4),
+        "extrap_err": round(float(np.trapezoid(err[i1:], T[i1:]) / (T[-1] - T[i1] + 1e-12)), 4),
+        "reliable_horizon": (float(T[cross[0]]) if len(cross) else 2.0),
+        "highk_energy_frac_end": float(np.abs(np.fft.rfft(pred[-1]))[len(X) // 6:len(X) // 3 + 1].__pow__(2).sum()
+                                       / (np.abs(np.fft.rfft(pred[-1])).__pow__(2).sum() + 1e-12)),
+    }
+    for n in range(len(T)):
+        yield {"t": float(T[n]),
+               "u": np.round(pred[n], 4).tolist(),
+               "true": np.round(true[n], 4).tolist(),
+               "err": round(float(err[n]), 4),
+               "sd": round(float(sd[n]), 4)}
+    yield {"summary": summary}

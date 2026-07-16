@@ -80,3 +80,42 @@ async def ws_coupling(ws: WebSocket):
         return
     except Exception as e:
         await ws.send_text(json.dumps({"error": str(e)}))
+
+
+@app.websocket("/ws/colehopf")
+async def ws_colehopf(ws: WebSocket):
+    await ws.accept()
+    try:
+        req = json.loads(await ws.receive_text())
+        gen = core.stream_colehopf(req.get("ic"))
+        for frame in gen:
+            await ws.send_text(json.dumps(frame))
+            if "summary" not in frame:
+                await asyncio.sleep(0.02)
+        await ws.send_text(json.dumps({"done": True}))
+    except WebSocketDisconnect:
+        return
+    except Exception as e:
+        await ws.send_text(json.dumps({"error": str(e)}))
+
+
+@app.websocket("/ws/robustness")
+async def ws_robustness(ws: WebSocket):
+    await ws.accept()
+    try:
+        req = json.loads(await ws.receive_text())
+        gen = core.stream_robustness(
+            req.get("model", "FNO"),
+            preset=req.get("preset"),
+            ic=req.get("ic"),
+            pinn_index=req.get("pinn_index", 0),
+        )
+        for frame in gen:
+            await ws.send_text(json.dumps(frame))
+            if "summary" not in frame:
+                await asyncio.sleep(0.03)
+        await ws.send_text(json.dumps({"done": True}))
+    except WebSocketDisconnect:
+        return
+    except Exception as e:
+        await ws.send_text(json.dumps({"error": str(e)}))
