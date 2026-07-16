@@ -10,7 +10,7 @@ export function LineChart({ series, xr, yr, w = 460, h = 200, hline, vline, xlab
   const sy = (v) => h - pad - ((v - yr[0]) / (yr[1] - yr[0])) * (h - 2 * pad);
   return (
     <svg viewBox={`0 0 ${w} ${h}`} className="w-full">
-      <rect x={pad} y={pad} width={w - 2 * pad} height={h - 2 * pad} fill="#fff" stroke="#eef0f3" />
+      <rect x={pad} y={pad} width={w - 2 * pad} height={h - 2 * pad} fill="var(--chart-surface)" stroke="var(--chart-grid)" />
       {hline != null && (
         <line x1={pad} x2={w - pad} y1={sy(hline)} y2={sy(hline)} stroke="#94a3b8" strokeDasharray="4 3" />
       )}
@@ -23,8 +23,8 @@ export function LineChart({ series, xr, yr, w = 460, h = 200, hline, vline, xlab
             stroke={s.color} strokeWidth={s.width || 2} strokeDasharray={s.dashed ? "5 4" : "0"} />
         ) : null
       )}
-      {xlabel && <text x={w / 2} y={h - 6} textAnchor="middle" fontSize="10" fill="#64748b">{xlabel}</text>}
-      {ylabel && <text x={10} y={h / 2} textAnchor="middle" fontSize="10" fill="#64748b"
+      {xlabel && <text x={w / 2} y={h - 6} textAnchor="middle" fontSize="10" fill="var(--chart-axis)">{xlabel}</text>}
+      {ylabel && <text x={10} y={h / 2} textAnchor="middle" fontSize="10" fill="var(--chart-axis)"
         transform={`rotate(-90 10 ${h / 2})`}>{ylabel}</text>}
     </svg>
   );
@@ -37,13 +37,13 @@ export function Gauge({ value }) {
   return (
     <div className="flex items-center gap-4">
       <svg viewBox="0 0 140 88" width="140" height="88">
-        <path d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`} fill="none" stroke="#eef0f3" strokeWidth="12" />
+        <path d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`} fill="none" stroke="var(--chart-grid)" strokeWidth="12" />
         <path d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`} fill="none" stroke={color} strokeWidth="12"
           strokeDasharray={`${v * circ} ${circ}`} strokeLinecap="round" />
       </svg>
       <div>
         <div className="text-3xl font-semibold" style={{ color }}>{v.toFixed(2)}</div>
-        <div className="text-xs text-slate-500">trust score</div>
+        <div className="text-xs text-slate-500 dark:text-slate-400">trust score</div>
       </div>
     </div>
   );

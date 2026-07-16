@@ -5,6 +5,8 @@ import { getMeta, buildIC, pinnIC, runTrust } from "../api.js";
 
 const MODELS = ["FNO", "DeepONet", "PINN"];
 
+const inactiveBtn = "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700";
+
 export default function TrustPage() {
   const [meta, setMeta] = useState(null);
   const [model, setModel] = useState("FNO");
@@ -43,14 +45,16 @@ export default function TrustPage() {
   const p = meta?.params?.[model];
   const cut = p?.CUT ?? 0.5;
   const ood = model !== "PINN" && modes > 4;
+  const muted = "text-slate-500 dark:text-slate-400";
+  const faint = "text-slate-400 dark:text-slate-500";
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-slate-800">Trust Score — live demo</h1>
-      <p className="text-slate-600 mt-1 max-w-3xl text-sm">
+      <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Trust Score — live demo</h1>
+      <p className="text-slate-600 dark:text-slate-300 mt-1 max-w-3xl text-sm">
         Give a starting wave, run the ML model, and watch the trust score fall and the switch fire — all with no true answer used by the module.
       </p>
-      {err && <div className="mt-3 text-sm text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">{err}</div>}
+      {err && <div className="mt-3 text-sm text-rose-600 dark:text-rose-300 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 rounded-lg px-3 py-2">{err}</div>}
 
       <div className="mt-5 grid grid-cols-[320px_1fr] gap-5">
         {/* CONTROLS */}
@@ -60,7 +64,7 @@ export default function TrustPage() {
               {MODELS.map((m) => (
                 <button key={m} onClick={() => setModel(m)}
                   className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium border ${model === m
-                    ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-slate-600 border-slate-200"}`}>
+                    ? "bg-indigo-600 text-white border-indigo-600" : inactiveBtn}`}>
                   {m}
                 </button>
               ))}
@@ -73,7 +77,7 @@ export default function TrustPage() {
               : "Build a wave. More modes = sharper, more unfamiliar input."}>
             {model === "PINN" ? (
               <select value={pinnIndex} onChange={(e) => setPinnIndex(+e.target.value)}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
+                className="w-full bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm">
                 {Array.from({ length: meta?.n_pinn_ics || 0 }, (_, i) => (
                   <option key={i} value={i}>Trained wave #{i}</option>
                 ))}
@@ -81,31 +85,31 @@ export default function TrustPage() {
             ) : (
               <div className="space-y-3">
                 <div>
-                  <div className="flex justify-between text-xs text-slate-500"><span>Sine modes</span><span>{modes}</span></div>
+                  <div className={`flex justify-between text-xs ${muted}`}><span>Sine modes</span><span>{modes}</span></div>
                   <input type="range" min="1" max="12" value={modes} onChange={(e) => setModes(+e.target.value)} className="w-full" />
-                  {ood && <div className="text-xs text-amber-600 mt-1">Above 4 modes = out-of-distribution (unfamiliar) input</div>}
+                  {ood && <div className="text-xs text-amber-600 dark:text-amber-400 mt-1">Above 4 modes = out-of-distribution (unfamiliar) input</div>}
                 </div>
                 <div>
-                  <div className="flex justify-between text-xs text-slate-500"><span>Amplitude</span><span>{amplitude.toFixed(1)}</span></div>
+                  <div className={`flex justify-between text-xs ${muted}`}><span>Amplitude</span><span>{amplitude.toFixed(1)}</span></div>
                   <input type="range" min="0.5" max="1.5" step="0.1" value={amplitude} onChange={(e) => setAmplitude(+e.target.value)} className="w-full" />
                 </div>
               </div>
             )}
             {model === "FNO" && (
               <div className="mt-3">
-                <div className="text-xs text-slate-500 mb-1">Trust mode</div>
+                <div className={`text-xs mb-1 ${muted}`}>Trust mode</div>
                 <div className="flex gap-2">
                   {[["reference_free", "Reference-free"], ["coarse", "Cheap-reference"]].map(([v, l]) => (
                     <button key={v} onClick={() => setFnoMode(v)}
                       className={`flex-1 px-2 py-1.5 rounded-lg text-xs border ${fnoMode === v
-                        ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-600 border-slate-200"}`}>{l}</button>
+                        ? "bg-slate-800 dark:bg-slate-600 text-white border-slate-800 dark:border-slate-600" : inactiveBtn}`}>{l}</button>
                   ))}
                 </div>
               </div>
             )}
             {ic && (
               <div className="mt-3">
-                <div className="text-xs text-slate-400 mb-1">Starting wave preview</div>
+                <div className={`text-xs mb-1 ${faint}`}>Starting wave preview</div>
                 <LineChart series={[{ x, y: ic, color: "#6366f1", width: 2 }]} xr={[-1, 1]} yr={[-1.6, 1.6]} h={130} xlabel="x" />
               </div>
             )}
@@ -131,7 +135,7 @@ export default function TrustPage() {
                   { x, y: frame.true, color: "#94a3b8", dashed: true, width: 1.5 },
                   { x, y: frame.u, color: frame.ok ? "#059669" : "#e11d48", width: 2.5 },
                 ] : []} />
-              <div className="text-xs text-slate-400 mt-1">green/red = ML prediction · grey dashed = true answer</div>
+              <div className={`text-xs mt-1 ${faint}`}>green/red = ML prediction · grey dashed = true answer</div>
             </Card>
 
             <Card title="Trust score">
@@ -149,12 +153,12 @@ export default function TrustPage() {
                 { x: hist.map((f) => f.t), y: hist.map((f) => f.trust), color: "#4f46e5", width: 2.5 },
                 { x: hist.map((f) => f.t), y: hist.map((f) => Math.min(1, f.true_error)), color: "#94a3b8", dashed: true, width: 1.5 },
               ]} />
-            <div className="text-xs text-slate-400 mt-1">indigo = trust · grey dashed = true error · dashed line = cutoff · red line = switch</div>
+            <div className={`text-xs mt-1 ${faint}`}>indigo = trust · grey dashed = true error · dashed line = cutoff · red line = switch</div>
           </Card>
 
           <Card title="How the trust score is calculated (live)">
             {frame ? (
-              <div className="text-sm text-slate-600 space-y-2">
+              <div className="text-sm text-slate-600 dark:text-slate-300 space-y-2">
                 <div className="grid grid-cols-3 gap-2">
                   <Stat label="physics residual" value={frame.signals.residual.toFixed(3)} />
                   <Stat label="energy drift" value={frame.signals.energy.toFixed(3)} />
@@ -165,11 +169,9 @@ export default function TrustPage() {
                     ? "Cheap-reference mode: a small coarse solver runs alongside FNO and the trust score comes from how far FNO has drifted from it."
                     : "These reference-free signals are combined into one fused number, calibrated to a 0–1 trust score. When the score stays below the cutoff for a few steps in a row, the switch latches on."}
                 </p>
-                <p className="text-slate-500">
-                  cutoff = {cut} · patience K = {p?.K ?? 4} · fail tolerance = 10% error.
-                </p>
+                <p className={muted}>cutoff = {cut} · patience K = {p?.K ?? 4} · fail tolerance = 10% error.</p>
               </div>
-            ) : <p className="text-sm text-slate-400">Run a simulation to see the live signal breakdown.</p>}
+            ) : <p className={`text-sm ${faint}`}>Run a simulation to see the live signal breakdown.</p>}
           </Card>
         </div>
       </div>
