@@ -7,6 +7,9 @@ import {
   Link2,
   SlidersHorizontal,
   ArrowRight,
+  AlertTriangle,
+  ArrowLeftRight,
+  Rocket,
 } from "lucide-react";
 
 /* ---- animated concept chart: ML diverges, hybrid stays accurate ---- */
@@ -119,11 +122,25 @@ function ConceptChart() {
   );
 }
 
-function Stat({ n, label }) {
+function Group({ n, title, items }) {
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 px-4 py-3 text-center">
-      <div className="text-2xl font-bold text-indigo-600">{n}</div>
-      <div className="text-xs text-slate-500 mt-0.5">{label}</div>
+    <div className="bg-white rounded-2xl border border-slate-200 p-4 hover:shadow-md transition-shadow">
+      <div className="flex items-baseline gap-2">
+        <span className="text-xl font-bold text-indigo-600">{n}</span>
+        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+          {title}
+        </span>
+      </div>
+      <div className="flex flex-wrap gap-1.5 mt-2.5">
+        {items.map((i) => (
+          <span
+            key={i}
+            className="text-xs font-medium text-indigo-700 bg-indigo-50 px-2 py-1 rounded-lg"
+          >
+            {i}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }
@@ -180,7 +197,7 @@ export default function Overview({ go }) {
   return (
     <div className="space-y-8">
       {/* RESEARCH TOPIC — first thing examiners see */}
-      <div className="text-center border-b border-slate-200 pb-6">
+      <div className="text-center rounded-3xl bg-linear-to-b from-indigo-50 to-transparent border border-indigo-100 px-6 pt-7 pb-8">
         <div className="inline-flex items-center gap-2 text-xs font-medium text-indigo-700 bg-indigo-50 px-3 py-1 rounded-full">
           Team Turingz · University of Moratuwa
         </div>
@@ -220,12 +237,57 @@ export default function Overview({ go }) {
         </div>
       </div>
 
-      {/* STATS */}
+      {/* BENCHMARK + GAP */}
+      <div className="grid grid-cols-[320px_1fr] gap-4">
+        <div className="bg-white rounded-2xl border border-slate-200 p-5 flex flex-col justify-center">
+          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+            Benchmark equation
+          </div>
+          <div
+            className="text-2xl text-slate-800 mt-2"
+            style={{ fontFamily: "Cambria, Georgia, serif" }}
+          >
+            u<sub>t</sub> + u·u<sub>x</sub> = ν·u<sub>xx</sub>
+          </div>
+          <div className="text-xs text-slate-500 mt-2">
+            1D viscous Burgers — forms a moving{" "}
+            <span className="font-medium text-slate-700">shock</span>, ideal for
+            stress-testing extrapolation.
+          </div>
+        </div>
+        <div className="bg-rose-50 rounded-2xl border border-rose-100 p-5 flex flex-col justify-center">
+          <div className="text-xs font-semibold text-rose-500 uppercase tracking-wide">
+            The gap we exploit
+          </div>
+          <p className="text-sm text-slate-700 mt-2">
+            Beyond their training window, ML solvers drift and{" "}
+            <span className="font-semibold text-rose-600">fail silently</span> —
+            and at deployment there is{" "}
+            <span className="font-semibold">no true answer</span> to catch it.
+            The hybrid must decide, on its own, when to trust ML and when to
+            compute.
+          </p>
+        </div>
+      </div>
+
+      {/* WHAT WE USED */}
       <div className="grid grid-cols-4 gap-3">
-        <Stat n="3" label="numerical solvers" />
-        <Stat n="3" label="ML surrogates" />
-        <Stat n="3" label="method modules" />
-        <Stat n="1" label="hybrid engine" />
+        <Group
+          n="3"
+          title="Numerical solvers"
+          items={["FDM", "Cole–Hopf", "Spectral"]}
+        />
+        <Group
+          n="3"
+          title="ML surrogates"
+          items={["PINN", "FNO", "DeepONet"]}
+        />
+        <Group
+          n="3"
+          title="Method modules"
+          items={["Trust", "Coupling", "Cost control"]}
+        />
+        <Group n="1" title="Hybrid engine" items={["Tunable runtime"]} />
       </div>
 
       {/* FAMILIES */}
@@ -302,6 +364,33 @@ export default function Overview({ go }) {
             owner="Mendis B.N.D."
             tone="bg-fuchsia-600"
             one="Spends numerical effort only where it pays off, for a target accuracy."
+          />
+        </div>
+      </div>
+
+      {/* WHAT WE DEMONSTRATE */}
+      <div>
+        <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">
+          What the live demo shows
+        </h2>
+        <div className="grid grid-cols-3 gap-4">
+          <Family
+            icon={AlertTriangle}
+            color="bg-rose-100 text-rose-600"
+            title="Catches silent failures"
+            tag="no true answer needed"
+          />
+          <Family
+            icon={ArrowLeftRight}
+            color="bg-indigo-100 text-indigo-600"
+            title="Switches at the right moment"
+            tag="trust flips the engine live"
+          />
+          <Family
+            icon={Rocket}
+            color="bg-emerald-100 text-emerald-600"
+            title="Fast + accurate long-horizon"
+            tag="cheaper than pure numerical"
           />
         </div>
       </div>

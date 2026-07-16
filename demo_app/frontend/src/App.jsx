@@ -52,8 +52,8 @@ export default function App() {
   const sec = SECTIONS.find((s) => s.id === active);
 
   return (
-    <div className="min-h-screen flex">
-      <aside className="w-64 shrink-0 bg-white border-r border-slate-200 p-4">
+    <div className="min-h-screen">
+      <aside className="fixed top-0 left-0 h-screen w-64 overflow-y-auto bg-white border-r border-slate-200 p-4 z-20">
         <div className="px-2 py-3">
           <div className="text-lg font-bold text-slate-800">Team Turingz</div>
           <div className="text-xs text-slate-500">
@@ -84,7 +84,7 @@ export default function App() {
         </nav>
       </aside>
 
-      <main className="flex-1 w-full p-8 mx-10">
+      <main className="ml-72 p-8 mx-10">
         {active === "overview" && <Overview go={setActive} />}
         {active === "trust" && <TrustPage />}
         {active !== "overview" && active !== "trust" && (
