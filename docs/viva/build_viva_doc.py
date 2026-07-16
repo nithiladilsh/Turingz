@@ -418,6 +418,38 @@ qa([("Which single file is your core contribution?",
     ("What about the coarse detector - is it not M1's?",
      "The production monitor lives in M1 now, but the prototype (coarse_monitor.py) and the idea are mine; my diagnostics surfaced the problem it solves.")])
 
+# ---------------- PLAIN RESULTS ----------------
+h1("Explaining your results in plain language (say this when asked)")
+para("One-line version: the solver gets a good-enough answer in about a third of the time it would take to do it the accurate way - it lets the fast ML do the easy stretch and only pays for the slow accurate solver in the short window where ML would go wrong. Like driving on cruise control and only grabbing the wheel for the tricky bend.")
+label("The three options:", "Pure ML is instant (0.2 s) but about 8 percent wrong. Pure numerical is basically perfect but slow (2.5 s). The hybrid lands between: about 1 s at 3-5 percent error. A few percent of accuracy traded for a roughly 3x speedup.")
+label("Timing beats brute force (adaptive vs fixed, 0 vs 8.6 percent):", "Give two controllers the SAME number of expensive corrections. Spend them exactly when ML is failing and you get an essentially perfect answer; spend them on a blind fixed schedule and you are still 8.6 percent off. When you correct matters more than how much.")
+label("The ~3 percent floor is honest, not a bug:", "However tight the knob, it will not beat about 3 percent, because the cheap watchdog lets ML drift a little before it raises the alarm. That is the price of a cheap watchdog - and I say so openly.")
+label("The watchdog upgrade (coarse detector, 1.00 vs 0.68):", "The old check (physics residual) only loosely tracks the real error - like a smoke alarm that sometimes misses the fire. The coarse check tracks the real error almost perfectly, catching the failure the old method is blind to.")
+label("It does not fall apart on hard inputs (0.6 to 1.2 percent):", "On familiar problems it is about 0.6 percent off; on unfamiliar, harder inputs the error roughly doubles to about 1.2 percent but stays small. It bends, it does not break.")
+box("If the examiner says: explain your results in one breath", ["Pure ML is fast but unreliable; pure numerical is accurate but slow; my hybrid gives a few-percent answer at about a third of the numerical cost by spending expensive correction only when a trust signal says ML is drifting - and I prove that timing the correction, not just budgeting it, is what makes it work."])
+
+# ---------------- LIVE DEMO ----------------
+h1("Live demo - what to show and say")
+para("Two pages carry the demo. The Hybrid engine page runs the whole system live; the Cost control page is your Module 3 - the mechanism plus the measured proof. Say the plain-English version below; the numbers are all real.")
+h2("Hybrid engine page (the full system, live)")
+label("What it is:", "One run of the entire pipeline. Pick a model, build a starting wave, press Run.")
+label("What to point at:", "Green (hybrid) tracks the grey truth while red (pure ML) drifts away; the Module 1 trust gauge falls and fires the switch; Module 2 hand-off turns on; Module 3 cost bars show the hybrid cheaper than numerical and more accurate than ML.")
+label("The strongest moment:", "Run once in Reference-free trust - it panics and switches at t=0.06 with no benefit - then switch to Cheap-reference and it times the switch correctly. That contrast IS Module 1's coarse-detector contribution, shown live.")
+label("Good demo setting:", "FNO + Cheap-reference + about 4 sine modes: roughly 3x cheaper than numerical at roughly 2.6x ML accuracy.")
+h2("Cost control page (your Module 3)")
+para("Each panel in one sentence:")
+bullet("The accuracy knob: you set one accuracy target; it maps to the two switch thresholds (theta_lo, theta_hi). This one-knob-to-schedule map is your novelty.")
+bullet("Where the compute goes: a bar splitting cheap ML effort vs expensive numerical effort. Tighten the target and the numerical share grows - that is the cost you pay for accuracy.")
+bullet("Measured cost/accuracy frontier: the real curve. Red square = pure-ML (cheap, wrong), blue triangle = pure-numerical (accurate, slow), green = your hybrid in the good middle. The black ring is the operating point you picked with the knob.")
+bullet("Adaptive vs fixed: with the SAME number of corrections, the adaptive controller gets 0 percent error while a fixed every-N baseline gets 8.6 percent - it spends effort where trust is low.")
+bullet("Robustness: error on familiar inputs vs harder out-of-distribution inputs - it grows but stays low and bounded (degrades gracefully).")
+bullet("Hysteresis deadband: a noisy trust signal. A naive single threshold flips on/off many times (wasted corrections); the two-threshold deadband switches once. Turn up the noise slider to exaggerate it. This is the anti-chatter mechanism, live.")
+bullet("Novelty in code: the live thresholds_for_target(target) -> theta_lo, theta_hi line - the exact code that makes the knob work.")
+qa([("Is the demo using real numbers or made-up ones?",
+     "The frontier, adaptive-vs-fixed and robustness are real measured results loaded from the results files. The hysteresis panel is a labelled illustration of the control logic (a synthetic noisy trust signal), not a measured result - I say so."),
+    ("Which page shows YOUR contribution?",
+     "Both. The Hybrid engine page shows my cost accounting running inside the full live system; the Cost control page shows my mechanism - the accuracy-budget knob and the deadband - and the measured frontier that proves it pays off.")])
+
 # ---------------- STATUS ----------------
 h1("Where we are, and what's next")
 para("Done and verified: Steps 1-10 (scoring, one hybrid run, cost profiler, accuracy-cost map, the controller, the runtime, the Pareto frontier, robustness, integration scaffolding, the live demo). Real integration: real FNO + spectral solvers plugged in; M1 coarse-reference trust integrated; the coarse-drift detector demonstrated; and M2 coupling wired via the fixed contract (end-to-end integration test passes); and an honest full-system timed cost result measured (~2-3.6x cheaper than numerical at up to ~2.6x pure-ML accuracy).")
