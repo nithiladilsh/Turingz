@@ -88,11 +88,10 @@ export default function App() {
         {active === "overview" && <Overview go={setActive} />}
         {active === "trust" && <TrustPage />}
         {active === "fdm" && <FDMPage />}
-        {!["overview", "trust", "fdm"].includes(active) && (
         {active === "coupling" && <CouplingPage />}
         {active === "colehopf" && <ColeHopfPage />}
         {active === "robustness" && <RobustnessPage />}
-        {!["overview", "trust", "coupling", "colehopf", "robustness"].includes(active) && (
+        {!["overview", "trust", "fdm", "coupling", "colehopf", "robustness"].includes(active) && (
           <Placeholder title={sec.label} group={sec.group} note={NOTES[active]} />
         )}
       </main>
