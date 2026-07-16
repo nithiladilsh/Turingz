@@ -10,8 +10,8 @@ This repository houses a microservice-oriented architecture divided into three c
 
 * **Module 1: Reliability & Failure Detection (The Sensors)**
     * Continuously monitors the ML predictions in the background. Tracks Mean Squared Error (MSE) and physics-based residual errors to generate a live "Failure Probability Score."
-* **Module 2: Robustness & Environmental Stress (The Environment)**
-    * Generates extreme Out-of-Distribution (OOD) scenarios using the 1D viscous Burgers' equation to stress-test the system's extrapolation capabilities.
+* **Module 2: Verified ML-to-Numerical Coupling (The Handoff)**
+    * Provides the restart-verified handoff from learned PDE states to the numerical continuation solver (bit-for-bit equal to the production pseudo-spectral scheme), characterizes when the handoff helps (switch-time viability boundary) and when restart fidelity becomes safety-critical (low-viscosity stress boundary), and exposes the `M2Coupling` adapter that Module 3's runtime calls. Also includes the OOD/robustness evaluation used to locate ML failure.
 * **Module 3: Deployment & Orchestration (The Engine Control Unit)**
     * A latency-aware middleware API. Ingests failure scores and calculates the **Hybrid Efficiency Index (HEI)** to make split-second routing decisions. It dynamically throttles the classical numerical engine to prevent Out-Of-Memory (OOM) crashes and guarantee strict IT latency budgets.
 
