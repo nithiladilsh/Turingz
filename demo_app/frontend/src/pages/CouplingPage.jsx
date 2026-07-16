@@ -70,6 +70,11 @@ export default function CouplingPage() {
         and watch the hybrid stay on the true solution while pure ML drifts. The demo calls the real
         M2Coupling adapter, the same object Module 3&apos;s runtime uses.
       </p>
+      <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 max-w-3xl">
+        This page dissects the handoff mechanism itself — you control the switch and can deliberately
+        switch too late. The Hybrid engine page is the opposite: you set an accuracy target and the
+        integrated system (trust + control) decides the switching for you.
+      </p>
       {err && (
         <div className="mt-3 text-sm text-rose-600 dark:text-rose-300 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 rounded-lg px-3 py-2">
           {err}
@@ -119,7 +124,7 @@ export default function CouplingPage() {
           </Card>
 
           <Card title="3. Choose the switch"
-            subtitle="Manual = you pick the handoff time. Trust = Module 1's live signal fires it.">
+            subtitle="Manual = dissect the mechanism yourself. Trust = preview of Module 1's signal firing my switch — the full engine adds Module 3's cost control on top.">
             <div className="flex gap-2">
               {[["manual", "Manual t_s"], ["trust", "Trust-triggered"]].map(([v, label]) => (
                 <button key={v} onClick={() => setSwitchMode(v)}
