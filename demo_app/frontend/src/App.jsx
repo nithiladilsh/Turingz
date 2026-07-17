@@ -97,7 +97,7 @@ export default function App() {
         {active === "coupling" && <CouplingPage />}
         {active === "colehopf" && <ColeHopfPage />}
         {active === "robustness" && <RobustnessPage />}
-        {!["overview", "trust", "hybrid", "costcontrol", "spectral", "fdm", "coupling", "colehopf", "robustness"].includes(active) && (
+{!["overview", "trust", "hybrid", "costcontrol", "fdm", "coupling", "colehopf", "robustness"].includes(active) && (
           <Placeholder title={sec.label} group={sec.group} note={NOTES[active]} />
         )}
       </main>
