@@ -62,12 +62,15 @@ function BlurChart({ frame }) {
         stroke="#94a3b8"
         strokeWidth="2"
         strokeDasharray="5 4"
+        strokeLinejoin="round"
+        strokeLinecap="round"
       />
       <path
         d={path(fdmY)}
         fill="none"
         stroke="#4f46e5"
         strokeWidth="3"
+        strokeLinejoin="round"
         strokeLinecap="round"
       />
       <text

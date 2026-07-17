@@ -6,6 +6,7 @@ import FDMPage from "./pages/FDMPage.jsx";
 import Placeholder from "./pages/Placeholder.jsx";
 import HybridPipeline from "./pages/HybridPipeline.jsx";
 import CostControl from "./pages/CostControl.jsx";
+import SpectralPage from "./pages/SpectralPage.jsx";
 import CouplingPage from "./pages/CouplingPage.jsx";
 import ColeHopfPage from "./pages/ColeHopfPage.jsx";
 import RobustnessPage from "./pages/RobustnessPage.jsx";
@@ -86,11 +87,12 @@ export default function App() {
         </button>
       </aside>
 
-      <main className="ml-64 p-8">
+      <main className="ml-72 mx-10 p-8">
         {active === "overview" && <Overview go={setActive} />}
         {active === "trust" && <TrustPage />}
         {active === "hybrid" && <HybridPipeline />}
         {active === "costcontrol" && <CostControl />}
+        {active === "spectral" && <SpectralPage />}
         {active === "fdm" && <FDMPage />}
         {active === "coupling" && <CouplingPage />}
         {active === "colehopf" && <ColeHopfPage />}
