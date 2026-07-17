@@ -173,7 +173,7 @@ export default function FDMPage() {
         <h1 className="text-3xl font-extrabold text-slate-800 dark:text-slate-100 mt-1">
           Finite-Difference Method
         </h1>
-        <p className="text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">
+        <p className="text-slate-500 dark:text-slate-400 mt-1">
           We built FDM and asked one question —{" "}
           <span className="font-medium text-slate-700 dark:text-slate-200">
             can it be our source of truth?

@@ -9,6 +9,7 @@ import CostControl from "./pages/CostControl.jsx";
 import CouplingPage from "./pages/CouplingPage.jsx";
 import ColeHopfPage from "./pages/ColeHopfPage.jsx";
 import RobustnessPage from "./pages/RobustnessPage.jsx";
+import ReliabilityPage from "./pages/ReliabilityPage.jsx";
 
 const SECTIONS = [
   { id: "overview", label: "Overview", group: "Project" },
@@ -95,7 +96,8 @@ export default function App() {
         {active === "coupling" && <CouplingPage />}
         {active === "colehopf" && <ColeHopfPage />}
         {active === "robustness" && <RobustnessPage />}
-        {!["overview", "trust", "hybrid", "costcontrol", "fdm", "coupling", "colehopf", "robustness"].includes(active) && (
+        {active === "reliability" && <ReliabilityPage />}
+        {!["overview", "trust", "hybrid", "costcontrol", "fdm", "coupling", "colehopf", "robustness", "reliability"].includes(active) && (
           <Placeholder title={sec.label} group={sec.group} note={NOTES[active]} />
         )}
       </main>

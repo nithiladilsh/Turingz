@@ -34,6 +34,22 @@ def pinn_ic(index: int):
     return {"x": core.X.round(4).tolist(), "ic": core.PINN_ICS[index].round(4).tolist()}
 
 
+@app.websocket("/ws/reliability")
+async def ws_reliability(ws: WebSocket):
+    await ws.accept()
+    try:
+        req = json.loads(await ws.receive_text())
+        gen = core.reliability_stream(req.get("model", "FNO"), ic=req.get("ic"), pinn_index=req.get("pinn_index", 0))
+        for frame in gen:
+            await ws.send_text(json.dumps(frame))
+            await asyncio.sleep(0.03)
+        await ws.send_text(json.dumps({"done": True}))
+    except WebSocketDisconnect:
+        return
+    except Exception as e:
+        await ws.send_text(json.dumps({"error": str(e)}))
+
+
 @app.websocket("/ws/trust")
 async def ws_trust(ws: WebSocket):
     await ws.accept()

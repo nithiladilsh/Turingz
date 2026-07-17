@@ -1,31 +1,61 @@
-function path(xs, ys, xr, yr, w, h, pad) {
-  const sx = (v) => pad + ((v - xr[0]) / (xr[1] - xr[0])) * (w - 2 * pad);
-  const sy = (v) => h - pad - ((v - yr[0]) / (yr[1] - yr[0])) * (h - 2 * pad);
+function path(xs, ys, xr, yr, w, h, p) {
+  const { padL, padR, padT, padB } = p;
+  const sx = (v) => padL + ((v - xr[0]) / (xr[1] - xr[0])) * (w - padL - padR);
+  const sy = (v) => h - padB - ((v - yr[0]) / (yr[1] - yr[0])) * (h - padT - padB);
   return xs.map((x, i) => `${i ? "L" : "M"}${sx(x).toFixed(1)} ${sy(ys[i]).toFixed(1)}`).join(" ");
 }
 
-export function LineChart({ series, xr, yr, w = 460, h = 200, hline, vline, xlabel, ylabel }) {
-  const pad = 34;
-  const sx = (v) => pad + ((v - xr[0]) / (xr[1] - xr[0])) * (w - 2 * pad);
-  const sy = (v) => h - pad - ((v - yr[0]) / (yr[1] - yr[0])) * (h - 2 * pad);
+const fmtTick = (v) => {
+  if (Math.abs(v) < 1e-9) return "0";
+  if (Number.isInteger(v)) return String(v);
+  return String(Math.round(v * 100) / 100);
+};
+const ticks = (r, n) =>
+  Array.from({ length: n + 1 }, (_, i) => r[0] + (i / n) * (r[1] - r[0]));
+
+export function LineChart({ series, xr, yr, w = 460, h = 200, hline, vline, xlabel, ylabel, xticks = 5, yticks = 4 }) {
+  const padL = 46, padR = 14, padT = 12, padB = 34;
+  const sx = (v) => padL + ((v - xr[0]) / (xr[1] - xr[0])) * (w - padL - padR);
+  const sy = (v) => h - padB - ((v - yr[0]) / (yr[1] - yr[0])) * (h - padT - padB);
+  const xt = ticks(xr, xticks), yt = ticks(yr, yticks);
   return (
     <svg viewBox={`0 0 ${w} ${h}`} className="w-full">
-      <rect x={pad} y={pad} width={w - 2 * pad} height={h - 2 * pad} fill="var(--chart-surface)" stroke="var(--chart-grid)" />
+      <rect x={padL} y={padT} width={w - padL - padR} height={h - padT - padB} fill="var(--chart-surface)" stroke="var(--chart-grid)" />
+
+      {/* y gridlines + value labels */}
+      {yt.map((v, i) => (
+        <g key={"y" + i}>
+          {i > 0 && i < yt.length && (
+            <line x1={padL} x2={w - padR} y1={sy(v)} y2={sy(v)} stroke="var(--chart-grid)" strokeOpacity="0.5" />
+          )}
+          <text x={padL - 6} y={sy(v) + 3} textAnchor="end" fontSize="9" fill="var(--chart-axis)">{fmtTick(v)}</text>
+        </g>
+      ))}
+
+      {/* x tick marks + value labels */}
+      {xt.map((v, i) => (
+        <g key={"x" + i}>
+          <line x1={sx(v)} x2={sx(v)} y1={h - padB} y2={h - padB + 4} stroke="var(--chart-axis)" strokeOpacity="0.6" />
+          <text x={sx(v)} y={h - padB + 15} textAnchor="middle" fontSize="9" fill="var(--chart-axis)">{fmtTick(v)}</text>
+        </g>
+      ))}
+
       {hline != null && (
-        <line x1={pad} x2={w - pad} y1={sy(hline)} y2={sy(hline)} stroke="#94a3b8" strokeDasharray="4 3" />
+        <line x1={padL} x2={w - padR} y1={sy(hline)} y2={sy(hline)} stroke="#f59e0b" strokeDasharray="4 3" />
       )}
       {vline != null && (
-        <line x1={sx(vline)} x2={sx(vline)} y1={pad} y2={h - pad} stroke="#e11d48" strokeWidth="1.5" />
+        <line x1={sx(vline)} x2={sx(vline)} y1={padT} y2={h - padB} stroke="#e11d48" strokeWidth="1.5" />
       )}
       {series.map((s, i) =>
         s.x.length > 1 ? (
-          <path key={i} d={path(s.x, s.y, xr, yr, w, h, pad)} fill="none"
-            stroke={s.color} strokeWidth={s.width || 2} strokeDasharray={s.dashed ? "5 4" : "0"} />
+          <path key={i} d={path(s.x, s.y, xr, yr, w, h, { padL, padR, padT, padB })} fill="none"
+            stroke={s.color} strokeWidth={s.width || 2} strokeDasharray={s.dashed ? "5 4" : "0"}
+            strokeLinejoin="round" strokeLinecap="round" />
         ) : null
       )}
-      {xlabel && <text x={w / 2} y={h - 6} textAnchor="middle" fontSize="10" fill="var(--chart-axis)">{xlabel}</text>}
-      {ylabel && <text x={10} y={h / 2} textAnchor="middle" fontSize="10" fill="var(--chart-axis)"
-        transform={`rotate(-90 10 ${h / 2})`}>{ylabel}</text>}
+      {xlabel && <text x={(padL + w - padR) / 2} y={h - 4} textAnchor="middle" fontSize="10" fill="var(--chart-axis)">{xlabel}</text>}
+      {ylabel && <text x={11} y={(padT + h - padB) / 2} textAnchor="middle" fontSize="10" fill="var(--chart-axis)"
+        transform={`rotate(-90 11 ${(padT + h - padB) / 2})`}>{ylabel}</text>}
     </svg>
   );
 }
