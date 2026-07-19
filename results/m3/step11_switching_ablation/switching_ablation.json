@@ -1,0 +1,400 @@
+{
+ "model": "FNO",
+ "steps": 200,
+ "n_ics": 10,
+ "hardcoded_theta": 0.4,
+ "target_response": {
+  "latch": {
+   "min": 0.029999877479192444,
+   "max": 0.05306352882974189,
+   "range": 0.023063651350549448,
+   "responds_to_target": true
+  },
+  "deadband": {
+   "min": 0.04355130208261728,
+   "max": 0.0592542937992324,
+   "range": 0.01570299171661512,
+   "responds_to_target": true
+  },
+  "naive": {
+   "min": 0.04417950135105051,
+   "max": 0.06189591137835202,
+   "range": 0.01771641002730151,
+   "responds_to_target": true
+  },
+  "hardcoded": {
+   "min": 0.0444634765390946,
+   "max": 0.0444634765390946,
+   "range": 0.0,
+   "responds_to_target": false
+  }
+ },
+ "rows": [
+  {
+   "target": 0.3,
+   "theta_lo": 0.2,
+   "theta_hi": 0.32,
+   "policies": {
+    "latch": {
+     "mean_error": 0.05306352882974189,
+     "std_error": 0.010739780128206752,
+     "cost_s": 0.6702090299950214,
+     "corrections": 31.1,
+     "steps": 200,
+     "corr_frac": 0.1555,
+     "switch_events": 0.9,
+     "hit_rate": 1.0,
+     "latched": true
+    },
+    "deadband": {
+     "mean_error": 0.0592542937992324,
+     "std_error": 0.018870420208124197,
+     "cost_s": 0.7296982600033516,
+     "corrections": 30.9,
+     "steps": 200,
+     "corr_frac": 0.1545,
+     "switch_events": 1.1,
+     "hit_rate": 1.0,
+     "latched": false
+    },
+    "naive": {
+     "mean_error": 0.06189591137835202,
+     "std_error": 0.021548727891710202,
+     "cost_s": 0.7445341200014809,
+     "corrections": 30.2,
+     "steps": 200,
+     "corr_frac": 0.151,
+     "switch_events": 1.8,
+     "hit_rate": 1.0,
+     "latched": false
+    },
+    "hardcoded": {
+     "mean_error": 0.0444634765390946,
+     "std_error": 0.00819914960180488,
+     "cost_s": 0.6666046200087294,
+     "corrections": 43.0,
+     "steps": 200,
+     "corr_frac": 0.215,
+     "switch_events": 1.0,
+     "hit_rate": 1.0,
+     "latched": true
+    },
+    "fixed_matched": {
+     "k": 6,
+     "mean_error": 0.07734230666786827,
+     "std_error": 0.032714438410118916,
+     "cost_s": 0.5754188599908957,
+     "corrections": 34.0,
+     "steps": 200,
+     "corr_frac": 0.17,
+     "hit_rate": 1.0
+    }
+   }
+  },
+  {
+   "target": 0.2,
+   "theta_lo": 0.34,
+   "theta_hi": 0.46,
+   "policies": {
+    "latch": {
+     "mean_error": 0.04771101891654423,
+     "std_error": 0.00933445023639885,
+     "cost_s": 0.5833610100031364,
+     "corrections": 39.0,
+     "steps": 200,
+     "corr_frac": 0.195,
+     "switch_events": 1.0,
+     "hit_rate": 1.0,
+     "latched": true
+    },
+    "deadband": {
+     "mean_error": 0.05481645126876407,
+     "std_error": 0.018252318493395852,
+     "cost_s": 0.630327929998748,
+     "corrections": 38.8,
+     "steps": 200,
+     "corr_frac": 0.19399999999999998,
+     "switch_events": 1.2,
+     "hit_rate": 1.0,
+     "latched": false
+    },
+    "naive": {
+     "mean_error": 0.05360543575821355,
+     "std_error": 0.013651912021183082,
+     "cost_s": 0.6248264599969844,
+     "corrections": 38.1,
+     "steps": 200,
+     "corr_frac": 0.1905,
+     "switch_events": 1.9,
+     "hit_rate": 1.0,
+     "latched": false
+    },
+    "hardcoded": {
+     "mean_error": 0.0444634765390946,
+     "std_error": 0.00819914960180488,
+     "cost_s": 0.7273270300065633,
+     "corrections": 43.0,
+     "steps": 200,
+     "corr_frac": 0.215,
+     "switch_events": 1.0,
+     "hit_rate": 1.0,
+     "latched": true
+    },
+    "fixed_matched": {
+     "k": 5,
+     "mean_error": 0.07731058900713517,
+     "std_error": 0.03269271316509326,
+     "cost_s": 0.6774655500077642,
+     "corrections": 40.0,
+     "steps": 200,
+     "corr_frac": 0.2,
+     "hit_rate": 1.0
+    }
+   }
+  },
+  {
+   "target": 0.1,
+   "theta_lo": 0.48,
+   "theta_hi": 0.6,
+   "policies": {
+    "latch": {
+     "mean_error": 0.03995162579494059,
+     "std_error": 0.006996339550937544,
+     "cost_s": 0.8532310000009602,
+     "corrections": 48.2,
+     "steps": 200,
+     "corr_frac": 0.24100000000000002,
+     "switch_events": 1.0,
+     "hit_rate": 1.0,
+     "latched": true
+    },
+    "deadband": {
+     "mean_error": 0.04763172081941021,
+     "std_error": 0.016494954495658267,
+     "cost_s": 0.8478617999906419,
+     "corrections": 48.0,
+     "steps": 200,
+     "corr_frac": 0.24,
+     "switch_events": 1.2,
+     "hit_rate": 1.0,
+     "latched": false
+    },
+    "naive": {
+     "mean_error": 0.049107173360301175,
+     "std_error": 0.01615274835722979,
+     "cost_s": 0.8933231599978171,
+     "corrections": 47.2,
+     "steps": 200,
+     "corr_frac": 0.23600000000000002,
+     "switch_events": 2.0,
+     "hit_rate": 1.0,
+     "latched": false
+    },
+    "hardcoded": {
+     "mean_error": 0.0444634765390946,
+     "std_error": 0.00819914960180488,
+     "cost_s": 0.9774661799980094,
+     "corrections": 43.0,
+     "steps": 200,
+     "corr_frac": 0.215,
+     "switch_events": 1.0,
+     "hit_rate": 1.0,
+     "latched": true
+    },
+    "fixed_matched": {
+     "k": 4,
+     "mean_error": 0.07720975033956194,
+     "std_error": 0.03264862322141846,
+     "cost_s": 0.8357410799973877,
+     "corrections": 50.0,
+     "steps": 200,
+     "corr_frac": 0.25,
+     "hit_rate": 0.8
+    }
+   }
+  },
+  {
+   "target": 0.05,
+   "theta_lo": 0.55,
+   "theta_hi": 0.67,
+   "policies": {
+    "latch": {
+     "mean_error": 0.035922485922833244,
+     "std_error": 0.006368364655822559,
+     "cost_s": 0.8095470600033877,
+     "corrections": 52.3,
+     "steps": 200,
+     "corr_frac": 0.2615,
+     "switch_events": 1.0,
+     "hit_rate": 1.0,
+     "latched": true
+    },
+    "deadband": {
+     "mean_error": 0.04512654616096256,
+     "std_error": 0.01814466729325826,
+     "cost_s": 0.7958966100035468,
+     "corrections": 52.0,
+     "steps": 200,
+     "corr_frac": 0.26,
+     "switch_events": 1.3,
+     "hit_rate": 0.8,
+     "latched": false
+    },
+    "naive": {
+     "mean_error": 0.04558924183338829,
+     "std_error": 0.015381315434454779,
+     "cost_s": 0.8740124500036472,
+     "corrections": 51.4,
+     "steps": 200,
+     "corr_frac": 0.257,
+     "switch_events": 1.9,
+     "hit_rate": 0.8,
+     "latched": false
+    },
+    "hardcoded": {
+     "mean_error": 0.0444634765390946,
+     "std_error": 0.00819914960180488,
+     "cost_s": 0.7482533799979137,
+     "corrections": 43.0,
+     "steps": 200,
+     "corr_frac": 0.215,
+     "switch_events": 1.0,
+     "hit_rate": 0.7,
+     "latched": true
+    },
+    "fixed_matched": {
+     "k": 4,
+     "mean_error": 0.07720975033956194,
+     "std_error": 0.03264862322141846,
+     "cost_s": 0.7881626300077187,
+     "corrections": 50.0,
+     "steps": 200,
+     "corr_frac": 0.25,
+     "hit_rate": 0.2
+    }
+   }
+  },
+  {
+   "target": 0.02,
+   "theta_lo": 0.58,
+   "theta_hi": 0.7,
+   "policies": {
+    "latch": {
+     "mean_error": 0.029999877479192444,
+     "std_error": 0.010580104594432252,
+     "cost_s": 0.9736286400031531,
+     "corrections": 66.8,
+     "steps": 200,
+     "corr_frac": 0.33399999999999996,
+     "switch_events": 1.0,
+     "hit_rate": 0.1,
+     "latched": true
+    },
+    "deadband": {
+     "mean_error": 0.04355130208261728,
+     "std_error": 0.01832488090601487,
+     "cost_s": 0.9158044000039809,
+     "corrections": 56.5,
+     "steps": 200,
+     "corr_frac": 0.2825,
+     "switch_events": 1.4,
+     "hit_rate": 0.0,
+     "latched": false
+    },
+    "naive": {
+     "mean_error": 0.04417950135105051,
+     "std_error": 0.013383184705038397,
+     "cost_s": 0.8660475999990013,
+     "corrections": 54.1,
+     "steps": 200,
+     "corr_frac": 0.2705,
+     "switch_events": 2.1,
+     "hit_rate": 0.0,
+     "latched": false
+    },
+    "hardcoded": {
+     "mean_error": 0.0444634765390946,
+     "std_error": 0.00819914960180488,
+     "cost_s": 0.7427143499953672,
+     "corrections": 43.0,
+     "steps": 200,
+     "corr_frac": 0.215,
+     "switch_events": 1.0,
+     "hit_rate": 0.0,
+     "latched": true
+    },
+    "fixed_matched": {
+     "k": 3,
+     "mean_error": 0.07702352495940953,
+     "std_error": 0.03257132552364406,
+     "cost_s": 0.9873601800034522,
+     "corrections": 67.0,
+     "steps": 200,
+     "corr_frac": 0.335,
+     "hit_rate": 0.0
+    }
+   }
+  },
+  {
+   "target": 0.01,
+   "theta_lo": 0.58,
+   "theta_hi": 0.7,
+   "policies": {
+    "latch": {
+     "mean_error": 0.029999877479192444,
+     "std_error": 0.010580104594432252,
+     "cost_s": 0.9920044900092762,
+     "corrections": 66.8,
+     "steps": 200,
+     "corr_frac": 0.33399999999999996,
+     "switch_events": 1.0,
+     "hit_rate": 0.1,
+     "latched": true
+    },
+    "deadband": {
+     "mean_error": 0.04355130208261728,
+     "std_error": 0.01832488090601487,
+     "cost_s": 0.8800575700035551,
+     "corrections": 56.5,
+     "steps": 200,
+     "corr_frac": 0.2825,
+     "switch_events": 1.4,
+     "hit_rate": 0.0,
+     "latched": false
+    },
+    "naive": {
+     "mean_error": 0.04417950135105051,
+     "std_error": 0.013383184705038397,
+     "cost_s": 0.8562881899997592,
+     "corrections": 54.1,
+     "steps": 200,
+     "corr_frac": 0.2705,
+     "switch_events": 2.1,
+     "hit_rate": 0.0,
+     "latched": false
+    },
+    "hardcoded": {
+     "mean_error": 0.0444634765390946,
+     "std_error": 0.00819914960180488,
+     "cost_s": 0.7400228600017726,
+     "corrections": 43.0,
+     "steps": 200,
+     "corr_frac": 0.215,
+     "switch_events": 1.0,
+     "hit_rate": 0.0,
+     "latched": true
+    },
+    "fixed_matched": {
+     "k": 3,
+     "mean_error": 0.07702352495940953,
+     "std_error": 0.03257132552364406,
+     "cost_s": 0.9929672199941706,
+     "corrections": 67.0,
+     "steps": 200,
+     "corr_frac": 0.335,
+     "hit_rate": 0.0
+    }
+   }
+  }
+ ]
+}

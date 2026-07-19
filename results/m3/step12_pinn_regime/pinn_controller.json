@@ -1,0 +1,67 @@
+{
+ "model": "PINN",
+ "n_ics": 10,
+ "basis": "pre-trained checkpoints, training cost EXCLUDED",
+ "rows": [
+  {
+   "target": 0.3,
+   "mean_error": 0.18240198672828337,
+   "std_error": 0.10677145876427202,
+   "cost_s": 0.6834296401326909,
+   "corrections": 66.1,
+   "corr_frac": 0.33049999999999996,
+   "hit_rate": 0.8
+  },
+  {
+   "target": 0.2,
+   "mean_error": 0.14514921518218565,
+   "std_error": 0.10132694267897134,
+   "cost_s": 0.724251672987829,
+   "corrections": 71.4,
+   "corr_frac": 0.35700000000000004,
+   "hit_rate": 0.6
+  },
+  {
+   "target": 0.1,
+   "mean_error": 0.10418637022806314,
+   "std_error": 0.08564907203829679,
+   "cost_s": 0.7766271113680062,
+   "corrections": 78.2,
+   "corr_frac": 0.391,
+   "hit_rate": 0.5
+  },
+  {
+   "target": 0.05,
+   "mean_error": 0.08545332652869725,
+   "std_error": 0.07313243350904763,
+   "cost_s": 0.8028148305580951,
+   "corrections": 81.6,
+   "corr_frac": 0.408,
+   "hit_rate": 0.4
+  },
+  {
+   "target": 0.02,
+   "mean_error": 0.0803369432843595,
+   "std_error": 0.06898206105856229,
+   "cost_s": 0.8667436744633115,
+   "corrections": 89.9,
+   "corr_frac": 0.4495,
+   "hit_rate": 0.4
+  },
+  {
+   "target": 0.01,
+   "mean_error": 0.0803369432843595,
+   "std_error": 0.06898206105856229,
+   "cost_s": 0.8667436744633115,
+   "corrections": 89.9,
+   "corr_frac": 0.4495,
+   "hit_rate": 0.3
+  }
+ ],
+ "responds_to_target": true,
+ "error_range": [
+  0.0803369432843595,
+  0.18240198672828337
+ ],
+ "best_hit_rate": 0.8
+}

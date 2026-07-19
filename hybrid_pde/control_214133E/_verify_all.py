@@ -56,7 +56,10 @@ def main():
     tog=lambda d: int(np.sum(d[1:]!=d[:-1]))
     ac=AdaptiveController(0.4,0.6); ac.reset()
     hy=np.array([ac.decide(float(trust[i]),False,t[i],i).correct for i in range(n)])
-    check("S5 hysteresis<single toggles", tog(hy)<tog(trust<0.5))
+    check("S5 hysteresis code path correct (NOT SHIPPED - see step11 ablation)", tog(hy)<tog(trust<0.5))
+    lc=AdaptiveController(0.4,1.1); lc.reset()
+    lt=np.array([lc.decide(float(trust[i]),False,t[i],i).correct for i in range(n)])
+    check("S5 shipped latch hands over once and stays", tog(lt)<=1 and bool(lt[-1]))
     m2=AccuracyCostModel(1,1,[AccuracyCostPoint(e,err,e) for e,err in [(0,0.3),(50,0.1),(150,0.01)]])
     a2=AdaptiveController(model=m2); a2.configure(0.10); lo=a2._horizon; a2.configure(0.01); hi=a2._horizon
     check("S5 tighter target->more correction", hi>=lo)
@@ -100,10 +103,9 @@ def main():
     check("S9 integration engine dry-run", all("mean_error" in r for r in _rows) and all(0.0<=r["hit_rate"]<=1.0 for r in _rows))
     _sp=integrate.load_numerical_solver().rollout(np.sin(np.pi*xx), xx, tt)
     check("S9 spectral adapter works torch-free", _sp.shape==(200,512) and np.isfinite(_sp).all())
-    _m2_pending=False
-    try: integrate.load_coupling()
-    except NotImplementedError: _m2_pending=True
-    check("S9 M1 trust wired (real), M2 pending", _m2_pending and hasattr(integrate.load_trust(),"reset"))
+    _cp=integrate.load_coupling()
+    check("S9 M1 trust wired (real)", hasattr(integrate.load_trust(),"reset"))
+    check("S9 M2 coupling wired (real)", all(hasattr(_cp,_m) for _m in ("rollout","correct")))
     _p=default_standins(); _fr=demo_frame(0.10,**_p)
     check("S10 demo backend frame complete", {"x","t","truth","ml","num","hybrid","trust","switch","cost","comparison"}.issubset(_fr) and _fr["hybrid"].shape==(200,512))
     _lo=demo_frame(0.30,**_p); _ti=demo_frame(0.01,**_p)

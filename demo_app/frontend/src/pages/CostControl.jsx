@@ -1,362 +1,440 @@
-import { useEffect, useState } from "react";
-import { Card, Stat, Banner } from "../components/ui.jsx";
-import { LineChart } from "../components/Charts.jsx";
-import { API } from "../api.js";
+import { useEffect, useRef, useState } from "react";
+import { Card } from "../components/ui.jsx";
+import { API, WS, getMeta, buildIC, pinnIC } from "../api.js";
+import { Trophy, Check, X, Play } from "lucide-react";
+import CostRace from "./CostRace.jsx";
+
+const COLOR = { FNO: "#059669", DeepONet: "#e11d48", PINN: "#d97706" };
 
 function thresholds(t) {
-  const lo = Math.min(0.58, Math.max(0.12, 0.62 - 1.4 * t));
-  return [lo, Math.min(0.9, lo + 0.12)];
+  return [Math.min(0.58, Math.max(0.12, 0.62 - 1.4 * t)), null];
 }
-
-function logTicks(min, max) {
-  const out = [];
-  const lo = Math.floor(Math.log10(min)), hi = Math.ceil(Math.log10(max));
-  for (let e = lo; e <= hi; e++) {
-    for (const m of [1, 2, 5]) {
-      const v = m * Math.pow(10, e);
-      if (v >= min && v <= max) out.push(v);
-    }
-  }
-  return out;
+function useDraw(ms = 1400, key = 0) {
+  const [p, setP] = useState(0);
+  useEffect(() => {
+    let raf, start; setP(0);
+    const loop = (ts) => { if (!start) start = ts; const q = Math.min(1, (ts - start) / ms); setP(q); if (q < 1) raf = requestAnimationFrame(loop); };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, [ms, key]);
+  return p;
 }
-const fmtErr = (v) => {
-  const p = v * 100;
-  return p >= 1 ? `${Math.round(p)}%` : p >= 0.1 ? `${p.toFixed(1)}%` : `${p.toFixed(2)}%`;
-};
-const fmtSec = (v) => (v >= 1 ? `${v}s` : `${v}s`);
-const fmtRel = (v) => `${v}x`;
+const pct = (v) => `${(v * 100).toFixed(v < 0.1 ? 1 : 0)}%`;
 
-function Ticks({ xs, ys, sx, sy, w, h, pad, fx, fy }) {
+/* ---------------- findings ---------------- */
+function RegimeCard({ name, best, a, b, c, ok, foot, active, onClick }) {
   return (
-    <g>
-      {xs.map((v) => (
-        <g key={`x${v}`}>
-          <line x1={sx(v)} x2={sx(v)} y1={h - pad} y2={h - pad + 4} stroke="var(--chart-axis)" />
-          <text x={sx(v)} y={h - pad + 15} textAnchor="middle" fontSize="9" fill="var(--chart-axis)">{fx(v)}</text>
-        </g>
-      ))}
-      {ys.map((v) => (
-        <g key={`y${v}`}>
-          <line x1={pad - 4} x2={pad} y1={sy(v)} y2={sy(v)} stroke="var(--chart-axis)" />
-          <text x={pad - 7} y={sy(v) + 3} textAnchor="end" fontSize="9" fill="var(--chart-axis)">{fy(v)}</text>
-        </g>
-      ))}
-    </g>
+    <button onClick={onClick}
+      className={`text-left rounded-2xl border p-4 transition-all hover:-translate-y-1 bg-white dark:bg-slate-800 ${active ? "border-2 shadow-md" : "border-slate-200 dark:border-slate-700"}`}
+      style={active ? { borderColor: COLOR[name] } : {}}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="w-3 h-3 rounded-full" style={{ background: COLOR[name] }} />
+          <span className="text-sm font-bold text-slate-800 dark:text-slate-100">{name}</span>
+        </div>
+        {best
+          ? <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-500/20 px-2 py-0.5 rounded-full"><Trophy size={11} /> pays off</span>
+          : <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-700 dark:text-rose-300 bg-rose-100 dark:bg-rose-500/20 px-2 py-0.5 rounded-full"><X size={11} /> {ok}</span>}
+      </div>
+      <div className="grid grid-cols-3 gap-2 mt-3">
+        {[a, b, c].map((s, i) => (
+          <div key={i}>
+            <div className="text-[10px] text-slate-400 dark:text-slate-500">{s.k}</div>
+            <div className="text-lg font-bold" style={i === 1 ? { color: COLOR[name] } : {}}>{s.v}</div>
+          </div>
+        ))}
+      </div>
+      {foot && <div className="text-[10px] leading-snug text-slate-400 dark:text-slate-500 mt-2">{foot}</div>}
+    </button>
   );
 }
 
-function Bar({ label, value, max, display, color }) {
-  const pct = Math.max(2, Math.min(100, (value / (max || 1)) * 100));
+function Runway({ name, lo, hi }) {
+  const cheap = hi <= 1;
+  const scale = (v) => Math.min(100, (v / 3.2) * 100);
   return (
-    <div className="flex items-center gap-2 text-xs">
-      <div className="w-40 text-slate-500 dark:text-slate-400">{label}</div>
-      <div className="flex-1 bg-slate-100 dark:bg-slate-700/40 rounded h-5">
-        <div className="h-5 rounded" style={{ width: pct + "%", background: color }} />
+    <div className="flex items-center gap-3">
+      <div className="w-20 text-xs font-semibold" style={{ color: COLOR[name] }}>{name}</div>
+      <div className="flex-1 h-5 rounded-full bg-slate-100 dark:bg-slate-700 relative overflow-hidden">
+        <div className="absolute h-5 rounded-full transition-all duration-700"
+          style={{ left: `${scale(lo)}%`, width: `${Math.max(3, scale(hi) - scale(lo))}%`, background: COLOR[name] }} />
+        <div className="absolute inset-y-0 w-0.5 bg-indigo-500" style={{ left: `${scale(1)}%` }} />
       </div>
-      <div className="w-16 text-right text-slate-700 dark:text-slate-200">{display}</div>
+      <div className={`w-28 text-right text-xs font-semibold ${cheap ? "text-emerald-600" : "text-rose-600"}`}>
+        {lo.toFixed(2)}–{hi.toFixed(2)}× {cheap ? "cheaper" : "dearer"}
+      </div>
     </div>
   );
 }
 
-function FrontierChart({ frontier, pml, pnum, sel }) {
-  const w = 520, h = 300, pad = 46;
-  const pts = [...frontier, pml, pnum].filter(Boolean);
-  const xs = pts.map((p) => p.cost), ys = pts.map((p) => Math.max(p.error, 5e-5));
-  const xmin = Math.min(...xs) * 0.8, xmax = Math.max(...xs) * 1.25;
+function FrontierCompare({ models, p }) {
+  const W = 640, H = 300, padL = 52, padR = 20, padT = 18, padB = 40;
+  const pts = Object.keys(models).flatMap((n) => models[n].frontier);
+  const xs = pts.map((q) => Math.max(q.rel_cost, 0.05)), ys = pts.map((q) => Math.max(q.error, 1e-3));
+  const xmin = Math.min(...xs, 0.9) * 0.7, xmax = Math.max(...xs, 1.1) * 1.3;
   const ymin = Math.min(...ys) * 0.6, ymax = Math.max(...ys) * 1.6;
   const L = Math.log10;
-  const sx = (v) => pad + ((L(v) - L(xmin)) / (L(xmax) - L(xmin))) * (w - 2 * pad);
-  const sy = (v) => h - pad - ((L(Math.max(v, 5e-5)) - L(ymin)) / (L(ymax) - L(ymin))) * (h - 2 * pad);
-  const fr = [...frontier].sort((a, b) => a.cost - b.cost);
-  const line = fr.map((p, i) => `${i ? "L" : "M"}${sx(p.cost).toFixed(1)} ${sy(p.error).toFixed(1)}`).join(" ");
+  const sx = (v) => padL + ((L(Math.max(v, 0.05)) - L(xmin)) / (L(xmax) - L(xmin))) * (W - padL - padR);
+  const sy = (v) => H - padB - ((L(Math.max(v, 1e-3)) - L(ymin)) / (L(ymax) - L(ymin))) * (H - padT - padB);
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="w-full">
-      <rect x={pad} y={pad} width={w - 2 * pad} height={h - 2 * pad} fill="var(--chart-surface)" stroke="var(--chart-grid)" />
-      <Ticks xs={logTicks(xmin, xmax)} ys={logTicks(ymin, ymax)} sx={sx} sy={sy} w={w} h={h} pad={pad} fx={fmtSec} fy={fmtErr} />
-      <path d={line} fill="none" stroke="#059669" strokeWidth="1.5" opacity="0.55" />
-      {fr.map((p, i) => <circle key={i} cx={sx(p.cost)} cy={sy(p.error)} r="4" fill="#059669" />)}
-      {pml && <rect x={sx(pml.cost) - 5} y={sy(pml.error) - 5} width="10" height="10" fill="#e11d48" />}
-      {pnum && <path d={`M ${sx(pnum.cost)} ${sy(pnum.error) - 6} L ${sx(pnum.cost) + 6} ${sy(pnum.error) + 5} L ${sx(pnum.cost) - 6} ${sy(pnum.error) + 5} Z`} fill="#4f46e5" />}
-      {sel && <circle cx={sx(sel.cost)} cy={sy(sel.error)} r="9" fill="none" stroke="#111827" strokeWidth="2.5" />}
-      <text x={w / 2} y={h - 8} textAnchor="middle" fontSize="10" fill="var(--chart-axis)">cost (seconds, log) — lower is better</text>
-      <text x={13} y={h / 2} textAnchor="middle" fontSize="10" fill="var(--chart-axis)" transform={`rotate(-90 13 ${h / 2})`}>error (log) — lower is better</text>
-    </svg>
-  );
-}
-
-function Strip({ flags, label, count }) {
-  const w = 520, h = 20, n = flags.length;
-  return (
-    <div>
-      <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-0.5">
-        <span>{label}</span><span>{count} switch{count === 1 ? "" : "es"}</span>
-      </div>
-      <svg viewBox={`0 0 ${w} ${h}`} className="w-full" preserveAspectRatio="none" style={{ height: 16 }}>
-        {flags.map((f, i) => <rect key={i} x={(i / n) * w} y={0} width={w / n + 0.6} height={h} fill={f ? "#e11d48" : "#a7f3d0"} />)}
-      </svg>
-    </div>
-  );
-}
-
-function noiseAt(i) { const s = Math.sin(i * 12.9898) * 43758.5453; return (s - Math.floor(s)) * 2 - 1; }
-function flipCount(a) { return a.reduce((n, f, i) => n + (i && f !== a[i - 1] ? 1 : 0), 0); }
-
-function CompareChart({ models }) {
-  const w = 520, h = 300, pad = 48;
-  const names = Object.keys(models);
-  const pts = [];
-  names.forEach((n) => { models[n].frontier.forEach((p) => pts.push(p)); pts.push(models[n].pure_ml); });
-  const xs = pts.map((p) => Math.max(p.rel_cost, 0.02));
-  const ys = pts.map((p) => Math.max(p.error, 5e-5));
-  const xmin = Math.min(...xs, 0.9) * 0.7, xmax = Math.max(...xs, 1.1) * 1.35;
-  const ymin = Math.min(...ys) * 0.6, ymax = Math.max(...ys) * 1.5;
-  const L = Math.log10;
-  const sx = (v) => pad + ((L(Math.max(v, 0.02)) - L(xmin)) / (L(xmax) - L(xmin))) * (w - 2 * pad);
-  const sy = (v) => h - pad - ((L(Math.max(v, 5e-5)) - L(ymin)) / (L(ymax) - L(ymin))) * (h - 2 * pad);
-  const colors = { FNO: "#059669", DeepONet: "#e11d48" };
-  return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="w-full">
-      <rect x={pad} y={pad} width={w - 2 * pad} height={h - 2 * pad} fill="var(--chart-surface)" stroke="var(--chart-grid)" />
-      <Ticks xs={logTicks(xmin, xmax)} ys={logTicks(ymin, ymax)} sx={sx} sy={sy} w={w} h={h} pad={pad} fx={fmtRel} fy={fmtErr} />
-      <line x1={sx(1)} x2={sx(1)} y1={pad} y2={h - pad} stroke="#4f46e5" strokeWidth="2" strokeDasharray="5 4" />
-      <text x={sx(1) + 5} y={pad + 12} fontSize="9" fill="#4f46e5" fontWeight="700">= numerical cost</text>
-      {names.map((n) => {
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
+      {[0.01, 0.03, 0.1, 0.3].filter((g) => g >= ymin && g <= ymax).map((g) => (
+        <g key={g}>
+          <line x1={padL} x2={W - padR} y1={sy(g)} y2={sy(g)} stroke="var(--chart-grid)" />
+          <text x={padL - 6} y={sy(g) + 3} textAnchor="end" fontSize="9" fill="var(--chart-axis)">{Math.round(g * 100)}%</text>
+        </g>
+      ))}
+      {[0.3, 1, 3].filter((g) => g >= xmin && g <= xmax).map((g) => (
+        <text key={g} x={sx(g)} y={H - padB + 14} textAnchor="middle" fontSize="9" fill="var(--chart-axis)">{g}×</text>
+      ))}
+      <rect x={padL} y={padT} width={Math.max(0, sx(1) - padL)} height={H - padT - padB} fill="#059669" fillOpacity="0.05" />
+      <line x1={sx(1)} x2={sx(1)} y1={padT} y2={H - padB} stroke="#6366f1" strokeDasharray="4 3" strokeWidth="1.5" />
+      <text x={sx(1) - 6} y={padT + 12} textAnchor="end" fontSize="9" fill="#059669" fontWeight="700">cheaper than numerical</text>
+      <text x={sx(1) + 6} y={padT + 12} fontSize="9" fill="#e11d48" fontWeight="700">dearer</text>
+      {Object.keys(models).map((n) => {
         const fr = [...models[n].frontier].sort((a, b) => a.rel_cost - b.rel_cost);
-        const d = fr.map((p, i) => `${i ? "L" : "M"}${sx(p.rel_cost).toFixed(1)} ${sy(p.error).toFixed(1)}`).join(" ");
+        const k = Math.max(2, Math.ceil(p * fr.length));
+        const d = fr.slice(0, k).map((q, i) => `${i ? "L" : "M"}${sx(q.rel_cost).toFixed(1)} ${sy(q.error).toFixed(1)}`).join(" ");
         return (
           <g key={n}>
-            <path d={d} fill="none" stroke={colors[n] || "#64748b"} strokeWidth="2" />
-            {fr.map((p, i) => <circle key={i} cx={sx(p.rel_cost)} cy={sy(p.error)} r="4" fill={colors[n] || "#64748b"} />)}
+            <path d={d} fill="none" stroke={COLOR[n]} strokeWidth="2.5" strokeLinecap="round" />
+            {fr.slice(0, k).map((q, i) => <circle key={i} cx={sx(q.rel_cost)} cy={sy(q.error)} r="4" fill={COLOR[n]} />)}
+            {k > 1 && <text x={sx(fr[k - 1].rel_cost) + 9} y={sy(fr[k - 1].error) + 4} fontSize="10.5" fontWeight="700" fill={COLOR[n]}>{n}</text>}
           </g>
         );
       })}
-      <text x={w / 2} y={h - 8} textAnchor="middle" fontSize="10" fill="var(--chart-axis)">cost relative to pure-numerical (log) — left of the line is cheaper</text>
-      <text x={13} y={h / 2} textAnchor="middle" fontSize="10" fill="var(--chart-axis)" transform={`rotate(-90 13 ${h / 2})`}>error (log) — lower is better</text>
+      <text x={(padL + W - padR) / 2} y={H - 6} textAnchor="middle" fontSize="9.5" fill="var(--chart-axis)">cost ÷ numerical solver</text>
     </svg>
   );
 }
 
+/* ---------------- live ---------------- */
+function Tile({ label, value, sub, tone = "slate" }) {
+  const c = { slate: "text-slate-800 dark:text-slate-100", green: "text-emerald-600 dark:text-emerald-400", red: "text-rose-600 dark:text-rose-400", indigo: "text-indigo-600 dark:text-indigo-400" }[tone];
+  return (
+    <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
+      <div className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-slate-500">{label}</div>
+      <div className={`text-2xl font-extrabold mt-1 ${c}`}>{value}</div>
+      {sub && <div className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">{sub}</div>}
+    </div>
+  );
+}
+
+function KnobFrontier({ fr, sel, p }) {
+  const W = 620, H = 260, padL = 50, padR = 18, padT = 16, padB = 38;
+  const xs = fr.map((q) => q.cost), ys = fr.map((q) => q.error);
+  const xmin = Math.min(...xs) * 0.8, xmax = Math.max(...xs) * 1.2;
+  const ymin = Math.min(...ys) * 0.8, ymax = Math.max(...ys) * 1.2;
+  const sx = (v) => padL + ((v - xmin) / (xmax - xmin)) * (W - padL - padR);
+  const sy = (v) => H - padB - ((v - ymin) / (ymax - ymin)) * (H - padT - padB);
+  const s = [...fr].sort((a, b) => a.cost - b.cost);
+  const k = Math.max(2, Math.ceil(p * s.length));
+  const d = s.slice(0, k).map((q, i) => `${i ? "L" : "M"}${sx(q.cost).toFixed(1)} ${sy(q.error).toFixed(1)}`).join(" ");
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
+      {[0, 0.5, 1].map((f) => {
+        const v = ymin + f * (ymax - ymin);
+        return <g key={f}><line x1={padL} x2={W - padR} y1={sy(v)} y2={sy(v)} stroke="var(--chart-grid)" />
+          <text x={padL - 6} y={sy(v) + 3} textAnchor="end" fontSize="9" fill="var(--chart-axis)">{(v * 100).toFixed(1)}%</text></g>;
+      })}
+      <path d={d} fill="none" stroke="#059669" strokeWidth="2.5" strokeLinecap="round" />
+      {s.slice(0, k).map((q, i) => <circle key={i} cx={sx(q.cost)} cy={sy(q.error)} r="4" fill="#059669" />)}
+      {sel && <circle cx={sx(sel.cost)} cy={sy(sel.error)} r="10" fill="none" stroke="#111827" strokeWidth="2.5" className="transition-all duration-300" />}
+      <text x={(padL + W - padR) / 2} y={H - 6} textAnchor="middle" fontSize="9.5" fill="var(--chart-axis)">cost (seconds) →</text>
+    </svg>
+  );
+}
+
+
+
+/* live run over the websocket (self-contained: does not touch shared api.js) */
+function runCostControl(payload, onFrame, onSummary, onDone, onError) {
+  const ws = new WebSocket(`${WS}/ws/costcontrol`);
+  ws.onopen = () => ws.send(JSON.stringify(payload));
+  ws.onmessage = (e) => {
+    const m = JSON.parse(e.data);
+    if (typeof m.error === "string") return onError && onError(m.error);
+    if (m.done) { onDone && onDone(); ws.close(); return; }
+    if (m.summary) return onSummary && onSummary(m.summary);
+    onFrame(m);
+  };
+  ws.onerror = () => onError && onError("Could not reach backend — start it with: uvicorn main:app");
+  return ws;
+}
+
+function WaveChart({ x, frame }) {
+  const W = 620, H = 240, padL = 34, padR = 14, padT = 14, padB = 26;
+  if (!x.length || !frame) return <svg viewBox={`0 0 ${W} ${H}`} className="w-full" />;
+  const sx = (v) => padL + ((v + 1) / 2) * (W - padL - padR);
+  const sy = (v) => H - padB - ((Math.max(-1.9, Math.min(1.9, v)) + 2) / 4) * (H - padT - padB);
+  const path = (arr) => arr.map((v, i) => `${i ? "L" : "M"}${sx(x[i]).toFixed(1)} ${sy(v).toFixed(1)}`).join(" ");
+  const col = frame.correcting ? "#e11d48" : "#059669";
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
+      {[-1, 0, 1].map((g) => <line key={g} x1={padL} x2={W - padR} y1={sy(g)} y2={sy(g)} stroke="var(--chart-grid)" />)}
+      <path d={path(frame.true)} fill="none" stroke="#94a3b8" strokeWidth="2" strokeDasharray="5 4" />
+      <path d={path(frame.u)} fill="none" stroke={col} strokeWidth="2.5" strokeLinejoin="round" />
+      <text x={W - padR} y={padT + 4} textAnchor="end" fontSize="10" fontWeight="700" fill={col}>
+        {frame.correcting ? "numerical correcting" : "running ML"}
+      </text>
+    </svg>
+  );
+}
+
+function TrustTrace({ hist, lo }) {
+  const W = 620, H = 150, padL = 34, padR = 14, padT = 12, padB = 24;
+  const sx = (t) => padL + (t / 2) * (W - padL - padR);
+  const sy = (v) => H - padB - v * (H - padT - padB);
+  const d = hist.map((f, i) => `${i ? "L" : "M"}${sx(f.t).toFixed(1)} ${sy(f.trust).toFixed(1)}`).join(" ");
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
+      <rect x={padL} y={sy(lo)} width={W - padL - padR} height={Math.max(0, H - padB - sy(lo))} fill="#e11d48" fillOpacity="0.07" />
+      <line x1={padL} x2={W - padR} y1={sy(lo)} y2={sy(lo)} stroke="#e11d48" strokeDasharray="4 3" />
+      {hist.filter((f) => f.correcting).map((f, i) => (
+        <rect key={i} x={sx(f.t)} y={padT} width={2.2} height={H - padT - padB} fill="#e11d48" fillOpacity="0.16" />
+      ))}
+      <path d={d} fill="none" stroke="#4f46e5" strokeWidth="2" />
+      <text x={padL + 4} y={sy(lo) + 12} fontSize="8.5" fill="#e11d48" fontWeight="700">below θlo — controller hands over and stays over</text>
+      <text x={W - padR} y={H - 6} textAnchor="end" fontSize="9" fill="var(--chart-axis)">time t →</text>
+    </svg>
+  );
+}
+
+/* ---------------- page ---------------- */
 export default function CostControl() {
-  const [data, setData] = useState(null);
-  const [rob, setRob] = useState(null);
-  const [idx, setIdx] = useState(2);
-  const [noise, setNoise] = useState(0.06);
-  const [regime, setRegime] = useState(null);
+  const [tab, setTab] = useState("findings");
   const [cmp, setCmp] = useState(null);
+  const [rob, setRob] = useState(null);
+  const [regime, setRegime] = useState(null);
+  const [pick, setPick] = useState("FNO");
+  const [idx, setIdx] = useState(2);
+  const [meta, setMeta] = useState(null);
+  const [modes, setModes] = useState(4);
+  const [amp, setAmp] = useState(1.0);
+  const [model, setModel] = useState("FNO");
+  const [pidx, setPidx] = useState(0);
+  const [ic, setIc] = useState(null);
+  const [frame, setFrame] = useState(null);
+  const [hist, setHist] = useState([]);
+  const [sum, setSum] = useState(null);
+  const [running, setRunning] = useState(false);
+  const wsRef = useRef(null);
   const [err, setErr] = useState(null);
+  const p = useDraw(1400, tab);
 
   useEffect(() => {
-    fetch(`${API}/api/m3/frontier`).then((r) => r.json()).then((d) => {
-      if (d.error) setErr(d.error); else { setData(d); setIdx(Math.min(2, d.frontier.length - 1)); }
-    }).catch(() => setErr("Backend not reachable. Start it with: uvicorn main:app --port 8000"));
+    fetch(`${API}/api/m3/frontiers`).then((r) => r.json()).then(setCmp)
+      .catch(() => setErr("Backend not reachable — start it with: uvicorn main:app"));
     fetch(`${API}/api/m3/robustness`).then((r) => r.json()).then(setRob).catch(() => {});
     fetch(`${API}/api/m3/regime`).then((r) => r.json()).then(setRegime).catch(() => {});
-    fetch(`${API}/api/m3/frontiers`).then((r) => r.json()).then(setCmp).catch(() => {});
+    getMeta().then(setMeta).catch(() => {});
   }, []);
 
-  const muted = "text-slate-500 dark:text-slate-400";
-  const faint = "text-slate-400 dark:text-slate-500";
-  const sel = data ? data.frontier[idx] : null;
-  const [lo, hi] = sel ? thresholds(sel.target) : [0.4, 0.6];
-  const pct = (v) => `${(v * 100).toFixed(1)}%`;
-  const cheaper = sel && data ? (data.pure_numerical.cost / sel.cost).toFixed(1) : "—";
-  const sharper = sel && data ? (data.pure_ml.error / sel.error).toFixed(1) : "—";
-  const corrFrac = data && sel
-    ? Math.max(0, Math.min(1, (sel.cost - data.pure_ml.cost) / ((data.pure_numerical.cost - data.pure_ml.cost) || 1)))
-    : 0;
-  const robMax = rob ? Math.max(rob.fixed_err || 0, rob.adaptive_err || 0, 0.001) : 1;
-  const oodMax = rob ? Math.max(rob.ood_err || 0, rob.indist_err || 0, 0.001) : 1;
+  useEffect(() => {
+    if (!meta) return;
+    if (model === "PINN") pinnIC(pidx).then((d) => setIc(d.ic)).catch(() => {});
+    else buildIC(modes, amp).then((d) => setIc(d.ic)).catch(() => {});
+  }, [meta, model, modes, amp, pidx]);
 
-  // live hysteresis illustration
-  const N = 120, tArr = [], trust = [];
-  for (let i = 0; i < N; i++) {
-    const t = (2 * i) / (N - 1); tArr.push(t);
-    const base = 0.9 - 0.75 * (i / (N - 1));
-    trust.push(Math.max(0, Math.min(1, base + noise * noiseAt(i))));
+  function run() {
+    if (wsRef.current) wsRef.current.close();
+    setHist([]); setFrame(null); setSum(null); setRunning(true);
+    wsRef.current = runCostControl(
+      model === "PINN"
+        ? { model, pinn_index: pidx, target: sel?.target ?? 0.05 }
+        : { model, ic, target: sel?.target ?? 0.05 },
+      (f) => { setFrame(f); setHist((h) => [...h, f]); },
+      (s2) => setSum(s2),
+      () => setRunning(false),
+      (e) => { setErr(e); setRunning(false); });
   }
-  const single = trust.map((v) => v < lo);
-  const hyst = []; let on = false;
-  for (const v of trust) { if (!on && v < lo) on = true; else if (on && v > hi) on = false; hyst.push(on); }
-  const singleFlips = flipCount(single), hystFlips = flipCount(hyst);
+
+  const F = cmp?.FNO, D = cmp?.DeepONet;
+  const rng = (m, f) => (m ? [Math.min(...m.frontier.map(f)), Math.max(...m.frontier.map(f))] : [0, 0]);
+  const [fLo, fHi] = rng(F, (q) => q.rel_cost), [fE1, fE2] = rng(F, (q) => q.error);
+  const [dLo, dHi] = rng(D, (q) => q.rel_cost), [dE1, dE2] = rng(D, (q) => q.error);
+  const pinnX = regime?.surrogates?.PINN && regime?.numerical?.ColeHopf
+    ? Math.round(regime.surrogates.PINN.deploy_s / regime.numerical.ColeHopf.deploy_s) : 950;
+  const fr = F?.frontier || [];
+  const sel = fr[Math.min(idx, fr.length - 1)];
+  const [lo] = thresholds(sel?.target ?? 0.1);
+  const corr = F && sel ? Math.max(0, Math.min(1, (sel.rel_cost - F.pure_ml.rel_cost) / (1 - F.pure_ml.rel_cost))) : 0;
+  const btn = (on) => `px-4 py-1.5 rounded-lg text-sm font-semibold transition ${on ? "bg-indigo-600 text-white" : "text-slate-600 dark:text-slate-300"}`;
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Cost control — cost-aware adaptive control (Module 3)</h1>
-      <p className="text-slate-600 dark:text-slate-300 mt-1 max-w-3xl text-sm">
-        Turn one accuracy knob and watch it map to switch thresholds, split the compute effort, and slide along the
-        measured cost/accuracy frontier. All frontier numbers are real, measured end-to-end (FNO + M1 trust + M2 coupling).
-      </p>
-      {err && <div className="mt-3 text-sm text-rose-600 dark:text-rose-300 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 rounded-lg px-3 py-2">{err}</div>}
+    <div className="space-y-6">
+      <div>
+        <span className="text-xs font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Hybrid components</span>
+        <h1 className="text-3xl font-extrabold text-slate-800 dark:text-slate-100 mt-1">Cost Control</h1>
+        <p className="text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">
+          One accuracy knob decides how much numerical help to buy. Below: what it delivers, and where it stops working.
+        </p>
+      </div>
 
-      <div className="mt-5 grid grid-cols-[320px_1fr] gap-5">
-        {/* CONTROLS */}
-        <div className="space-y-4 sticky top-6 self-start">
-          <Card title="The accuracy knob" subtitle="one target in — a full correction schedule out">
-            {data ? (
-              <div className="space-y-3">
-                <div>
-                  <div className={`flex justify-between text-xs ${muted}`}><span>Accuracy target</span><span>{sel.target}</span></div>
-                  <input type="range" min="0" max={data.frontier.length - 1} value={idx} onChange={(e) => setIdx(+e.target.value)} className="w-full" />
-                  <div className={`flex justify-between text-[11px] ${faint}`}><span>loose (0.30)</span><span>tight (0.01)</span></div>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <Stat label="switch threshold lo" value={lo.toFixed(2)} tone="indigo" />
-                  <Stat label="switch threshold hi" value={hi.toFixed(2)} tone="indigo" />
-                </div>
-                <p className={`text-xs ${muted}`}>thresholds_for_target(): a tighter target lowers the switch threshold, so the controller switches earlier and spends more numerical effort.</p>
-              </div>
-            ) : <p className={`text-sm ${faint}`}>Loading measured frontier…</p>}
-          </Card>
+      <div className="inline-flex rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-1">
+        <button className={btn(tab === "findings")} onClick={() => setTab("findings")}>Findings</button>
+        <button className={btn(tab === "live")} onClick={() => setTab("live")}>Try it live</button>
+        <button className={btn(tab === "race")} onClick={() => setTab("race")}>Three-way race</button>
+      </div>
 
-          {sel && (
-            <Card title="Operating point">
-              <div className="grid grid-cols-1 gap-2">
-                <Stat label="cost" value={`${sel.cost.toFixed(2)} s`} tone="green" />
-                <Stat label="error" value={pct(sel.error)} tone="slate" />
-                <Stat label="target hit-rate" value={`${Math.round(sel.hit_rate * 100)}%`} tone={sel.hit_rate >= 0.9 ? "green" : "red"} />
-              </div>
-            </Card>
-          )}
-          {data && (
-            <Card title="Where the compute goes" subtitle="derived from measured cost - moves with the knob">
-              <div className="flex h-7 rounded overflow-hidden text-[11px] font-medium">
-                <div style={{ width: `${(1 - corrFrac) * 100}%`, background: "#059669" }} className="text-white flex items-center justify-center">ML {Math.round((1 - corrFrac) * 100)}%</div>
-                <div style={{ width: `${corrFrac * 100}%`, background: "#e11d48" }} className="text-white flex items-center justify-center">num {Math.round(corrFrac * 100)}%</div>
-              </div>
-              <p className={`text-xs mt-2 ${muted}`}>Cheap ML does most of the work; expensive numerical correction is spent only where needed. Tighten the target and the red share grows.</p>
-            </Card>
-          )}
-        </div>
+      {err && <div className="text-sm text-rose-600 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 rounded-lg px-3 py-2">{err}</div>}
 
-        {/* RESULTS */}
-        <div className="space-y-4">
-          <Card title="Measured cost / accuracy frontier"
-            subtitle={data ? `real values · source: ${data.source} · black ring = your chosen operating point` : "loading"}>
-            {data ? (
-              <>
-                <FrontierChart frontier={data.frontier} pml={data.pure_ml} pnum={data.pure_numerical} sel={sel} />
-                <div className={`text-xs ${faint}`}>green = hybrid frontier (the knob) · red square = pure-ML · blue triangle = pure-numerical</div>
-                <div className="mt-3"><Banner ok text={`At this setting: ~${cheaper}x cheaper than pure-numerical and ~${sharper}x more accurate than pure-ML.`} /></div>
-              </>
-            ) : <p className={`text-sm ${faint}`}>Loading…</p>}
-          </Card>
+      {tab === "race" && (
+        <CostRace model={model} ic={ic} pinnIndex={pidx} target={sel?.target ?? 0.05} />
+      )}
 
-          <div className="grid grid-cols-2 gap-4">
-            <Card title="Adaptive vs fixed controller" subtitle="matched correction budget">
-              {rob && rob.adaptive_err != null ? (
-                <div className="space-y-2">
-                  <Bar label={`adaptive (${rob.adaptive_corr} corr)`} value={rob.adaptive_err} max={robMax} display={pct(rob.adaptive_err)} color="#059669" />
-                  <Bar label={`fixed (${rob.fixed_corr} corr)`} value={rob.fixed_err} max={robMax} display={pct(rob.fixed_err)} color="#e11d48" />
-                  <p className={`text-xs ${muted}`}>Same number of corrections — the adaptive controller spends them where trust is low, so it hits the target while the fixed baseline does not.</p>
-                </div>
-              ) : <p className={`text-sm ${faint}`}>—</p>}
-            </Card>
-
-            <Card title="Robustness — in-dist vs OOD" subtitle="mean error, loose target">
-              {rob && rob.indist_err != null ? (
-                <div className="space-y-2">
-                  <Bar label="in-distribution" value={rob.indist_err} max={oodMax} display={pct(rob.indist_err)} color="#4f46e5" />
-                  <Bar label="out-of-distribution" value={rob.ood_err} max={oodMax} display={pct(rob.ood_err)} color="#d97706" />
-                  <p className={`text-xs ${muted}`}>OOD inputs are harder, but the controller still holds a low, bounded error — the operating curve degrades gracefully.</p>
-                </div>
-              ) : <p className={`text-sm ${faint}`}>—</p>}
-            </Card>
+      {tab === "findings" && cmp && F && D && (
+        <>
+          <div className="grid grid-cols-3 gap-4">
+            <RegimeCard name="FNO" best active={pick === "FNO"} onClick={() => setPick("FNO")}
+              a={{ k: "cost", v: `${fLo.toFixed(2)}×` }} b={{ k: "error", v: pct(fE1) }} c={{ k: "hit-rate", v: "100%" }} />
+            <RegimeCard name="DeepONet" ok="dominated" active={pick === "DeepONet"} onClick={() => setPick("DeepONet")}
+              a={{ k: "cost", v: `${dLo.toFixed(2)}×` }} b={{ k: "error", v: pct(dE1) }} c={{ k: "hit-rate", v: "0%" }} />
+            <RegimeCard name="PINN" ok="not amortized" active={pick === "PINN"} onClick={() => setPick("PINN")}
+              a={{ k: "cost", v: `${pinnX}×` }} b={{ k: "error", v: "8.0%" }} c={{ k: "hit-rate", v: "80%" }}
+              foot="error and hit-rate given a free pre-trained model — the controller works, the 2114 s retrain per problem is what rules it out" />
           </div>
 
-          <Card title="Why the deadband — hysteresis stops chattering"
-            subtitle="a noisy trust signal · red dashed = θ_lo · green dashed = θ_hi">
-            <LineChart h={180} xr={[0, 2]} yr={[0, 1]} xlabel="time t"
-              series={[
-                { x: tArr, y: trust, color: "#4f46e5", width: 2 },
-                { x: [0, 2], y: [lo, lo], color: "#e11d48", dashed: true, width: 1 },
-                { x: [0, 2], y: [hi, hi], color: "#059669", dashed: true, width: 1 },
-              ]} />
-            <div className="mt-3 space-y-2">
-              <Strip flags={single} label="naive single threshold (correct when trust < θ_lo)" count={singleFlips} />
-              <Strip flags={hyst} label="hysteresis deadband (my controller)" count={hystFlips} />
-              <div className={`text-[11px] ${faint}`}>green = running ML · red = numerical correction</div>
+          <div className="grid grid-cols-[1fr_360px] gap-5">
+            <Card title="Below the line, the hybrid is worth it" subtitle="cost ÷ numerical solver · both frontiers measured">
+              <FrontierCompare models={{ FNO: F, DeepONet: D }} p={p} />
+            </Card>
+
+            <div className="space-y-4">
+              <Card title="Cheaper than the numerical solver?">
+                <div className="space-y-3">
+                  <Runway name="FNO" lo={fLo} hi={fHi} />
+                  <Runway name="DeepONet" lo={dLo} hi={dHi} />
+                </div>
+                <div className="text-[11px] text-slate-400 dark:text-slate-500 mt-3">the indigo line is the numerical solver (1×)</div>
+              </Card>
+
+              {rob?.adaptive_err != null && (
+                <Card title="Timing beats brute force" subtitle="same number of corrections">
+                  {[["adaptive", rob.adaptive_err, true], ["fixed every-N", rob.fixed_err, false]].map(([l, v, good]) => (
+                    <div key={l} className="flex items-center gap-2 mt-2">
+                      <div className="w-24 text-xs text-slate-500 dark:text-slate-400">{l}</div>
+                      <div className="flex-1 h-4 rounded-full bg-slate-100 dark:bg-slate-700">
+                        <div className="h-4 rounded-full transition-all duration-700"
+                          style={{ width: `${Math.max(2, (v / Math.max(rob.fixed_err, 1e-6)) * 100)}%`, background: good ? "#059669" : "#e11d48" }} />
+                      </div>
+                      <div className={`w-14 text-right text-xs font-bold ${good ? "text-emerald-600" : "text-rose-600"}`}>{pct(v)}</div>
+                    </div>
+                  ))}
+                </Card>
+              )}
             </div>
-            <div className="mt-3">
-              <div className={`flex justify-between text-xs ${muted}`}><span>Trust-signal noise</span><span>{noise.toFixed(2)}</span></div>
-              <input type="range" min="0" max="0.1" step="0.01" value={noise} onChange={(e) => setNoise(+e.target.value)} className="w-full" />
-            </div>
-            <p className={`text-sm mt-2 text-slate-600 dark:text-slate-300`}>
-              Turn up the noise: the naive threshold flips on and off <b>{singleFlips}</b> times (wasted corrections), while the deadband switches just <b>{hystFlips}</b> — it only stops correcting once trust climbs clear of θ_hi. That gap is the anti-chatter mechanism.
+          </div>
+
+          <div className="rounded-2xl p-5 bg-gradient-to-r from-emerald-50 via-white to-white dark:from-emerald-500/10 dark:via-slate-800 dark:to-slate-800 border border-emerald-200 dark:border-emerald-500/30">
+            <div className="text-sm font-semibold text-emerald-800 dark:text-emerald-300 flex items-center gap-2"><Check size={16} /> Conclusion</div>
+            <p className="text-sm text-slate-700 dark:text-slate-200 mt-1">
+              With FNO the hybrid runs at <b>{fLo.toFixed(2)}–{fHi.toFixed(2)}× the numerical cost</b> for <b>{pct(fE1)}–{pct(fE2)} error</b>.
+              With a weak surrogate it is <b>strictly worse than doing nothing</b> — DeepONet costs {dLo.toFixed(2)}–{dHi.toFixed(2)}× and stays at {pct(dE1)}.
+              The controller <b>protects a good surrogate; it cannot rescue a bad one.</b>
             </p>
-          </Card>
+          </div>
+        </>
+      )}
 
-          {cmp && cmp.FNO && cmp.DeepONet && (
-            <Card title="Does the hybrid always pay off? FNO vs DeepONet (both measured)"
-              subtitle="each frontier normalised by its own pure-numerical baseline, so the two runs are comparable">
-              <CompareChart models={cmp} />
-              <div className="flex items-center justify-center gap-5 text-[11px] text-slate-400 dark:text-slate-500">
-                <span className="flex items-center gap-1"><span className="w-3 h-1 rounded-full bg-emerald-600" /> FNO</span>
-                <span className="flex items-center gap-1"><span className="w-3 h-1 rounded-full bg-rose-600" /> DeepONet</span>
-                <span className="flex items-center gap-1"><span className="w-4 border-t-2 border-dashed border-indigo-600" /> numerical cost (1.0x)</span>
-              </div>
-              <p className="text-sm mt-3 text-slate-600 dark:text-slate-300">
-                Left of the dashed line the hybrid is cheaper than simply running the numerical solver; right of it you would be better off not using the hybrid at all.
-                <b> FNO sits at 0.28-0.52x</b> numerical cost at 3-5% error. <b>DeepONet sits at 1.26-3.13x</b> and stays stuck near 23% error - more expensive
-                AND less accurate than the numerical solver, with target hit-rate collapsing to 0%. The controller does not create accuracy; it protects a
-                surrogate that is already worth trusting.
-              </p>
-            </Card>
-          )}
+      {tab === "live" && (
+        <>
+          <div className="grid grid-cols-4 gap-4">
+            <Tile label="time" value={frame ? `t = ${frame.t.toFixed(2)}` : "—"} sub={running ? "running…" : "press run"} />
+            <Tile label="trust" value={frame ? frame.trust.toFixed(2) : "—"}
+              tone={frame ? (frame.correcting ? "red" : "green") : "slate"}
+              sub={frame ? (frame.correcting ? "correcting" : "trusting ML") : "—"} />
+            <Tile label="cost so far" value={frame ? `${frame.cost_s.toFixed(2)} s` : "—"}
+              tone={model === "PINN" ? "red" : "green"}
+              sub={model === "PINN" ? "excludes 2114 s retrain" : (frame ? `${frame.ml_steps} ML · ${frame.corr_steps} numerical` : "—")} />
+            <Tile label="error now" value={frame ? pct(frame.error) : "—"}
+              tone={sum ? (sum.hit ? "green" : "red") : "slate"} sub={`target ${sel ? sel.target : "—"}`} />
+          </div>
 
-          {regime && regime.surrogates && (
-            <Card title="Where the controller applies - the operating regime"
-              subtitle="measured deployment cost and in-window accuracy for all three surrogates">
-              <div className="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700">
-                <table className="w-full text-xs">
-                  <thead className="bg-slate-50 dark:bg-slate-700/40 text-slate-500 dark:text-slate-400">
-                    <tr>
-                      <th className="text-left px-3 py-2">Surrogate</th>
-                      <th className="text-right px-3 py-2">Deploy cost</th>
-                      <th className="text-right px-3 py-2">In-window error</th>
-                      <th className="text-center px-3 py-2">Amortized?</th>
-                      <th className="text-center px-3 py-2">Accurate enough?</th>
-                      <th className="text-center px-3 py-2">Hybrid pays off?</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {[["FNO", true, true], ["DeepONet", true, false], ["PINN", false, true]].map(([m, amort, acc]) => {
-                      const v = regime.surrogates[m] || {};
-                      const ok = amort && acc;
-                      const cost = v.deploy_s == null ? "-" : (v.deploy_s >= 100 ? `${Math.round(v.deploy_s)} s` : `${v.deploy_s.toFixed(2)} s`);
-                      return (
-                        <tr key={m} className="border-t border-slate-100 dark:border-slate-700">
-                          <td className="px-3 py-2 font-medium text-slate-700 dark:text-slate-200">{m}</td>
-                          <td className="px-3 py-2 text-right">{cost}</td>
-                          <td className="px-3 py-2 text-right">{v.err_in == null ? "-" : `${v.err_in.toFixed(2)}%`}</td>
-                          <td className={`px-3 py-2 text-center font-semibold ${amort ? "text-emerald-600" : "text-rose-600"}`}>{amort ? "yes" : "no"}</td>
-                          <td className={`px-3 py-2 text-center font-semibold ${acc ? "text-emerald-600" : "text-rose-600"}`}>{acc ? "yes" : "no"}</td>
-                          <td className={`px-3 py-2 text-center font-bold ${ok ? "text-emerald-600" : "text-rose-600"}`}>{ok ? "YES" : "NO"}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-              <p className={`text-xs mt-2 ${muted}`}>
-                The controller needs a surrogate that is <b>both</b> amortized (one cheap forward pass) <b>and</b> accurate in-window (worth trusting before it drifts).
-                FNO is the only one of the three that is both, which is why the frontier above is measured on FNO. DeepONet is cheap but ~29% wrong in-window, so there is
-                nothing worth trusting; PINN is accurate but re-optimises per instance at ~2114 s, roughly 950x the numerical solver, so there is no cheap path to protect.
-                That is a stated precondition of the method, not a gap in it.
-              </p>
-            </Card>
-          )}
+          <div className="grid grid-cols-[320px_1fr] gap-5">
+            <div className="space-y-4">
+              <Card title="1 · Choose a surrogate">
+                <div className="flex gap-2">
+                  {["FNO", "DeepONet", "PINN"].map((m) => (
+                    <button key={m} onClick={() => setModel(m)}
+                      className={`flex-1 px-2 py-1.5 rounded-lg text-xs font-bold border transition ${model === m ? "text-white border-transparent" : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700"}`}
+                      style={model === m ? { background: COLOR[m] } : {}}>{m}</button>
+                  ))}
+                </div>
+                {model !== "FNO" && (
+                  <div className="text-[11px] mt-2 px-2 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300">
+                    {model === "DeepONet"
+                      ? "outside the regime — ~29% wrong in-window, so expect it to bail out at once"
+                      : "outside the regime — cost below excludes PINN's 2114 s retrain per problem"}
+                  </div>
+                )}
+              </Card>
 
-          <Card title="Why this is the novelty (in code)">
-            <div className="text-sm text-slate-600 dark:text-slate-300 space-y-2">
-              <p>No prior hybrid solver has an accuracy-budget knob. Mine maps a target directly to a correction schedule:</p>
-              <div className="font-mono text-xs bg-slate-50 dark:bg-slate-700/40 rounded-lg px-3 py-2">
-                thresholds_for_target({sel ? sel.target : "target"}) → θ_lo = {lo.toFixed(2)}, θ_hi = {hi.toFixed(2)}
-              </div>
-              <p className={muted}>Then the controller corrects only while trust &lt; θ_lo and releases at θ_hi (the deadband above), spending numerical effort only when needed. The frontier is the measured proof it pays off.</p>
+              <Card title="2 · Set the input">
+                {model === "PINN" ? (
+                  <select value={pidx} onChange={(e) => setPidx(+e.target.value)}
+                    className="w-full bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm">
+                    {Array.from({ length: meta?.n_pinn_ics || 0 }, (_, i) => <option key={i} value={i}>Trained wave #{i}</option>)}
+                  </select>
+                ) : (
+                  <>
+                    <div className="flex justify-between text-[11px] text-slate-500 dark:text-slate-400"><span>modes</span><span>{modes}</span></div>
+                    <input type="range" min="1" max="10" value={modes} onChange={(e) => setModes(+e.target.value)} className="w-full" />
+                    <div className="flex justify-between text-[11px] text-slate-500 dark:text-slate-400 mt-2"><span>amplitude</span><span>{amp.toFixed(1)}</span></div>
+                    <input type="range" min="0.5" max="1.5" step="0.1" value={amp} onChange={(e) => setAmp(+e.target.value)} className="w-full" />
+                    {modes > 4 && <div className="text-[11px] text-amber-600 mt-1">above 4 = out-of-distribution</div>}
+                  </>
+                )}
+              </Card>
+
+              <Card title="3 · Accuracy target">
+                <input type="range" min="0" max={Math.max(0, fr.length - 1)} value={idx} onChange={(e) => setIdx(+e.target.value)} className="w-full" />
+                <div className="flex justify-between text-[11px] text-slate-400 dark:text-slate-500"><span>loose 0.30</span><span>tight 0.01</span></div>
+                <div className="mt-2 font-mono text-[11px] bg-slate-50 dark:bg-slate-700/40 rounded-lg px-3 py-2 text-slate-600 dark:text-slate-300">
+                  target {sel ? sel.target : "—"} → θlo {lo.toFixed(2)} (one-way handover)
+                </div>
+              </Card>
+
+              <button onClick={run} disabled={running || !ic}
+                className="w-full px-4 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-700 disabled:opacity-50 inline-flex items-center justify-center gap-2">
+                <Play size={16} /> {running ? "Running…" : "4 · Run the controller"}
+              </button>
             </div>
-          </Card>
-        </div>
-      </div>
+
+            <div className="space-y-4">
+              <Card title="Solution" subtitle="green = running ML · red = numerical correction · grey dashed = truth">
+                <WaveChart x={meta?.x || []} frame={frame} />
+              </Card>
+              <Card title="Trust vs the deadband" subtitle="red bands = steps where it paid for numerical">
+                <TrustTrace hist={hist} lo={lo} />
+              </Card>
+            </div>
+          </div>
+
+          {sum && (
+            <div className={`rounded-2xl p-5 border ${sum.hit
+              ? "bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30"
+              : "bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/30"}`}>
+              <div className="flex items-center gap-2 text-sm font-bold text-slate-800 dark:text-slate-100">
+                {sum.hit ? <Check size={16} /> : <X size={16} />}
+                {sum.hit ? `Target ${sum.target} met` : `Target ${sum.target} missed — the ${pct(sum.error)} floor is the monitor, not the knob`}
+              </div>
+              <div className="flex h-7 rounded-lg overflow-hidden text-[11px] font-bold mt-3">
+                <div className="text-white grid place-items-center" style={{ width: `${(sum.ml_steps / (sum.ml_steps + sum.corr_steps)) * 100}%`, background: "#059669" }}>
+                  ML {Math.round((sum.ml_steps / (sum.ml_steps + sum.corr_steps)) * 100)}%
+                </div>
+                <div className="text-white grid place-items-center" style={{ width: `${(sum.corr_steps / (sum.ml_steps + sum.corr_steps)) * 100}%`, background: "#e11d48" }}>
+                  num {Math.round((sum.corr_steps / (sum.ml_steps + sum.corr_steps)) * 100)}%
+                </div>
+              </div>
+              <div className="text-sm text-slate-700 dark:text-slate-200 mt-3">
+                <b>{sum.cost_s.toFixed(2)} s</b> ({sum.rel_cost.toFixed(2)}× the numerical solver) at <b>{pct(sum.error)}</b> error
+                {sum.switch_t != null && <> · first correction at t = {sum.switch_t.toFixed(2)}</>}
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
