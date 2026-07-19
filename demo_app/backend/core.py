@@ -120,6 +120,24 @@ def meta():
             "params": {m: {"CUT": round(float(PARAMS[m]["CUT"]), 2), "K": int(PARAMS[m]["K"])} for m in PARAMS}}
 
 
+def reliability_stream(model, ic=None, pinn_index=0):
+    ic0, pred, true = get_prediction(model, ic, pinn_index)
+    e = np.linalg.norm(pred - true, axis=1) / (np.linalg.norm(true, axis=1) + 1e-12)
+    horizon = float(T[np.argmax(e > FAIL)]) if (e > FAIL).any() else float(T[-1])
+    inw = float(e[T <= 1.0].mean())
+    ext = float(e[T > 1.0].mean())
+    for k in range(len(T)):
+        yield {
+            "t": float(T[k]),
+            "u": np.round(pred[k], 4).tolist(),
+            "true": np.round(true[k], 4).tolist(),
+            "error": round(float(e[k]), 4),
+            "horizon": round(horizon, 2),
+            "in_window": round(inw, 3),
+            "extrap": round(ext, 3),
+        }
+
+
 # ================= Module 2: Coupling (Dharmapala R.D. 214050V) =================
 # The demo calls the REAL M2Coupling adapter -- the same object Module 3's
 # runtime uses -- with the verified pseudo-spectral restart stepper loaded

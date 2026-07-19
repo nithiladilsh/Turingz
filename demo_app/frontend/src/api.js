@@ -26,7 +26,10 @@ function runWS(path, payload, onFrame, onDone, onError) {
   ws.onopen = () => ws.send(JSON.stringify(payload));
   ws.onmessage = (e) => {
     const msg = JSON.parse(e.data);
-    if (msg.error) return onError && onError(msg.error);
+    // backend error envelope is always a string; data frames may legitimately
+    // carry a numeric field named "error" (e.g. reliability), so only treat
+    // string errors as failures.
+    if (typeof msg.error === "string") return onError && onError(msg.error);
     if (msg.done) { onDone && onDone(); ws.close(); return; }
     onFrame(msg);
   };
@@ -36,6 +39,7 @@ function runWS(path, payload, onFrame, onDone, onError) {
 
 export const runTrust = (payload, onFrame, onDone, onError) => runWS("/ws/trust", payload, onFrame, onDone, onError);
 export const runFDM = (payload, onFrame, onDone, onError) => runWS("/ws/fdm", payload, onFrame, onDone, onError);
+export const runReliability = (payload, onFrame, onDone, onError) => runWS("/ws/reliability", payload, onFrame, onDone, onError);
 
 export async function fdmEval() {
   const r = await fetch(`${API}/api/fdm_eval`);
@@ -53,7 +57,7 @@ export function runCoupling(payload, onFrame, onSummary, onDone, onError) {
   ws.onopen = () => ws.send(JSON.stringify(payload));
   ws.onmessage = (e) => {
     const msg = JSON.parse(e.data);
-    if (msg.error) return onError && onError(msg.error);
+    if (typeof msg.error === "string") return onError && onError(msg.error);
     if (msg.done) { onDone && onDone(); ws.close(); return; }
     if (msg.summary) return onSummary && onSummary(msg.summary);
     onFrame(msg);
@@ -67,7 +71,7 @@ function wsRun(path, payload, onFrame, onSummary, onDone, onError) {
   ws.onopen = () => ws.send(JSON.stringify(payload));
   ws.onmessage = (e) => {
     const msg = JSON.parse(e.data);
-    if (msg.error) return onError && onError(msg.error);
+    if (typeof msg.error === "string") return onError && onError(msg.error);
     if (msg.done) { onDone && onDone(); ws.close(); return; }
     if (msg.summary) return onSummary && onSummary(msg.summary);
     onFrame(msg);
