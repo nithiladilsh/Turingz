@@ -102,6 +102,27 @@ r=d.add_run("Living document — auto-updated each phase.  Last updated: full M1
 r.italic=True; r.font.size=Pt(9); _color(r,GREY)
 doc.add_paragraph()
 
+# ---------------- ONE PAGE ----------------
+h1("If you read nothing else (one page, 5 minutes before you walk in)")
+box("THE GAP (one sentence)",
+    ["Hybrid ML-numerical solvers exist, and so does switching when the model looks wrong. What nobody does is treat the deployment question - how much numerical effort to spend to hit a CHOSEN accuracy target at minimum cost, with no ground truth available - as an explicit, controllable decision with a measured trade-off curve."])
+box("MY CONTRIBUTION (three mechanisms, not measurements)",
+    ["1. A cost-budgeted adaptive controller: thresholds_for_target() maps an accuracy target to a correction schedule; a hysteresis deadband spends numerical effort only while trust is low.",
+     "2. A tunable, measured cost/accuracy frontier as the deliverable - one knob that traces the trade-off, backed by OOD robustness and an adaptive-vs-fixed ablation.",
+     "3. A layered cost-aware monitoring design: use the FREE trust signal by default, pay for a coarse numerical check only when it is worth it."])
+box("THE HEADLINE NUMBER (measured end to end, all real components)",
+    ["The full system - real FNO + M1 coarse trust + M2 coupling + my controller - runs at 0.70-1.32 s versus 2.54 s for the numerical solver, at 3.0-5.3 percent error versus 7.8 percent for pure ML.",
+     "That is about 2-3.6x cheaper than numerical at up to about 2.6x the accuracy of pure ML. Error floor about 3 percent, set by when the monitor switches - stated openly."])
+para("The four questions most likely to catch you, and the answer:", bold=True)
+bullet("'Isn't this just benchmarking?' -> The benchmarking is the EVIDENCE. The contribution is the controller and the accuracy-budget map that decide the correction schedule. No prior hybrid has that knob.")
+bullet("'The coarse detector is Module 1's.' -> The production detector is M1's and I say so. I prototyped it, my cost accounting surfaced the problem it solves, and my contribution is the orchestration: deciding when the free signal suffices versus when to pay for a check.")
+bullet("'Does it only work with FNO?' -> It works for any surrogate that is amortized AND accurate in-window. I MEASURED all three: DeepONet is strictly dominated (1.26-3.13x numerical cost, stuck at 23 percent error), and PINN re-optimises per instance at roughly 950x the numerical solver. The operating regime is characterised, not assumed.")
+bullet("'Only one PDE.' -> Correct, and I say so first. This is a demonstration on 1D Burgers with FNO; the mechanism is solver-agnostic by construction (everything goes through a fixed Solver contract) and generalising it is stated future work.")
+box("IF YOU FORGET EVERYTHING ELSE, SAY THIS",
+    ["\"My controller does not create accuracy - it protects a surrogate that is already worth trusting, and it spends numerical effort only when a trust signal says it must. I ship it as one accuracy knob with a measured cost/accuracy frontier, and I measured what happens when the preconditions fail.\""])
+para("(Everything below is the detail behind this page.)", italic=True, size=9, color=GREY)
+doc.add_page_break()
+
 # ---------------- GAP & CONTRIBUTION (LEAD) ----------------
 h1("Research gap & contribution (say this first)")
 box("RESEARCH GAP (one sentence)",
@@ -121,6 +142,44 @@ bullet("'This is just benchmarking.' -> The benchmarking is the evidence; the co
 bullet("'The coarse detector is M1's.' -> The detection signal is M1's; the orchestration - deciding when the free signal suffices vs when to pay for a check - is mine, and my accounting surfaced the problem.")
 bullet("'Only one PDE.' -> Correct: this is a demonstration; the mechanism is solver-agnostic and generalising it is stated future work.")
 para("(This gap & contribution statement is a living section - it is updated as the work progresses.)", italic=True, size=9, color=GREY)
+
+# ---------------- OBJECTIVES ----------------
+h1("Project objectives (final wording for the report)")
+para("The five objectives the report commits to. Objective 4 is my scope (Module 3); objectives 2 and 3 are Modules 1 and 2; objectives 1 and 5 are shared.")
+para("1.  Generate stable and reproducible ground-truth data for the benchmark problem using Finite Difference, Pseudo-Spectral and Cole-Hopf solvers, and train PINN, FNO and DeepONet surrogate models under a single shared framework.")
+para("2.  Develop a trust estimation module that fuses reference-free physics signals with a lightweight coarse-reference check to flag unreliable predictions during a running extrapolation, with thresholds selected from training data only.")
+para("3.  Design a coupling mechanism that hands a running ML prediction over to the numerical solver without introducing discontinuities or instability, and characterise when such a handoff is viable and when it becomes unsafe.")
+para("4.  Build a cost-aware adaptive controller and a deployable runtime that schedule numerical correction to meet a chosen accuracy target at minimum computational cost, exposing the resulting trade-off as a measured cost/accuracy frontier driven by a single accuracy knob.")
+para("5.  Integrate the three modules into a single hybrid solver and evaluate it against pure ML and pure numerical baselines on accuracy, cost, and robustness to unseen and out-of-distribution initial conditions, demonstrated through an interactive application.")
+label("Objective 4 is mine.", "It names a mechanism (the controller and the accuracy knob) AND a measured deliverable (the frontier). That pairing is what makes it a contribution rather than an implementation task - lead with it when asked what I set out to do.")
+label("Credit note on the coarse check:", "The coarse-reference check sits in Objective 2 because the production version lives in Module 1. My own section states plainly that I prototyped the coarse-drift detector and Module 1 productionised it, so the idea is not silently handed away.")
+
+# ---------------- OBJECTIVES EVIDENCE MAP ----------------
+h1("Objectives -> evidence map (what proves what)")
+para("For each objective: where it is shown live in the demo, and the measured evidence behind it. If an examiner asks 'where do you show objective N?', this table is the one-line answer.")
+rtable(["Obj", "Shown in the demo", "Measured evidence", "Status"],
+ [["1. Ground truth + 3 ML surrogates",
+   "FDM, Cole-Hopf and Spectral pages; PINN/FNO/DeepONet selectable on the Trust page",
+   "Spectral verified 0.036% vs exact Cole-Hopf (0.006% extrapolation); FDM 16.3% vs exact; all three surrogates trained on the shared dataset",
+   "PARTIAL"],
+  ["2. Trust estimation module",
+   "Trust score page - reference-free AND cheap-reference modes, live signal breakdown, cutoff/patience rule",
+   "Coarse-drift detector tracks true error at corr 1.00 vs 0.68 for the physics residual; fires at the true FNO failure (t = 1.44-1.68); thresholds calibrated from training data only",
+   "DONE"],
+  ["3. Coupling + viability characterisation",
+   "Coupling page (hand-off); safety-boundary figures in results/module2",
+   "Zero switch-jump and residual drops after re-anchor; low-viscosity stress test; restart-fidelity safety boundary at Re_cell ~ 3.2 with a reference-free predictor; viability gate AUC 0.90",
+   "DONE (results)"],
+  ["4. Cost-aware controller + runtime (MINE)",
+   "Cost control page - accuracy knob to thresholds, measured frontier, effort split, adaptive-vs-fixed, robustness, hysteresis deadband; Hybrid engine page for the live runtime",
+   "Full-system timed frontier: 0.70-1.32 s at 3.0-5.3% error vs pure-numerical 2.54 s; adaptive 0.0% vs fixed 8.6% at matched budget; hit-rate per target",
+   "DONE"],
+  ["5. Integration + evaluation vs baselines",
+   "Hybrid engine page - whole pipeline live, head-to-head bars vs pure-ML and pure-numerical, OOD inputs via the mode slider",
+   "~2-3.6x cheaper than numerical at up to ~2.6x pure-ML accuracy; in-distribution 0.6% vs OOD 1.2%; M1->M2->M3 end-to-end integration test 2/2 passing",
+   "DONE"]])
+label("Remaining gaps (state them honestly):",
+      "Objective 1 is only partly demonstrated: the 'Reliability analysis' and 'Cost analysis' tabs are still placeholders - that is where the model-to-model comparison belongs (Module 1's area). For Objective 3, the safety-boundary result exists in the results but should also be surfaced on the Coupling page. Nothing outstanding in Objective 4 (my scope).")
 
 # ---------------- BIG PICTURE ----------------
 h1("1. The big picture (read this first)")
@@ -449,6 +508,59 @@ qa([("Is the demo using real numbers or made-up ones?",
      "The frontier, adaptive-vs-fixed and robustness are real measured results loaded from the results files. The hysteresis panel is a labelled illustration of the control logic (a synthetic noisy trust signal), not a measured result - I say so."),
     ("Which page shows YOUR contribution?",
      "Both. The Hybrid engine page shows my cost accounting running inside the full live system; the Cost control page shows my mechanism - the accuracy-budget knob and the deadband - and the measured frontier that proves it pays off.")])
+
+# ---------------- REFERENCES ----------------
+h1("References")
+para("Verified references. Foundational ML/numerical works and the control-theory grounding for Module 3 are established papers; the closest prior hybrid solvers (ANCHOR, HINTS) are current, verified papers.")
+h2("General - the project's foundations")
+bullet("FNO: Li et al. (2021), Fourier Neural Operator for Parametric Partial Differential Equations. ICLR 2021. arXiv:2010.08895.")
+bullet("PINN: Raissi, Perdikaris & Karniadakis (2019), Physics-informed neural networks. J. Computational Physics 378. doi:10.1016/j.jcp.2018.10.045.")
+bullet("DeepONet: Lu, Jin, Pang, Zhang & Karniadakis (2021), Learning nonlinear operators (DeepONet). Nature Machine Intelligence 3. doi:10.1038/s42256-021-00302-5.")
+bullet("Cole-Hopf (exact ground truth for viscous Burgers): Hopf (1950), Comm. Pure Appl. Math. 3; Cole (1951), Quarterly of Applied Mathematics 9.")
+bullet("Spectral solver / ETDRK4 time-stepping: Kassam & Trefethen (2005), Fourth-order time-stepping for stiff PDEs, SIAM J. Sci. Comput. 26; Trefethen (2000), Spectral Methods in MATLAB, SIAM.")
+bullet("De-aliasing (2/3 rule): Orszag (1971), On the elimination of aliasing in finite-difference schemes, J. Atmospheric Sciences 28.")
+h2("Closest prior work - hybrid ML-numerical solvers")
+bullet("ANCHOR (2025): Error-Controlled Adaptive Numerical Correction for Neural Operator Time Marching. arXiv:2512.19643. THE closest prior work - it triggers numerical correction on an EMA of the physics residual, which is exactly the signal we show is blind to smooth drift.")
+bullet("HINTS: Zhang, Kahana, Turkel, Ranade, Pathak & Karniadakis, Blending neural operators and relaxation methods in PDE numerical solvers. Nature Machine Intelligence (2024); arXiv:2208.13273 (2022). (DeepONet + relaxation, iterative coupling.)")
+h2("For Module 3 - cost-aware adaptive control and deployment (my scope)")
+bullet("Hysteresis switching (my deadband): Hespanha, Liberzon & Morse (2003), Hysteresis-based switching algorithms for supervisory control of uncertain systems, Automatica 39. The control-theory basis for the two-threshold anti-chatter deadband.")
+bullet("Switching stability: Liberzon (2003), Switching in Systems and Control, Birkhauser.")
+bullet("Multi-fidelity methods (cheap + expensive models): Peherstorfer, Willcox & Gunzburger (2018), Survey of multifidelity methods in uncertainty propagation, inference, and optimization, SIAM Review 60. Grounds the layered 'free trust signal + paid coarse check' design.")
+bullet("Anytime / budgeted computation: Zilberstein (1996), Using anytime algorithms in intelligent systems, AI Magazine 17. The basis for spending compute to hit a target - my accuracy-budget knob.")
+bullet("Multi-objective / Pareto frontier: Miettinen (1999), Nonlinear Multiobjective Optimization, Kluwer. The trade-off-frontier framing (report the frontier, not a single index).")
+bullet("ANCHOR (2025, arXiv:2512.19643): the reactive residual-switching baseline my cost-budgeted controller is positioned against.")
+box("One line on how M3 sits in the literature", ["My controller is grounded in established control theory (hysteresis switching - Hespanha, Liberzon, Morse) and cost-aware computation (multi-fidelity methods; anytime algorithms), applied to the trust-gated hybrid PDE setting, and positioned against the closest current hybrid solver, ANCHOR, whose residual trigger I show is blind to smooth drift."])
+
+# ---------------- OPERATING REGIME ----------------
+h1("Where my controller applies - the operating regime")
+para("A strict examiner will ask: does this only work with FNO? The honest answer is a characterisation, not an apology. The controller has two preconditions, and the three surrogates the team trained demonstrate both - using deployment cost data we already measured.")
+rtable(["Surrogate", "Deploy cost", "In-window error", "Amortized?", "Accurate enough?", "Hybrid pays off?"],
+ [["FNO", "0.44 s", "0.57%", "yes", "yes", "YES"],
+  ["DeepONet", "0.73 s", "29.31%", "yes", "no", "NO"],
+  ["PINN", "2114 s", "1.47%", "no", "yes", "NO"],
+  ["numerical reference", "Cole-Hopf 2.23 s / Spectral 1.75 s", "~0%", "-", "-", "-"]])
+label("The two preconditions:", "The controller needs a surrogate that is (1) AMORTIZED - one cheap forward pass, so there is a cheap path worth protecting - and (2) ACCURATE IN-WINDOW - good enough early that trusting it is worthwhile before it drifts.")
+label("Why DeepONet fails it (MEASURED, not predicted):", "I ran the full timed frontier on DeepONet. The hybrid costs 1.26 to 3.13x the pure-numerical solver while the error stays stuck near 23 percent and the target hit-rate collapses to 0 percent for targets tighter than 0.10. So with a weak surrogate the hybrid is STRICTLY DOMINATED - more expensive AND less accurate than simply running the numerical solver.")
+label("Why PINN fails it:", "Accurate in-window (1.47 percent) but NOT amortized: it re-optimises per instance at 2114 s, roughly 950x the numerical solver (2.23 s). There is no cheap path to protect, so the cost premise inverts.")
+label("Say this:", "FNO is the only one of the three that satisfies both preconditions, which is why the measured frontier is on FNO. That is a stated precondition of the method, not an untested gap - and I can show the measured cost and accuracy for all three.")
+qa([("Does your controller only work with FNO?",
+     "It works for any surrogate that is amortized and accurate in-window. Of the three we trained, only FNO satisfies both: DeepONet is cheap but 29 percent wrong in-window, and PINN re-optimises per instance at roughly 950x the numerical solver. I measured all three, so the operating regime is characterised, not assumed."),
+    ("Isn't 'only one model' a weakness?",
+     "It would be if it were untested. I tested all three and can state exactly which precondition each one fails. That is a boundary of applicability - the same kind of result as a stability boundary, and it is backed by measured deployment costs.")])
+
+# ---------------- SURROGATE COMPARISON (MEASURED) ----------------
+h2("Measured proof: the same controller on a weak surrogate")
+para("Both frontiers were measured end to end with the identical controller, trust monitor and coupling - only the surrogate changed. Costs are normalised by each run's own pure-numerical baseline, because wall-clock timings differ between sessions.")
+rtable(["Surrogate", "Hybrid cost (x numerical)", "Hybrid error", "Target hit-rate", "Verdict"],
+ [["FNO", "0.28 - 0.52x  (cheaper)", "3.0 - 5.3%", "100% down to 0.05", "Hybrid pays off"],
+  ["DeepONet", "1.26 - 3.13x  (more expensive)", "22.2 - 23.0% (stuck)", "0% for targets <= 0.10", "Strictly dominated"],
+  ["PINN", "not runnable - 2114 s per instance", "n/a", "n/a", "Outside the regime"]])
+box("The sentence to say",
+    ["My controller does not create accuracy - it protects a surrogate that is already worth trusting. I measured what happens when it is not: on DeepONet the same controller produces a hybrid that is both more expensive and less accurate than the numerical solver it was meant to save. That is why the operating regime is a stated precondition, backed by measurement rather than assumption."])
+qa([("Did you actually test another surrogate, or just argue about it?",
+     "I ran the full timed frontier on DeepONet with the identical controller, trust monitor and coupling. It is strictly dominated - 1.26 to 3.13x the numerical cost at about 23 percent error, hit-rate 0 percent below target 0.10. PINN cannot be run this way at all: 2114 s per instance, roughly 950x the numerical solver."),
+    ("Doesn't a failing case weaken your contribution?",
+     "The opposite - it defines where the contribution applies. A method with no stated operating regime is the weaker claim. I can name the two preconditions, and I have measured evidence for what happens when each one is broken.")])
 
 # ---------------- STATUS ----------------
 h1("Where we are, and what's next")

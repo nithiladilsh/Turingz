@@ -84,6 +84,23 @@ def load_numerical_solver():
     return FunctionSolver("spectral", spectral_rollout)
 
 
+def load_ml_solver_deeponet(x):
+    from hybrid_pde.solvers.ml.deepOnet.deeponet import load_model
+    from . import config
+    s = load_model(str(config.RESULTS_DIR / "deeponet"), np.asarray(x))
+    return FunctionSolver("DeepONet",
+                          lambda ic, xx, t: np.asarray(s.predict_grid(np.asarray(ic)[None, :], xx, t))[0])
+
+
+def load_ml_solver_by_name(name="FNO", x=None):
+    n = str(name).strip().lower()
+    if n == "fno":
+        return load_ml_solver()
+    if n in ("deeponet", "deep_onet", "don"):
+        return load_ml_solver_deeponet(x)
+    raise ValueError("unknown ML model: %s (use 'FNO' or 'DeepONet')" % name)
+
+
 def load_trust(model_name="FNO"):
     from . import config
     from hybrid_pde.trust.monitor import load_params, TrustMonitor
@@ -250,16 +267,15 @@ def partial_main_coarse(targets=None):
     return rows
 
 
-def partial_main_coarse_timed(targets=None):
+def partial_main_coarse_timed(targets=None, model="FNO"):
     import time
     from . import config
     from .groundtruth import load_reference, relative_l2
-    from .coupling import CouplingStub
     from .trigger import TrustMonitorAdapter
     from hybrid_pde.trust.coarse_reference import CoarseReferenceMonitor
-    ml = load_ml_solver()
-    num = load_numerical_solver()
     R = load_reference()
+    ml = load_ml_solver_by_name(model, R.x)
+    num = load_numerical_solver()
     idx = config.TEST_IC_INDICES
     x, t = R.x, R.t
     ml.rollout(R.ICs[idx[0]], x, t)   # warm up
@@ -282,6 +298,7 @@ def partial_main_coarse_timed(targets=None):
             errs.append(res.cost.achieved_error); costs.append(wall)
         me, se = mean_std(errs); cm, cs = mean_std(costs)
         rows.append({"target": float(target), "cost_s": cm, "cost_std": cs, "mean_error": me, "std_error": se, "hit_rate": hit_rate(errs, target)})
-    return {"frontier": rows,
+    return {"model": str(model),
+            "frontier": rows,
             "pure_ml": {"cost_s": mean_std(ml_times)[0], "mean_error": mean_std(ml_errs)[0]},
             "pure_numerical": {"cost_s": mean_std(num_times)[0], "mean_error": mean_std(num_errs)[0]}}
