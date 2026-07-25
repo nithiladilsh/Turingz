@@ -5,9 +5,12 @@ import numpy as np
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.insert(0, ROOT)
 
-from hybrid_pde.trust.monitor import TrustMonitor, load_params
+from hybrid_pde.trust.monitor import TrustMonitor, load_params, _frame as _mon_frame, _hi_mask as _mon_hi
 from hybrid_pde.trust.coarse_reference import CoarseReferenceMonitor
 from hybrid_pde.trust.signals import corrected_signal, energy_signal, roughness_signal, shock_coeff
+
+# order of the fused signals inside the trust monitor
+SIGNAL_KEYS = ["residual", "energy", "roughness", "momentum"]
 
 NU = 1.0 / (100 * np.pi)
 L = 2.0
@@ -86,9 +89,36 @@ def _signal_curves(pred):
     return (corrected_signal(p, COEFF, X, T)[0], energy_signal(p, X)[0], roughness_signal(p, X)[0])
 
 
+def _signal_activity(pred, params):
+    """Replays the exact 4 signals the TrustMonitor fuses and returns, per frame,
+    each signal's z-scored 'activity' (how far above its calibrated baseline it is,
+    mapped to 0..1) plus the fixed fusion weights. This is what actually drives the
+    trust score -- not the raw magnitudes, which live on very different scales."""
+    p = params
+    dx, dt = float(p["dx"]), float(p["dt"])
+    hi = _mon_hi(pred.shape[-1], dx)
+    mean, std, w = np.asarray(p["mean"], float), np.asarray(p["std"], float), np.asarray(p["w"], float)
+    ecum, eprev = 0.0, 0.5 * dx * (pred[0] ** 2).sum()
+    M0, mdmax = None, 0.0
+    Z = np.zeros((len(pred), 4))
+    for n in range(len(pred)):
+        prev = pred[n - 1] if n >= 1 else pred[n]
+        s, ecum, eprev = _mon_frame(pred[n], prev, ecum, eprev, dx, dt, float(p["coeff"]), hi)
+        if M0 is None:
+            M0 = s[3]
+        mdmax = max(mdmax, abs(s[3] - M0))
+        s = s.copy(); s[3] = mdmax
+        Z[n] = (s - mean) / std
+    # map z to a 0..1 "activity" level: baseline (z=0) -> 0.5, ~+3 sigma -> ~1
+    level = np.clip(0.5 + Z / 6.0, 0.0, 1.0)
+    return w, Z, level
+
+
 def stream_run(model, ic=None, pinn_index=0, mode="reference_free"):
     ic0, pred, true = get_prediction(model, ic, pinn_index)
     res_c, ene_c, rou_c = _signal_curves(pred)
+    sig_w, sig_Z, sig_lvl = _signal_activity(pred, PARAMS[model])
+    weights = {k: round(float(sig_w[i]), 3) for i, k in enumerate(SIGNAL_KEYS)}
     if model == "FNO" and mode == "coarse":
         mon = CoarseReferenceMonitor(ic0, X, n=256)
     else:
@@ -109,6 +139,9 @@ def stream_run(model, ic=None, pinn_index=0, mode="reference_free"):
             "signals": {"residual": round(float(res_c[n]), 4),
                         "energy": round(float(ene_c[n]), 4),
                         "roughness": round(float(rou_c[n]), 4)},
+            "weights": weights,
+            "levels": {k: round(float(sig_lvl[n, i]), 3) for i, k in enumerate(SIGNAL_KEYS)},
+            "contrib": {k: round(float(sig_w[i] * sig_Z[n, i]), 4) for i, k in enumerate(SIGNAL_KEYS)},
             "switch_t": switch_t,
             "mode": mode,
         }
