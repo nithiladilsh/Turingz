@@ -109,11 +109,23 @@ EVIDENCE (M3 = 5.5):
 6.7 Discussion (required): vs ANCHOR - proactive budget-driven vs reactive fixed threshold;
     revisit Table 2.1 with a "this project (measured)" row.
 
-## Chapter 7 - Conclusion and Further Work
-7.1 Introduction | 7.5 Summary (required)
-7.2 Conclusions per objective O1-O5 (each -> where proven; no new numbers)
-7.3 Limitations: one PDE, 1D, single-machine timing, 3% floor
-7.4 Further work: learned controller (declared optional stretch), more PDEs, 2D, lower-floor monitor
+## Chapter 8 - Conclusion and Further Work   [FINALIZED]
+Rule: NO new numbers anywhere in this chapter - every conclusion points back to the Ch7 section that
+proved it. Intro first, Summary last (guideline). Individual contributions live in Appendix A, so
+contributions are folded into 8.2 rather than given a standalone section (DeepThinkers pattern).
+
+8.1 Introduction - restate the problem the project set out to solve + roadmap of the chapter (1 para).
+8.2 Conclusions against objectives - walk O1-O5 in turn; state the conclusion and cite where it was
+    demonstrated (Ch7 sections). Contribution per objective folded in here. NO new results.
+    [ACTION: paste exact O1-O5 wording from Chapter 1 so conclusions map one-to-one.]
+8.3 Limitations - project level, concise: one PDE (1D viscous Burgers), single-machine timing,
+    3% accuracy floor. (Distinct from the finer 7.5.5 findings; this is the project-level summary.)
+8.4 Further work - lower-floor trust monitor; learned controller (declared optional stretch, not a
+    promise); more PDEs and 2D; broader OOD testing.
+8.5 Summary (required) - short closing.
+
+NOTE: header chapter list above still shows old 7-chapter numbering (pre Ch4/Ch5 split); working
+report is 8 chapters with Ch7 = Evaluation & Discussion, Ch8 = Conclusion.
 
 ## Appendices
 A: Individual Contribution x3 (one page each; yours = six plan components -> what exists)

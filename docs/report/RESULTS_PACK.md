@@ -133,6 +133,34 @@ Source: results/m3/step11_coarse_detector/verification.json
 NOTE: production detector is M1's contribution; M3 prototyped the concept (status: 'concept verified,
 stand-ins'). Attribute accordingly in the report.
 
+## T7. Out-of-distribution frontier (real FNO + M1 coarse + M2 coupling + M3 controller)
+Source: results/m3/ood_frontier/m3_ood_frontier.json  (experiments/m3_ood_frontier.py)
+Grid nx=512, nt=200. OOD set = sin(5..8 pi x) + 3 Gaussian bumps (7 waves); exact Cole-Hopf references.
+Self-check 1: analytic reference vs committed dataset (IC 900) rel diff 3.8e-08.
+Self-check 2: in-distribution frontier reproduces the committed deterministic headline exactly
+(5.31->3.00% error, 100% hit down to 0.05, 3.00% floor); timing session-dependent, not compared.
+
+Baselines on the OOD set: pure ML 36.64% error; pure numerical 0.042% error.
+(In-distribution same session: pure ML 7.77%; pure numerical 0.011%.)
+
+| target | in-dist error | in-dist hit | OOD error | OOD hit | OOD corrections (of 200) |
+|---|---|---|---|---|---|
+| 0.30 | 5.31% | 100% | 12.51% (+/-3.29) | 100% | 145.7 |
+| 0.20 | 4.77% | 100% | 11.10% (+/-2.62) | 100% | 147.7 |
+| 0.10 | 4.00% | 100% | 10.92% (+/-2.62) | 14% | 172.4 |
+| 0.05 | 3.59% | 100% | 10.58% (+/-2.75) | 0% | 173.1 |
+| 0.02 | 3.00% | 10% | 10.11% (+/-2.95) | 0% | 173.6 |
+| 0.01 | 3.00% | 10% | 10.11% (+/-2.95) | 0% | 173.6 |
+
+CLAIM: on unseen inputs the surrogate degrades ~4.7x (7.77% -> 36.64%) while the numerical solver is
+unaffected (0.042%). The controller detects the drift and corrects far more aggressively - corrections
+rise from 31-67 to 146-174 of 200 steps - so the hybrid CAPS error at 10-12.5%, about 3x better than
+pure ML OOD, at a cost that rises toward numerical (1.07-1.25 s vs ~1.42 s). This is graceful
+degradation / fail-safe, quantified. HONEST LIMIT: the error floor rises from 3.00% (in-dist) to ~10%
+(OOD) and tight targets (<=0.1) become unreachable (hit-rate 0-14%); only relaxed budgets (0.2, 0.3)
+are still honoured OOD. Mechanism: the monitor's pre-flag window runs on a badly-wrong ML seed OOD, so
+the same monitor-set floor of 7.5.5 is amplified. Cross-session cost pairing forbidden as elsewhere.
+
 ## Numbers that must NOT be claimed (superseded or unsupported)
 - 'adaptive 0.0% vs fixed 8.6%' - superseded synthetic result; use T2 (3.00-5.31% vs 7.70%).
 - 'hysteresis deadband prevents chatter in the system' - T2 shows it is unnecessary on the real signal.
