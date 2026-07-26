@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { Card } from "../components/ui.jsx";
 import { API } from "../api.js";
-import { Trophy, X, Timer } from "lucide-react";
+import { Trophy, X, Play, RotateCcw } from "lucide-react";
 
-const COLOR = { FNO: "#059669", DeepONet: "#e11d48", PINN: "#d97706", FDM: "#64748b", Spectral: "#4f46e5", ColeHopf: "#7c3aed" };
+const COLOR = { FNO: "#059669", DeepONet: "#e11d48", PINN: "#d97706", FDM: "#0ea5e9", Spectral: "#8b5cf6", ColeHopf: "#ec4899" };
 const ML = ["FNO", "DeepONet", "PINN"];
+const NUMERICAL = ["FDM", "Spectral", "ColeHopf"];
 
 function useDraw(ms = 1300, key = 0) {
   const [p, setP] = useState(0);
@@ -187,10 +188,83 @@ function HeadToHead({ models }) {
           })}
         </div>
         <div className="text-xs text-slate-400 mt-3">
-          Measured, not assumed: all three were run through the controller. Each fails a different precondition - DeepONet is inaccurate in-window, PINN is not amortized. Only FNO satisfies both.
+          All three were run through the controller. Each fails a different precondition — DeepONet is inaccurate in-window, PINN is not amortized. Only FNO satisfies both.
         </div>
       </div>
     </Card>
+  );
+}
+
+
+const F1 = (v, u, dp = 2) => (v == null ? "—" : `${Number(v).toFixed(dp)} ${u}`);
+
+function Profile({ m, d }) {
+  if (!d) return null;
+  const stat = (k, v, hint) => (
+    <div>
+      <div className="text-[10px] uppercase tracking-wide text-slate-400">{k}</div>
+      <div className="text-sm font-bold text-slate-700 dark:text-slate-200 tabular-nums">{v}</div>
+      {hint && <div className="text-[10px] text-slate-400">{hint}</div>}
+    </div>
+  );
+  const sc = d.scaling || {};
+  return (
+    <div className="mt-3 pt-3 border-t border-dashed border-slate-200 dark:border-slate-700 grid grid-cols-5 gap-3">
+      {stat("inference", F1(d.infer_ms, "ms", 0), d.infer_ms_std != null ? `±${d.infer_ms_std.toFixed(1)}` : null)}
+      {stat("deployment", d.deploy_s >= 60 ? F1(d.deploy_s / 60, "min", 1) : F1(d.deploy_s, "s"), m === "PINN" ? "retrains per problem" : "reusable")}
+      {stat("throughput", d.throughput_ic_s != null ? `${d.throughput_ic_s < 1 ? d.throughput_ic_s.toFixed(4) : d.throughput_ic_s.toFixed(1)}/s` : "—", "problems per second")}
+      {stat("error in-window", `${(d.err_in ?? 0).toFixed(2)}%`)}
+      {stat("error beyond", `${(d.err_extrap ?? 0).toFixed(2)}%`)}
+      {stat("parameters", d.params ? d.params.toLocaleString() : "0", d.params ? `${(d.params_mb ?? 0).toFixed(2)} MB` : "solver, no weights")}
+      {stat("on disk", F1(d.disk_mb, "MB"))}
+      {stat("peak memory", F1(d.rss_mb, "MB", 0))}
+      {stat("scaling", sc.exp != null ? `N^${sc.exp.toFixed(2)}` : "—", sc.exp != null ? (sc.exp < 0.5 ? "sub-linear" : "linear in size") : null)}
+      {m === "PINN"
+        ? stat("training split", `${Math.round(d.adam_s || 0)} + ${Math.round(d.lbfgs_s || 0)} s`, "Adam + L-BFGS")
+        : stat("training", "amortized", "trained once, reused")}
+    </div>
+  );
+}
+
+
+function Staircase({ M, window_, tol }) {
+  const W = 460, H = 120, padL = 42, padR = 12, padT = 12, padB = 26;
+  const names = Object.keys(M);
+  const e = (m) => Math.max(((window_ === "in" ? M[m].err_in : M[m].err_extrap) ?? 0) / 100, 1e-6);
+  const c = (m) => Math.max(M[m].deploy_s ?? 0.01, 0.01);
+  const tmin = 1e-4, tmax = 0.5;
+  const cmin = 0.05, cmax = Math.max(...names.map(c)) * 1.6;
+  const L = Math.log10;
+  const sx = (v) => padL + ((L(tmax) - L(v)) / (L(tmax) - L(tmin))) * (W - padL - padR);
+  const sy = (v) => H - padB - ((L(v) - L(cmin)) / (L(cmax) - L(cmin))) * (H - padT - padB);
+  const cheapest = (t) => { const ok = names.filter((m) => e(m) <= t); return ok.length ? Math.min(...ok.map(c)) : null; };
+  const steps = [];
+  for (let i = 0; i <= 90; i++) {
+    const t = Math.pow(10, L(tmin) + (i / 90) * (L(tmax) - L(tmin)));
+    steps.push([t, cheapest(t)]);
+  }
+  let d = "", started = false;
+  steps.forEach(([t, v]) => { if (v == null) return; d += `${started ? "L" : "M"}${sx(t).toFixed(1)} ${sy(v).toFixed(1)}`; started = true; });
+  const here = cheapest(tol);
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
+      {[0.1, 1, 10].filter((v) => v >= cmin && v <= cmax).map((v) => (
+        <g key={v}>
+          <line x1={padL} x2={W - padR} y1={sy(v)} y2={sy(v)} stroke="var(--chart-grid)" strokeDasharray="2 4" />
+          <text x={padL - 6} y={sy(v) + 3} textAnchor="end" fontSize="8" fill="var(--chart-axis)">{v}s</text>
+        </g>
+      ))}
+      <rect x={Math.min(sx(0.14), sx(0.03))} y={padT} width={Math.abs(sx(0.03) - sx(0.14))} height={H - padT - padB} fill="#059669" opacity="0.10" />
+      <text x={(sx(0.03) + sx(0.14)) / 2} y={padT + 9} textAnchor="middle" fontSize="7.5" fill="#059669" fontWeight="700">controller: 3% for 0.85s</text>
+      <circle cx={sx(0.03)} cy={sy(0.85)} r="4" fill="#059669" />
+      <path d={d} fill="none" stroke="#4f46e5" strokeWidth="2" />
+      {here != null && <>
+        <line x1={sx(tol)} x2={sx(tol)} y1={padT} y2={H - padB} stroke="#e11d48" strokeWidth="1.5" />
+        <circle cx={sx(tol)} cy={sy(here)} r="5" fill="#e11d48" />
+      </>}
+      <text x={padL} y={H - 6} fontSize="8" fill="var(--chart-axis)">loose</text>
+      <text x={W - padR} y={H - 6} textAnchor="end" fontSize="8" fill="var(--chart-axis)">strict →</text>
+    </svg>
   );
 }
 
@@ -198,7 +272,10 @@ export default function CostAnalysis() {
   const [tab, setTab] = useState("findings");
   const [d, setD] = useState(null);
   const [mode, setMode] = useState("in");
-  const [budget, setBudget] = useState(60);
+  const [tolExp, setTolExp] = useState(-1.0);
+  const [open, setOpen] = useState(null);
+  const [sweeping, setSweeping] = useState(false);
+  const [window_, setWindow] = useState("extrap");
   const [err, setErr] = useState(null);
   const p = useDraw(1300, mode + tab);
 
@@ -206,6 +283,21 @@ export default function CostAnalysis() {
     fetch(`${API}/api/m3/costs`).then((r) => r.json()).then((x) => { if (x.error) setErr(x.error); else setD(x); })
       .catch(() => setErr("Backend not reachable — start it with: uvicorn main:app"));
   }, []);
+
+  useEffect(() => {
+    if (!sweeping) return;
+    let raf, start;
+    const dur = 7000, a = -0.3, b = -4;
+    const loop = (ts) => {
+      if (!start) start = ts;
+      const q = Math.min(1, (ts - start) / dur);
+      setTolExp(a + (b - a) * q);
+      if (q < 1) raf = requestAnimationFrame(loop); else setSweeping(false);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, [sweeping]);
+
 
   const M = d?.models || {};
   const pinn = M.PINN || {};
@@ -215,7 +307,6 @@ export default function CostAnalysis() {
                  extrap: "Beyond it the corner is empty — every surrogate collapses, the numerical solvers stay exact but cost 2–4× more.",
                  both: "Each surrogate's error jumps 1–2 orders of magnitude the moment you leave the window. The numerical solvers do not move." }[mode];
   const order = Object.keys(M).sort((a, b) => (M[a].deploy_s ?? 0) - (M[b].deploy_s ?? 0));
-  const maxN = Math.max(1, ...order.map((m) => Math.floor(budget / Math.max(M[m].deploy_s ?? 1, 1e-6))));
 
   return (
     <div className="space-y-6">
@@ -301,47 +392,123 @@ export default function CostAnalysis() {
         </>
       )}
 
-      {d && tab === "live" && (
+      {d && tab === "live" && (() => {
+        const tolPct = Math.pow(10, tolExp) * 100;
+        const tol = tolPct / 100;
+        const rows = Object.keys(M).map((m) => {
+          const e = (window_ === "in" ? M[m].err_in : M[m].err_extrap) ?? 0;
+          return { m, e, cost: M[m].deploy_s ?? 0, ok: e <= tolPct };
+        }).sort((p_, q_) => p_.cost - q_.cost);
+        const win = rows.find((x) => x.ok);
+        const cheapGap = !win || NUMERICAL.includes(win.m);
+        return (
         <>
-          <Card title="How much can each solver actually get done?" subtitle="drag a compute budget and see how many problems finish">
-            <div className="flex items-center gap-3">
-              <Timer size={16} className="text-slate-400" />
-              <input type="range" min="1" max="3600" step="1" value={budget} onChange={(e) => setBudget(+e.target.value)} className="flex-1" />
-              <span className="w-24 text-right text-sm font-bold text-slate-700 dark:text-slate-200">
-                {budget >= 60 ? `${Math.floor(budget / 60)} min ${budget % 60}s` : `${budget} s`}
+          <Card title="How accurate do you need to be?" subtitle="drag the tolerance — watch who survives it">
+            <div className="flex items-center gap-4">
+              <span className="text-xs text-slate-400 w-20">50% is fine</span>
+              <input type="range" min="0" max="1" step="0.005" value={(tolExp - (-0.3)) / (-4 - (-0.3))}
+                onChange={(e) => setTolExp(-0.3 + (-4 - (-0.3)) * (+e.target.value))} className="flex-1" />
+              <span className="text-xs text-slate-400 w-20 text-right">0.01% only</span>
+              <span className="w-20 text-right text-lg font-extrabold text-indigo-600 tabular-nums">
+                {tolPct >= 1 ? `${tolPct.toFixed(0)}%` : `${tolPct.toFixed(2)}%`}
               </span>
+              <button onClick={() => { setTolExp(-0.3); setSweeping(true); }} disabled={sweeping}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-semibold transition">
+                {sweeping ? <><RotateCcw size={15} className="animate-spin" /> Tightening…</> : <><Play size={15} /> Watch it tighten</>}
+              </button>
+            </div>
+            <div className="flex gap-2 mt-3">
+              {[["in", "Inside training window"], ["extrap", "Beyond it"]].map(([v, l]) => (
+                <button key={v} className={chip(window_ === v)} onClick={() => setWindow(v)}>{l}</button>
+              ))}
+            </div>
+
+            <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700 flex items-center gap-6">
+              <div>
+                <div className="text-[10px] uppercase tracking-wide text-slate-400">what that accuracy costs you</div>
+                <div className="text-4xl font-extrabold tabular-nums" style={{ color: win ? (NUMERICAL.includes(win.m) ? "#4f46e5" : "#059669") : "#e11d48" }}>
+                  {win ? (win.cost >= 60 ? `${Math.round(win.cost / 60)} min` : `${win.cost.toFixed(2)} s`) : "impossible"}
+                </div>
+                <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  {win ? <>cheapest solver within {tolPct >= 1 ? `${tolPct.toFixed(0)}%` : `${tolPct.toFixed(2)}%`} is <b style={{ color: COLOR[win.m] }}>{win.m}</b></> : "no solver here is this accurate"}
+                </div>
+              </div>
+              <div className="flex-1"><Staircase M={M} window_={window_} tol={tol} /></div>
             </div>
           </Card>
 
           <div className="space-y-2">
-            {order.map((m) => {
-              const n = Math.floor(budget / Math.max(M[m].deploy_s ?? 1, 1e-6));
-              const e = M[m].err_extrap ?? 0;
-              const usable = e < 10;
+            {rows.map((r) => {
+              const isWin = win && r.m === win.m;
               return (
-                <div key={m} className="flex items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-3">
-                  <div className="w-24 text-sm font-bold" style={{ color: COLOR[m] }}>{m}</div>
-                  <div className="flex-1 h-6 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden">
-                    <div className="h-6 rounded-full transition-all duration-500"
-                      style={{ width: `${Math.max(n > 0 ? 3 : 0, (n / maxN) * 100)}%`, background: COLOR[m], opacity: usable ? 1 : 0.45 }} />
+                <div key={r.m} onClick={() => setOpen(open === r.m ? null : r.m)}
+                  className={`cursor-pointer rounded-xl border px-4 py-3 transition-all duration-300 ${
+                    isWin ? "border-2 border-emerald-400 bg-emerald-50 dark:bg-emerald-500/10"
+                    : r.ok ? "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800"
+                    : "border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40"}`}>
+                  <div className={`flex items-center gap-4 transition-opacity ${r.ok || open === r.m ? "" : "opacity-40"}`}>
+                  <div className="w-24 text-sm font-bold" style={{ color: COLOR[r.m] }}>{r.m}</div>
+                  <div className="w-28">
+                    <div className="text-[10px] text-slate-400">costs</div>
+                    <div className="text-lg font-bold tabular-nums text-slate-700 dark:text-slate-200">
+                      {r.cost >= 60 ? `${Math.round(r.cost / 60)} min` : `${r.cost.toFixed(2)} s`}
+                    </div>
                   </div>
-                  <div className="w-28 text-right text-sm font-bold text-slate-700 dark:text-slate-200">
-                    {n === 0 ? "none" : `${n.toLocaleString()} solved`}
+                  <div className="w-28">
+                    <div className="text-[10px] text-slate-400">is wrong by</div>
+                    <div className="text-lg font-bold tabular-nums" style={{ color: r.ok ? "#059669" : "#e11d48" }}>
+                      {r.e < 0.001 ? "~0%" : `${r.e.toFixed(r.e < 1 ? 2 : 0)}%`}
+                    </div>
                   </div>
-                  <div className={`w-24 text-right text-xs font-semibold ${usable ? "text-emerald-600" : "text-rose-600"}`}>
-                    {e < 0.01 ? "exact" : `${e.toFixed(0)}% err`}
+                  <div className="flex-1 text-right">
+                    {isWin ? (
+                      <span className="inline-flex items-center gap-1.5 text-sm font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-500/20 px-3 py-1.5 rounded-full">
+                        <Trophy size={14} /> cheapest that qualifies
+                      </span>
+                    ) : r.ok ? (
+                      <span className="text-xs font-semibold text-slate-500">qualifies</span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-xs font-semibold text-rose-600">
+                        <X size={13} /> too wrong
+                      </span>
+                    )}
                   </div>
+                  </div>
+                  {open === r.m && <Profile m={r.m} d={M[r.m]} />}
                 </div>
               );
             })}
           </div>
+          <div className="text-xs text-slate-400 -mt-1">click any solver for its full measured profile</div>
 
-          <div className="rounded-2xl p-4 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 text-sm text-slate-700 dark:text-slate-200">
-            Faded bars are solvers whose answers are <b>over 10% wrong beyond the window</b> — throughput you cannot use.
-            At small budgets PINN finishes <b>nothing at all</b>.
+          <div className={`rounded-2xl p-5 border-2 transition-all duration-300 ${
+            cheapGap ? "border-indigo-400 bg-indigo-50 dark:bg-indigo-500/10" : "border-transparent bg-slate-50 dark:bg-slate-800/40"}`}>
+            {cheapGap && tol >= 0.03 ? (
+              <>
+                <div className="text-sm font-bold text-indigo-800 dark:text-indigo-300">This is the gap my module fills</div>
+                <p className="text-sm text-slate-700 dark:text-slate-200 mt-1">
+                  Nothing cheap qualifies here — every surrogate is too wrong, so you are forced onto a numerical solver
+                  at <b>{win ? win.cost.toFixed(2) : "—"} s</b>. My controller reaches <b>3.0%</b> for about <b>0.85 s</b>,
+                  which clears this bar at roughly a third of the price.
+                </p>
+              </>
+            ) : cheapGap ? (
+              <>
+                <div className="text-sm font-bold text-slate-700 dark:text-slate-200">Below the controller's 3.0% floor</div>
+                <p className="text-sm text-slate-600 dark:text-slate-300 mt-1">
+                  The floor is set by how far the trust monitor lets the surrogate drift before handing over. At
+                  {" "}{tolPct.toFixed(2)}% the controller does not qualify{win ? <>, so a numerical solver at <b>{win.cost.toFixed(2)} s</b> is the only option</> : " and no solver here is accurate enough"}.
+                </p>
+              </>
+            ) : (
+              <p className="text-sm text-slate-600 dark:text-slate-300">
+                A surrogate is good enough here — no correction needed. Tighten the tolerance to see where that stops being true.
+              </p>
+            )}
           </div>
         </>
-      )}
+        );
+      })()}
     </div>
   );
 }

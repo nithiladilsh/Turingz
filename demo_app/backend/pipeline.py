@@ -47,31 +47,37 @@ def _relerr(a, b):
     return float(np.linalg.norm(a - b) / (np.linalg.norm(b) + 1e-12))
 
 
-def _build(model, ic, pinn_index, mode):
+def _build(model, ic, pinn_index, mode, target=0.05):
+    from hybrid_pde.control_214133E.controller import AdaptiveController, thresholds_for_target
     ic0, pred, true = core.get_prediction(model, ic, pinn_index)
     T, X, nt = core.T, core.X, len(core.T)
     if model == "FNO" and mode == "coarse":
         mon = core.CoarseReferenceMonitor(ic0, X, n=256)
     else:
         mon = core.TrustMonitor(core.PARAMS[model])
+    lo, _ = thresholds_for_target(float(target))
+    ctrl = AdaptiveController(lo, 1.1)
+    ctrl.configure(float(target))
+    ctrl.reset()
     trust = np.empty(nt)
-    okc = np.empty(nt, bool)
+    corr = np.empty(nt, bool)
     switch = None
     for n in range(nt):
         o = mon.update(pred[n], float(T[n]))
         trust[n] = float(o["trust"])
-        okc[n] = bool(o["ok"])
-        if switch is None and not o["ok"]:
+        dec = ctrl.decide(trust[n], not bool(o["ok"]), float(T[n]), n)
+        corr[n] = bool(dec.correct)
+        if switch is None and dec.correct:
             switch = n
     idx = {"i": 0}
 
     def trigger(u, t):
         i = idx["i"]
         idx["i"] = i + 1
-        return float(trust[i]), (not bool(okc[i]))
+        return float(trust[i]), bool(corr[i])
 
     hybrid = np.asarray(M2Coupling().rollout(ic0, X, T, _MLStub(pred), _NumSolver(), trigger), float)
-    return T, pred, true, hybrid, trust, okc, switch, nt
+    return T, pred, true, hybrid, trust, corr, switch, nt
 
 
 async def _run(ws, req):
@@ -79,10 +85,11 @@ async def _run(ws, req):
     ic = req.get("ic")
     pinn_index = int(req.get("pinn_index", 0))
     mode = req.get("mode", "reference_free")
+    target = float(req.get("target", 0.05))
     loop = asyncio.get_running_loop()
     T, pred, true, hybrid, trust, okc, switch, nt = await loop.run_in_executor(
-        None, _build, model, ic, pinn_index, mode)
-    ml_per, num_per = 0.21 / nt, 2.54 / nt
+        None, _build, model, ic, pinn_index, mode, target)
+    ml_per, num_per = _per_step_rates(nt)
     s = switch if switch is not None else nt
     for n in range(nt):
         await ws.send_text(json.dumps({
@@ -91,12 +98,14 @@ async def _run(ws, req):
             "u_hybrid": np.round(hybrid[n], 4).tolist(),
             "true": np.round(true[n], 4).tolist(),
             "trust": round(float(trust[n]), 3),
-            "ok": bool(okc[n]),
+            "ok": bool(not okc[n]),
             "switch_t": (float(T[switch]) if switch is not None else None),
             "ml_steps": int(min(n + 1, s)),
             "corr_steps": int(max(0, n + 1 - s)),
             "hybrid_error": round(_relerr(hybrid[n], true[n]), 3),
             "ml_error": round(_relerr(pred[n], true[n]), 3),
+            "cost_s": round(min(n + 1, s) * ml_per + max(0, n + 1 - s) * num_per, 3),
+            "cost_num_so_far": round((n + 1) * num_per, 3),
         }))
         await asyncio.sleep(0.03)
     ml_steps, corr_steps = s, nt - s
@@ -104,8 +113,8 @@ async def _run(ws, req):
         "ml_steps": int(ml_steps),
         "corr_steps": int(corr_steps),
         "cost_hybrid": round(ml_steps * ml_per + corr_steps * num_per, 2),
-        "cost_ml": 0.21,
-        "cost_num": 2.54,
+        "cost_ml": round(ml_per * nt, 2),
+        "cost_num": round(num_per * nt, 2),
         "err_hybrid": round(_relerr(hybrid[-1], true[-1]), 3),
         "err_ml": round(_relerr(pred[-1], true[-1]), 3),
         "err_num": 0.0,
@@ -130,15 +139,17 @@ async def ws_pipeline(ws: WebSocket):
 def _per_step_rates(nt):
     """Per-step cost rates taken from the measured timed frontier, so a live run
     lands on the same frontier the Findings tab shows."""
-    ml_per, num_per = 0.215 / nt, 2.542 / nt
+    ml_per = num_per = None
     try:
         p = os.path.join(core.ROOT, "results", "m3", "step9d_coarse_integration", "timed_cost_result_m2.json")
         with open(p, encoding="utf-8") as fh:
             d = json.load(fh)
         ml_per = d["pure_ml"]["cost_s"] / nt
         num_per = d["pure_numerical"]["cost_s"] / nt
-    except Exception:
-        pass
+    except Exception as e:
+        raise RuntimeError(
+            "per-step costs unavailable: could not read timed_cost_result_m2.json (%s). "
+            "Run: python -m hybrid_pde.control_214133E._run_full" % e)
     return ml_per, num_per
 
 

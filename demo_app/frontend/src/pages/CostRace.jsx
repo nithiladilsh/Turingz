@@ -171,8 +171,8 @@ function Handover({ hist, nt, thetaLo }) {
 
       <div className={`mt-4 rounded-xl px-4 py-3 text-sm ${latched ? "bg-slate-50 dark:bg-slate-700/40 text-slate-700 dark:text-slate-200" : "bg-indigo-50 dark:bg-indigo-500/10 text-slate-700 dark:text-slate-200"}`}>
         {latched ? (
-          <>Once trust collapses it does not recover, so the controller <b>latches into correction mode</b> and stays there —
-          this is measured, not assumed: on this trust signal a deadband re-engages only ~1.2 times, so I ship a one-way handover.
+          <>Once trust collapses it does not recover, so the controller <b>latches into correction mode</b> and stays there.
+          On this trust signal a two-threshold deadband re-engages only ~1.2 times, so a one-way handover is what ships.
           The saving comes entirely from <b>how long it safely delayed the handover</b> — {before.length} of {nt} steps run at ML price.</>
         ) : (
           <>Trust recovers after corrections, so the controller <b>releases and re-engages</b> — it corrected only {Math.round(share * 100)}% of the
