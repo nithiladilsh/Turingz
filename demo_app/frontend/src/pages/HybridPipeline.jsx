@@ -3,7 +3,7 @@ import { Card, Stat, Banner } from "../components/ui.jsx";
 import { LineChart, Gauge } from "../components/Charts.jsx";
 import { WS, getMeta, buildIC, pinnIC } from "../api.js";
 
-const MODELS = ["FNO", "DeepONet", "PINN"];
+const MODELS = ["FNO", "PINN", "DeepONet"];
 const inactiveBtn = "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700";
 
 // self-contained socket so this page never edits shared api.js

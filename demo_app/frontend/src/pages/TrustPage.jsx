@@ -3,15 +3,46 @@ import { Card, Stat, Banner } from "../components/ui.jsx";
 import { LineChart, Gauge } from "../components/Charts.jsx";
 import { getMeta, buildIC, pinnIC, runTrust } from "../api.js";
 
-const MODELS = ["FNO", "DeepONet", "PINN"];
+const MODELS = ["FNO", "PINN", "DeepONet"];
 
 const inactiveBtn = "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700";
+
+// the four reference-free signals fused into the trust score
+const SIGNAL_ROWS = [
+  { key: "residual", label: "physics residual", desc: "breaks the PDE", color: "#4f46e5" },
+  { key: "energy", label: "energy drift", desc: "gains energy", color: "#0d9488" },
+  { key: "roughness", label: "roughness", desc: "goes oscillatory", color: "#e11d48" },
+  { key: "momentum", label: "momentum drift", desc: "mass shifts", color: "#d97706" },
+];
+
+// one signal row: faint bar = its calibrated share of the score (always > 0 for
+// the signals that matter), bright fill = how much it is contributing right now.
+function SignalBar({ label, desc, color, weight, level }) {
+  const share = Math.round(weight * 100);
+  const active = Math.round(level * 100);
+  return (
+    <div className="flex items-center gap-3">
+      <div className="w-32 shrink-0">
+        <div className="text-xs font-medium text-slate-700 dark:text-slate-200">{label}</div>
+        <div className="text-[10px] text-slate-400 dark:text-slate-500">{desc}</div>
+      </div>
+      <div className="flex-1 h-3 rounded-full bg-slate-100 dark:bg-slate-700/60 relative overflow-hidden">
+        <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${share}%`, background: color, opacity: 0.22 }} />
+        <div className="absolute inset-y-0 left-0 rounded-full transition-all duration-200" style={{ width: `${Math.round(weight * level * 100)}%`, background: color }} />
+      </div>
+      <div className="w-16 shrink-0 text-right">
+        <div className="text-xs font-semibold" style={{ color }}>{share}%</div>
+        <div className="text-[10px] text-slate-400 dark:text-slate-500">share</div>
+      </div>
+    </div>
+  );
+}
 
 export default function TrustPage() {
   const [meta, setMeta] = useState(null);
   const [model, setModel] = useState("FNO");
   const [modes, setModes] = useState(4);
-  const [amplitude, setAmplitude] = useState(1.0);
+  const [amplitude, setAmplitude] = useState(0.4);
   const [pinnIndex, setPinnIndex] = useState(0);
   const [fnoMode, setFnoMode] = useState("reference_free");
   const [ic, setIc] = useState(null);
@@ -156,18 +187,32 @@ export default function TrustPage() {
             <div className={`text-xs mt-1 ${faint}`}>indigo = trust · grey dashed = true error · dashed line = cutoff · red line = switch</div>
           </Card>
 
-          <Card title="How the trust score is calculated (live)">
-            {frame ? (
-              <div className="text-sm text-slate-600 dark:text-slate-300 space-y-2">
-                <div className="grid grid-cols-3 gap-2">
-                  <Stat label="physics residual" value={frame.signals.residual.toFixed(3)} />
-                  <Stat label="energy drift" value={frame.signals.energy.toFixed(3)} />
-                  <Stat label="roughness" value={frame.signals.roughness.toFixed(3)} />
+          <Card title="How the trust score is built (live)">
+            {frame && frame.weights ? (
+              <div className="text-sm text-slate-600 dark:text-slate-300 space-y-3">
+                <p className={`text-xs ${muted}`}>
+                  The score fuses four reference-free signals. Each bar shows a signal's
+                  <b> calibrated share</b> of the score (faint) and how much it's
+                  <b> driving distrust right now</b> (bright fill).
+                </p>
+                <div className="space-y-2.5">
+                  {SIGNAL_ROWS.map((s) => (
+                    <SignalBar
+                      key={s.key}
+                      {...s}
+                      weight={frame.weights[s.key] ?? 0}
+                      level={frame.levels?.[s.key] ?? 0}
+                    />
+                  ))}
                 </div>
+                <p className={`text-[11px] ${muted}`}>
+                  Shares are fixed per model by calibration — a share of 0 means that
+                  signal wasn't informative for this model, so it isn't relied on.
+                </p>
                 <p>
                   {model === "FNO" && fnoMode === "coarse"
                     ? "Cheap-reference mode: a small coarse solver runs alongside FNO and the trust score comes from how far FNO has drifted from it."
-                    : "These reference-free signals are combined into one fused number, calibrated to a 0–1 trust score. When the score stays below the cutoff for a few steps in a row, the switch latches on."}
+                    : "The fused number is calibrated to a 0–1 trust score. When it stays below the cutoff for a few steps in a row, the switch latches on."}
                 </p>
                 <p className={muted}>cutoff = {cut} · patience K = {p?.K ?? 4} · fail tolerance = 10% error.</p>
               </div>
