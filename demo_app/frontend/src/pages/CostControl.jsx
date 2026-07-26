@@ -387,10 +387,11 @@ export default function CostControl() {
                 )}
               </Card>
 
-              <Card title="3 · Accuracy target">
+              <Card title="3 · Accuracy target (Module 3)"
+                subtitle="the accuracy you ask for — the controller turns it into when to correct">
+                <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400"><span>loose 0.30</span><span>tight 0.01</span></div>
                 <input type="range" min="0" max={Math.max(0, fr.length - 1)} value={idx} onChange={(e) => setIdx(+e.target.value)} className="w-full" />
-                <div className="flex justify-between text-[11px] text-slate-400 dark:text-slate-500"><span>loose 0.30</span><span>tight 0.01</span></div>
-                <div className="mt-2 font-mono text-[11px] bg-slate-50 dark:bg-slate-700/40 rounded-lg px-3 py-2 text-slate-600 dark:text-slate-300">
+                <div className="text-xs mt-1 text-slate-400 dark:text-slate-500">
                   target {sel ? sel.target : "—"} → θlo {lo.toFixed(2)} (one-way handover)
                 </div>
               </Card>

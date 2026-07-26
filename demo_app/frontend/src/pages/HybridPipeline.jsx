@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Shuffle } from "lucide-react";
 import { Card, Stat, Banner } from "../components/ui.jsx";
 import { LineChart, Gauge } from "../components/Charts.jsx";
 import { WS, getMeta, buildIC, pinnIC } from "../api.js";
@@ -38,6 +39,7 @@ export default function HybridPipeline() {
   const [model, setModel] = useState("FNO");
   const [modes, setModes] = useState(4);
   const [amplitude, setAmplitude] = useState(1.0);
+  const [seed, setSeed] = useState(0);
   const [pinnIndex, setPinnIndex] = useState(0);
   const [fnoMode, setFnoMode] = useState("coarse");
   const [target, setTarget] = useState(0.1);
@@ -54,8 +56,8 @@ export default function HybridPipeline() {
   useEffect(() => {
     if (!meta) return;
     if (model === "PINN") pinnIC(pinnIndex).then((d) => setIc(d.ic)).catch(() => {});
-    else buildIC(modes, amplitude).then((d) => setIc(d.ic)).catch(() => {});
-  }, [meta, model, modes, amplitude, pinnIndex]);
+    else buildIC(modes, amplitude, 0, seed).then((d) => setIc(d.ic)).catch(() => {});
+  }, [meta, model, modes, amplitude, seed, pinnIndex]);
 
   function run() {
     if (wsRef.current) wsRef.current.close();
@@ -118,6 +120,10 @@ export default function HybridPipeline() {
                   <div className={`flex justify-between text-xs ${muted}`}><span>Amplitude</span><span>{amplitude.toFixed(1)}</span></div>
                   <input type="range" min="0.5" max="1.5" step="0.1" value={amplitude} onChange={(e) => setAmplitude(+e.target.value)} className="w-full" />
                 </div>
+                <button onClick={() => setSeed((s) => s + 1)}
+                  className={`w-full inline-flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border ${inactiveBtn} hover:bg-slate-100 dark:hover:bg-slate-700`}>
+                  <Shuffle size={13} /> New random wave
+                </button>
               </div>
             )}
             {model === "FNO" && (
