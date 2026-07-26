@@ -1,0 +1,40 @@
+{
+ "ml_step_s": 0.0008424380000360543,
+ "num_step_s": 0.00811540225004137,
+ "per_target": [
+  {
+   "target": 0.3,
+   "predicted_cost_s": 0.39467678818237617,
+   "measured_cost_s": 0.5237421199970413
+  },
+  {
+   "target": 0.2,
+   "predicted_cost_s": 0.4521332057574182,
+   "measured_cost_s": 0.5072671699963394
+  },
+  {
+   "target": 0.1,
+   "predicted_cost_s": 0.5190444768574671,
+   "measured_cost_s": 0.5581307499989634
+  },
+  {
+   "target": 0.05,
+   "predicted_cost_s": 0.548863630282489,
+   "measured_cost_s": 0.5837834199992358
+  },
+  {
+   "target": 0.02,
+   "predicted_cost_s": 0.6543216119075659,
+   "measured_cost_s": 0.6766846399987116
+  },
+  {
+   "target": 0.01,
+   "predicted_cost_s": 0.6543216119075659,
+   "measured_cost_s": 0.673199139998178
+  }
+ ],
+ "pearson_r": 0.9586836616883732,
+ "mape": 0.09411161176174881,
+ "slope_measured_vs_predicted": 0.9060259308519791,
+ "n_points": 60
+}

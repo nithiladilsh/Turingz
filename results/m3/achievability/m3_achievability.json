@@ -1,0 +1,65 @@
+{
+ "feature": "fraction of steps trust < theta_lo (reference-free)",
+ "per_target": [
+  {
+   "target": 0.3,
+   "theta_lo": 0.2,
+   "mean_error": 0.05306352882974189,
+   "hit_rate": 1.0,
+   "mean_frac_below": 0.0865,
+   "n_met": 10,
+   "n_missed": 0
+  },
+  {
+   "target": 0.2,
+   "theta_lo": 0.34,
+   "mean_error": 0.04771101891654423,
+   "hit_rate": 1.0,
+   "mean_frac_below": 0.118,
+   "n_met": 10,
+   "n_missed": 0
+  },
+  {
+   "target": 0.1,
+   "theta_lo": 0.48,
+   "mean_error": 0.03995162579494059,
+   "hit_rate": 1.0,
+   "mean_frac_below": 0.141,
+   "n_met": 10,
+   "n_missed": 0
+  },
+  {
+   "target": 0.05,
+   "theta_lo": 0.55,
+   "mean_error": 0.035922485922833244,
+   "hit_rate": 1.0,
+   "mean_frac_below": 0.13849999999999998,
+   "n_met": 10,
+   "n_missed": 0
+  },
+  {
+   "target": 0.02,
+   "theta_lo": 0.58,
+   "mean_error": 0.029999877479192444,
+   "hit_rate": 0.1,
+   "mean_frac_below": 0.12249999999999998,
+   "n_met": 1,
+   "n_missed": 9
+  },
+  {
+   "target": 0.01,
+   "theta_lo": 0.58,
+   "mean_error": 0.029999877479192444,
+   "hit_rate": 0.1,
+   "mean_frac_below": 0.12249999999999998,
+   "n_met": 1,
+   "n_missed": 9
+  }
+ ],
+ "met_feature_mean": 0.11761904761904761,
+ "missed_feature_mean": 0.13055555555555554,
+ "separator": {
+  "threshold": 0.295,
+  "accuracy": 0.7333333333333333
+ }
+}

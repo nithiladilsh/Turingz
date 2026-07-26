@@ -161,6 +161,55 @@ degradation / fail-safe, quantified. HONEST LIMIT: the error floor rises from 3.
 are still honoured OOD. Mechanism: the monitor's pre-flag window runs on a badly-wrong ML seed OOD, so
 the same monitor-set floor of 7.5.5 is amplified. Cross-session cost pairing forbidden as elsewhere.
 
+## T8. Error decomposition - oracle detector vs real monitor (floor attribution)
+Source: results/m3/error_decomposition/m3_error_decomposition.json  (experiments/m3_error_decomposition.py)
+Same correction (re-anchor) in both; only the detector changes. Reliable horizon t_train_end = 1.0.
+Oracle = perfect one-way detector, trips at first step true ML error exceeds target.
+
+| target | real error | real hit | oracle error | oracle hit | switch t (real / oracle) | lag |
+|---|---|---|---|---|---|---|
+| 0.30 | 5.31% | 100% | 6.78% | 100% | 1.70 / 1.88 | -0.18 |
+| 0.20 | 4.77% | 100% | 5.66% | 100% | 1.62 / 1.74 | -0.12 |
+| 0.10 | 4.00% | 100% | 3.69% | 100% | 1.53 / 1.50 | +0.02 |
+| 0.05 | 3.59% | 100% | 2.07% | 100% | 1.48 / 1.31 | +0.18 |
+| 0.02 | 3.00% | 10%  | 0.91% | 100% | 1.34 / 1.06 | +0.28 |
+| 0.01 | 3.00% | 10%  | 0.75% | 90%  | 1.34 / 0.83 | +0.51 |
+
+CLAIM: the 3.00% floor is the trust monitor's DETECTION LAG, not the controller or the re-anchor
+correction. With perfect detection the identical correction reaches 0.75-0.91% at the tight targets and
+hits them (100%/90% vs the real monitor's 10%). At tight targets the real monitor switches 0.28-0.51 t
+later than needed; the accumulated pre-switch drift is the floor. Two-sided nuance: at loose targets the
+lag is negative (safety-biased monitor switches slightly early), so the real monitor beats the oracle
+there (5.31% vs 6.78% at 0.30). Decomposition: control/correction floor <1%, monitor-lag term = the rest.
+This is the M3 analogue of the coupling's oracle-restart decomposition; attribute the floor to M1's signal.
+
+## T9. Cost-model validation (linear model vs measured wall-clock)
+Source: results/m3/cost_model/m3_cost_model.json  (experiments/m3_cost_model.py)
+Model: C = n_ML*c_ML + n_corr*c_corr. 10 test waves x 6 targets = 60 points.
+| target | predicted (s) | measured (s) |
+|---|---|---|
+| 0.30 | 0.395 | 0.524 |
+| 0.20 | 0.452 | 0.507 |
+| 0.10 | 0.519 | 0.558 |
+| 0.05 | 0.549 | 0.584 |
+| 0.02 | 0.654 | 0.677 |
+| 0.01 | 0.654 | 0.673 |
+CLAIM: the linear cost model predicts measured wall-clock well - Pearson r = 0.959, MAPE 9.4%,
+slope 0.906 (n=60). Predicted is a slight under-estimate (fixed per-run overhead not modelled), but
+tracks the trend, validating the cost accounting the frontier rests on. Timing session-dependent;
+report r/MAPE/slope, not absolute seconds across sessions.
+
+## T10. Achievability - NEGATIVE result (reference-free trust feature does NOT predict)
+Source: results/m3/achievability/m3_achievability.json  (experiments/m3_achievability.py)
+Feature = fraction of steps trust < theta_lo (reference-free).
+met-case feature mean 0.118 vs missed-case 0.131 (indistinguishable). Best single-threshold separator
+accuracy 0.733 against a 0.70 majority-class baseline (42/60 met) - i.e. no real signal.
+CLAIM (negative): the trust trajectory does NOT predict whether a target is met. Achievability instead
+reduces to the target-vs-floor rule: every target >= 3% floor met 10/10; both targets < 3% missed 9/10.
+So achievability is a function of the target relative to the T8 floor, not of the trust signal. Report
+as a negative result (parallels the coupling's pre-filtering negative result); do NOT claim a working
+signal-based diagnostic.
+
 ## Numbers that must NOT be claimed (superseded or unsupported)
 - 'adaptive 0.0% vs fixed 8.6%' - superseded synthetic result; use T2 (3.00-5.31% vs 7.70%).
 - 'hysteresis deadband prevents chatter in the system' - T2 shows it is unnecessary on the real signal.
