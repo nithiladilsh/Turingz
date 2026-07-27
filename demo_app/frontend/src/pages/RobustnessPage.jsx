@@ -167,6 +167,7 @@ export default function RobustnessPage() {
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-sm font-semibold text-slate-800 dark:text-slate-100">The FNO drifts off the truth after t = 1</div>
+                <div className="mt-1 flex gap-1.5"><span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">COMMITTED RESULT</span><span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300">EVALUATION-ONLY TRUTH</span></div>
                 <div className="text-xs text-slate-500 dark:text-slate-400">
                   a real held-out wave, the committed FNO prediction — the shaded gap is the actual error
                 </div>
@@ -194,13 +195,13 @@ export default function RobustnessPage() {
           <div className="rounded-2xl border border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 p-4 text-center">
             <div className="text-xs text-rose-500 dark:text-rose-400">error vs exact</div>
             <div className="text-4xl font-extrabold text-rose-600 dark:text-rose-400 mt-1">{(frame.err * 100).toFixed(0)}%</div>
-            <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">explodes once t &gt; 1</div>
+            <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">grows sharply once t &gt; 1</div>
           </div>
           <div className="flex-1 rounded-2xl border border-blue-200 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-500/10 p-4 text-center grid place-items-center">
             <div>
               <div className="text-xs text-blue-500 dark:text-blue-400">spectral distance</div>
               <div className="text-4xl font-extrabold text-blue-600 dark:text-blue-400 mt-1">{frame.sd.toFixed(2)}</div>
-              <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">my signal — rises with the failure, no truth needed for the idea</div>
+              <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">offline diagnostic vs Cole–Hopf truth — the frequency-space view of the failure</div>
             </div>
           </div>
         </div>
@@ -220,7 +221,7 @@ export default function RobustnessPage() {
             series={[{ x: upto.map((f) => f.t), y: upto.map((f) => f.sd), color: "#2563eb", width: 2.5 }]}
             xr={[0, 2]} yr={[0, Math.max(0.35, ...ROB_FRAMES.map((f) => f.sd)) * 1.05]}
             vline={1.0} h={175} xlabel="t" ylabel="spectral distance" />
-          <p className={`text-[11px] mt-1 ${muted}`}>the same spectral-content idea is the restart-safety diagnostic on the Coupling page</p>
+          <p className={`text-[11px] mt-1 ${muted}`}>a related frequency-space idea — computed from the state alone — becomes the reference-free restart-safety diagnostic (Coupling page)</p>
         </Card>
       </div>
 
@@ -256,7 +257,7 @@ export default function RobustnessPage() {
       {/* RUN IT YOURSELF */}
       <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
         <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1 flex items-center gap-2">
-          <Play size={14} /> Run it yourself — live
+          <Play size={14} /> Run it yourself — live <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300">LIVE BACKEND</span>
         </div>
         <p className={`text-xs ${muted} mb-4`}>
           Pick a model and an input; the backend runs the real model and streams the failure as it happens.

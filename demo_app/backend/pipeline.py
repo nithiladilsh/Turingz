@@ -39,8 +39,22 @@ class _MLStub:
 
 
 class _NumSolver:
+    """Numerical corrector for the integrated pipeline.
+
+    Uses the SAME verified pseudo-spectral restart that Module 2's coupling page
+    and the offline evaluation use (core._SpectralNum -> restart_spectral's
+    stepper, proven bit-for-bit equal to the production solver). The Cole-Hopf
+    routine above remains available as an independent reference generator, but
+    it is NOT the runtime corrector: the deployed handoff continues with the
+    pseudo-spectral scheme, exactly as reported in the evaluation."""
+
+    name = "spectral-restart (verified)"
+
+    def __init__(self):
+        self._num = core._SpectralNum()
+
     def rollout(self, u0, x, tau):
-        return cole_hopf_from(u0, tau)
+        return self._num.rollout(u0, x, tau)
 
 
 def _relerr(a, b):

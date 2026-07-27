@@ -203,7 +203,7 @@ export default function ColeHopfPage() {
             <div>
               <div className="text-xs text-emerald-600 dark:text-emerald-400">two independent solvers disagree by</div>
               <div className="text-3xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">{frame.dis.toExponential(0)}</div>
-              <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">effectively zero — the reference is proven, not assumed</div>
+              <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">effectively zero — independently corroborated, not assumed</div>
             </div>
           </div>
         </div>
@@ -231,7 +231,7 @@ export default function ColeHopfPage() {
           <Metric icon={Scale} tone="rose" tag="vs FDM" value={`${S.timesWorse}×`}
             label={`FDM is ${S.fdmVsExact}% off this reference — cheap baseline, not a truth source`} />
           <Metric icon={Target} tone="indigo" tag="role" value="1 ref"
-            label="every model trains on it, every error is scored against it, and the coupling re-anchors to it" />
+            label="generates the reference dataset and scores every model; the runtime hand-off itself continues with the pseudo-spectral solver" />
         </div>
       </div>
 
@@ -241,14 +241,14 @@ export default function ColeHopfPage() {
         <p className="text-sm text-slate-700 dark:text-slate-200 mt-1">
           Yes — Cole–Hopf gives an answer that is <span className="font-medium">exact in time and cross-verified
           by an independent method</span>. It is the ground truth of the whole project: if this reference were
-          wrong, every result downstream would be. <span className="font-semibold">That is why it is proven, not assumed.</span>
+          wrong, every result downstream would be. <span className="font-semibold">Empirical agreement with an independent method is what justifies trusting this implementation.</span>
         </p>
       </div>
 
       {/* RUN IT YOURSELF */}
       <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
         <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1 flex items-center gap-2">
-          <Play size={14} /> Run it yourself — live
+          <Play size={14} /> Run it yourself — live <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300">LIVE BACKEND</span>
         </div>
         <p className={`text-xs ${muted} mb-4`}>
           Build any wave; the backend solves it exactly and cross-verifies against the spectral solver on the spot.

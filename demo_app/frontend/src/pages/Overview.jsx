@@ -17,7 +17,7 @@ function ConceptChart() {
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
   }, []);
-  const W = 380, H = 230, padX = 14, padT = 26, padB = 20, xs = 0.6, fail = 0.4;
+  const W = 380, H = 230, padX = 14, padT = 26, padB = 20, xs = 0.6, fail = 0.1;
   const sx = (x) => padX + x * (W - 2 * padX);
   const sy = (e) => H - padB - Math.min(1, e) * (H - padT - padB);
   const mlErr = (x) => Math.min(1, 0.03 + 4.4 * Math.max(0, x - 0.4) ** 2);

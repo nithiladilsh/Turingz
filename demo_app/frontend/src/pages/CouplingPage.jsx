@@ -36,7 +36,19 @@ function RelayWave({ frame, hyField, switched }) {
   );
 }
 
+function Badge({ kind }) {
+  const c = {
+    live: ["LIVE BACKEND", "bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300"],
+    committed: ["COMMITTED RESULT", "bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300"],
+    rep: ["REPRESENTATIVE WAVE", "bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300"],
+    agg: ["AGGREGATE n = 20", "bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300"],
+  }[kind];
+  return <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${c[1]}`}>{c[0]}</span>;
+}
+
 export default function CouplingPage() {
+  const [tab, setTab] = useState("story");
+
   /* ---- the relay state ---- */
   const [tsIdx, setTsIdx] = useState(1);            // index into RL_SWITCHES (default t_s = 1.0)
   const [ph, setPh] = useState(0);                  // playhead frame
@@ -52,8 +64,8 @@ export default function CouplingPage() {
   const tNow = frame.t;
   const switched = tNow >= sw.ts;
   const hyField = switched ? sw.hyF[String(ph)] : null;
-  const verdict = sw.ts <= 1.3 ? "viable" : sw.ts <= RL_META.boundary ? "diminishing" : "too late";
-  const vTone = { viable: "emerald", diminishing: "amber", "too late": "rose" }[verdict];
+  const verdict = sw.ts <= 1.3 ? "within budget" : sw.ts <= RL_META.boundary ? "diminishing" : "outside budget";
+  const vTone = { "within budget": "emerald", diminishing: "amber", "outside budget": "rose" }[verdict];
 
   /* errHy is the full-length hybrid error curve (ML before the switch by construction) */
   const hyErrCurve = sw.errHy;
@@ -123,6 +135,20 @@ export default function CouplingPage() {
         </p>
       </div>
 
+      {/* TABS */}
+      <div className="flex gap-2">
+        {[["story", "Story"], ["evidence", "Evidence"], ["live", "Try it live"]].map(([v, label]) => (
+          <button key={v} onClick={() => setTab(v)}
+            className={`px-4 py-2 rounded-xl text-sm font-medium border transition ${tab === v
+              ? "bg-indigo-600 text-white border-indigo-600"
+              : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700"}`}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "story" && (<div className="space-y-6">
+        <div className="flex items-center gap-2"><Badge kind="rep" /><span className="text-xs text-slate-400 dark:text-slate-500">one held-out wave, interactive — aggregate numbers are on the Evidence tab</span></div>
       {/* ===== THE RELAY TIMELINE — the page's centrepiece ===== */}
       <div className="rounded-2xl border-2 border-indigo-200 dark:border-indigo-500/30 bg-white dark:bg-slate-800 p-5">
         <div className="flex items-center justify-between mb-3">
@@ -131,7 +157,7 @@ export default function CouplingPage() {
             Who carries the wave — drag the handoff t_s = {sw.ts.toFixed(1)}
           </div>
           <span className={`text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${vChip}`}>
-            {verdict}{verdict === "too late" && " — past the viability boundary"}
+            {verdict}{verdict === "outside budget" && " — still improves, but exceeds the 10% criterion"}
           </span>
         </div>
 
@@ -155,7 +181,7 @@ export default function CouplingPage() {
         <div className="flex justify-between text-[10px] text-slate-400 dark:text-slate-500 mt-1">
           <span>t = 0</span>
           <span className="text-slate-500 dark:text-slate-300">│ t = 1 training ends</span>
-          <span className="text-amber-500">│ t ≈ {RL_META.boundary} last useful handoff</span>
+          <span className="text-amber-500">│ t ≈ {RL_META.boundary} last handoff meeting the joint viability criterion</span>
           <span>t = 2</span>
         </div>
 
@@ -166,11 +192,11 @@ export default function CouplingPage() {
         {/* consequences of the chosen handoff — updates instantly */}
         <div className="grid grid-cols-4 gap-3 mt-3">
           <div className="rounded-xl bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 px-3 py-2 text-center">
-            <div className="text-[10px] uppercase tracking-wide text-rose-500">never hand off</div>
+            <div className="text-[10px] uppercase tracking-wide text-rose-500">never hand off (this wave)</div>
             <div className="text-xl font-extrabold text-rose-600 dark:text-rose-400">{(sw.mlTail * 100).toFixed(1)}%</div>
           </div>
           <div className="rounded-xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 px-3 py-2 text-center">
-            <div className="text-[10px] uppercase tracking-wide text-indigo-500">hand off here</div>
+            <div className="text-[10px] uppercase tracking-wide text-indigo-500">hand off here (this wave)</div>
             <div className="text-xl font-extrabold text-indigo-600 dark:text-indigo-400">{(sw.hyTail * 100).toFixed(1)}%</div>
           </div>
           <div className="rounded-xl bg-slate-50 dark:bg-slate-700/40 border border-slate-100 dark:border-slate-600/40 px-3 py-2 text-center">
@@ -217,6 +243,37 @@ export default function CouplingPage() {
         </Card>
       </div>
 
+      </div>)}
+      {tab === "evidence" && (<div className="space-y-6">
+      {/* AGGREGATE RESULT — the report headline, kept distinct from the single-wave animation */}
+      <div className="rounded-2xl border-2 border-indigo-200 dark:border-indigo-500/30 bg-white dark:bg-slate-800 p-5">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">Primary result — hand-off at t_s = 1.0</span>
+          <Badge kind="agg" /><Badge kind="committed" />
+        </div>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+          Mean over 20 held-out waves (the figure above animates one representative wave, so its numbers differ slightly).
+        </p>
+        <div className="grid grid-cols-4 gap-3">
+          <div className="rounded-xl bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 px-3 py-2 text-center">
+            <div className="text-[10px] uppercase tracking-wide text-rose-500">pure ML tail error</div>
+            <div className="text-2xl font-extrabold text-rose-600 dark:text-rose-400">13.44%</div>
+          </div>
+          <div className="rounded-xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 px-3 py-2 text-center">
+            <div className="text-[10px] uppercase tracking-wide text-indigo-500">hybrid tail error</div>
+            <div className="text-2xl font-extrabold text-indigo-600 dark:text-indigo-400">0.98%</div>
+          </div>
+          <div className="rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 px-3 py-2 text-center">
+            <div className="text-[10px] uppercase tracking-wide text-emerald-600">error reduction</div>
+            <div className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">91.7%</div>
+          </div>
+          <div className="rounded-xl bg-slate-50 dark:bg-slate-700/40 border border-slate-100 dark:border-slate-600/40 px-3 py-2 text-center">
+            <div className="text-[10px] uppercase tracking-wide text-slate-400">waves improved</div>
+            <div className="text-2xl font-extrabold text-slate-700 dark:text-slate-200">20 / 20</div>
+          </div>
+        </div>
+      </div>
+
       {/* THE LAW — the equality that names the module's finding */}
       <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
         <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-3 flex items-center gap-2">
@@ -229,13 +286,13 @@ export default function CouplingPage() {
           </div>
           <div className="text-4xl font-black text-slate-300 dark:text-slate-600">≈</div>
           <div className="text-center">
-            <div className="text-[11px] text-slate-500 dark:text-slate-400">final hybrid error</div>
+            <div className="text-[11px] text-slate-500 dark:text-slate-400">mean hybrid tail error over [t_s, 2]</div>
             <div className="text-4xl font-extrabold text-indigo-600 dark:text-indigo-400">{(sw.hyTail * 100).toFixed(1)}%</div>
           </div>
           <div className="max-w-xs text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
             Drag the slider — the two numbers move <span className="font-semibold">together</span>. The continuation adds
-            ~{RL_META.oracle} of its own error (oracle control), so the handoff <span className="font-semibold">freezes</span> whatever
-            error the state already carries. You can only anchor what you hand over — that is why{" "}
+            ~{RL_META.oracle} of its own error (oracle control), so the handoff-state error <span className="font-semibold">dominates</span> the resulting
+            hybrid error. You can only anchor what you hand over — that is why{" "}
             <span className="font-medium text-slate-700 dark:text-slate-200">when</span> (Module 1) and{" "}
             <span className="font-medium text-slate-700 dark:text-slate-200">how much</span> (Module 3) matter.
           </div>
@@ -254,12 +311,15 @@ export default function CouplingPage() {
           solve_from(u_ML(t_s), i_start) → verified <span className="text-emerald-600 dark:text-emerald-400 font-semibold">bit-for-bit identical</span> to the team solver (rel diff 0.0)
         </div>
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
-          Guarded by 12 automated tests — including a structural no-ground-truth-leakage check — and a stress test showing a
+          Guarded by 12 automated tests — including a regression check against an oracle-contaminated alternative — and a stress test showing a
           restart that drops one “cosmetic” safety step fails or blows up beyond Re_cell ≈ {RL_META.reCell} while this one holds.
           The exact adapter this page calls is the one Module 3&apos;s runtime executes.
         </p>
       </div>
 
+      </div>)}
+      {tab === "live" && (<div className="space-y-6">
+        <div className="flex items-center gap-2"><Badge kind="live" /><span className="text-xs text-slate-400 dark:text-slate-500">runs the real M2Coupling adapter with the verified pseudo-spectral restart</span></div>
       {/* RUN IT YOURSELF — real backend */}
       <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
         <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1 flex items-center gap-2">
@@ -352,9 +412,10 @@ export default function CouplingPage() {
       </div>
 
       <p className="text-xs text-slate-400 dark:text-slate-500">
-        This page dissects the handoff — you control the switch and may deliberately hand off too late.
+        This page dissects the handoff — you control the switch and may deliberately hand off outside the viability criterion.
         The Hybrid engine page is the opposite: you set an accuracy target and the trust + control layer decides for you.
       </p>
+      </div>)}
     </div>
   );
 }
