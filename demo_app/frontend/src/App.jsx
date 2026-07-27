@@ -5,6 +5,7 @@ import TrustPage from "./pages/TrustPage.jsx";
 import FDMPage from "./pages/FDMPage.jsx";
 import Placeholder from "./pages/Placeholder.jsx";
 import HybridPipeline from "./pages/HybridPipeline.jsx";
+import IndustrialImpact from "./pages/IndustrialImpact.jsx";
 import CostControl from "./pages/CostControl.jsx";
 import SpectralPage from "./pages/SpectralPage.jsx";
 import CostAnalysis from "./pages/CostAnalysis.jsx";
@@ -37,6 +38,7 @@ const SECTIONS = [
   { id: "costcontrol", label: "Cost control", group: "Hybrid components" },
 
   { id: "hybrid", label: "Hybrid engine", group: "Final · Hybrid engine" },
+  { id: "impact", label: "Industrial impact", group: "Final · Hybrid engine" },
 ];
 
 const NOTES = {
@@ -118,6 +120,7 @@ export default function App() {
         {active === "overview" && <Overview go={setActive} />}
         {active === "trust" && <TrustPage />}
         {active === "hybrid" && <HybridPipeline />}
+        {active === "impact" && <IndustrialImpact />}
         {active === "costcontrol" && <CostControl />}
         {active === "spectral" && <SpectralPage />}
         {active === "cost" && <CostAnalysis />}
@@ -138,6 +141,7 @@ export default function App() {
           "colehopf",
           "robustness",
           "reliability",
+          "impact",
         ].includes(active) && (
           <Placeholder
             title={sec.label}
