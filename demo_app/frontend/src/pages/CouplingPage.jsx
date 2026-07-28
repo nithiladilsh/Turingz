@@ -298,9 +298,10 @@ export default function CouplingPage() {
           <div className="max-w-xs text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
             Drag the slider — the two numbers move <span className="font-semibold">together</span>. The continuation adds
             ~{RL_META.oracle} of its own error (oracle control), so the handoff-state error <span className="font-semibold">dominates</span> the resulting
-            hybrid error. You can only anchor what you hand over — that is why{" "}
-            <span className="font-medium text-slate-700 dark:text-slate-200">when</span> (Module 1) and{" "}
-            <span className="font-medium text-slate-700 dark:text-slate-200">how much</span> (Module 3) matter.
+            hybrid error. You can only anchor what you hand over — so the hand-off time{" "}
+            <span className="font-medium text-slate-700 dark:text-slate-200">sets the accuracy ceiling for the
+            whole system</span>, and the sweep below is what tells the trust and control layers where that
+            ceiling is.
           </div>
         </div>
       </div>
