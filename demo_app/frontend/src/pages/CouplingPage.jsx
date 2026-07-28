@@ -64,8 +64,8 @@ export default function CouplingPage() {
   const tNow = frame.t;
   const switched = tNow >= sw.ts;
   const hyField = switched ? sw.hyF[String(ph)] : null;
-  const verdict = sw.ts <= 1.3 ? "within budget" : sw.ts <= RL_META.boundary ? "diminishing" : "outside budget";
-  const vTone = { "within budget": "emerald", diminishing: "amber", "outside budget": "rose" }[verdict];
+  const verdict = sw.ts <= 1.3 ? "meets 10% accuracy criterion" : sw.ts <= RL_META.boundary ? "diminishing benefit" : "exceeds 10% error criterion";
+  const vTone = { "meets 10% accuracy criterion": "emerald", "diminishing benefit": "amber", "exceeds 10% error criterion": "rose" }[verdict];
 
   /* errHy is the full-length hybrid error curve (ML before the switch by construction) */
   const hyErrCurve = sw.errHy;
@@ -157,7 +157,7 @@ export default function CouplingPage() {
             Who carries the wave — drag the handoff t_s = {sw.ts.toFixed(1)}
           </div>
           <span className={`text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${vChip}`}>
-            {verdict}{verdict === "outside budget" && " — still improves, but exceeds the 10% criterion"}
+            {verdict}{verdict === "exceeds 10% error criterion" && " — still improves, but the state was already too degraded"}
           </span>
         </div>
 
@@ -192,21 +192,27 @@ export default function CouplingPage() {
         {/* consequences of the chosen handoff — updates instantly */}
         <div className="grid grid-cols-4 gap-3 mt-3">
           <div className="rounded-xl bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 px-3 py-2 text-center">
-            <div className="text-[10px] uppercase tracking-wide text-rose-500">never hand off (this wave)</div>
+            <div className="text-[10px] uppercase tracking-wide text-rose-500">pure-ML error · never hand off</div>
             <div className="text-xl font-extrabold text-rose-600 dark:text-rose-400">{(sw.mlTail * 100).toFixed(1)}%</div>
           </div>
           <div className="rounded-xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 px-3 py-2 text-center">
-            <div className="text-[10px] uppercase tracking-wide text-indigo-500">hand off here (this wave)</div>
+            <div className="text-[10px] uppercase tracking-wide text-indigo-500">hybrid error · hand off here</div>
             <div className="text-xl font-extrabold text-indigo-600 dark:text-indigo-400">{(sw.hyTail * 100).toFixed(1)}%</div>
           </div>
           <div className="rounded-xl bg-slate-50 dark:bg-slate-700/40 border border-slate-100 dark:border-slate-600/40 px-3 py-2 text-center">
-            <div className="text-[10px] uppercase tracking-wide text-slate-400">numerical work</div>
+            <div className="text-[10px] uppercase tracking-wide text-slate-400">numerical work · the cost</div>
             <div className="text-xl font-extrabold text-slate-700 dark:text-slate-200">{(sw.work * 100).toFixed(0)}%</div>
           </div>
           <div className="rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 px-3 py-2 text-center">
             <div className="text-[10px] uppercase tracking-wide text-emerald-600">jump at handoff</div>
             <div className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400">{sw.jump.toExponential(0)}</div>
           </div>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2">
+            Later hand-offs are <span className="font-medium">cheaper</span> (less numerical work) but{" "}
+            <span className="font-medium">less accurate</span> — the state handed over is already degraded.
+            The criterion above is about <span className="font-medium">accuracy</span>, not cost: how much that
+            accuracy is worth paying for is Module 3&apos;s decision.
+          </p>
         </div>
       </div>
 
