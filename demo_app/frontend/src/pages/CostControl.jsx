@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { Card } from "../components/ui.jsx";
 import { API, WS, getMeta, buildIC, pinnIC } from "../api.js";
 import { Trophy, Check, X, Play } from "lucide-react";
-import CostRace from "./CostRace.jsx";
 
 const COLOR = { FNO: "#059669", DeepONet: "#e11d48", PINN: "#d97706" };
 
@@ -274,14 +273,9 @@ export default function CostControl() {
       <div className="inline-flex rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-1">
         <button className={btn(tab === "findings")} onClick={() => setTab("findings")}>Findings</button>
         <button className={btn(tab === "live")} onClick={() => setTab("live")}>Try it live</button>
-        <button className={btn(tab === "race")} onClick={() => setTab("race")}>Three-way race</button>
       </div>
 
       {err && <div className="text-sm text-rose-600 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 rounded-lg px-3 py-2">{err}</div>}
-
-      {tab === "race" && (
-        <CostRace model={model} ic={ic} pinnIndex={pidx} target={sel?.target ?? 0.05} />
-      )}
 
       {tab === "findings" && cmp && F && D && (
         <>
