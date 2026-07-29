@@ -43,9 +43,10 @@ class _NumSolver:
 
     Uses the SAME verified pseudo-spectral restart that Module 2's coupling page
     and the offline evaluation use (core._SpectralNum -> restart_spectral's
-    stepper, proven bit-for-bit equal to the production solver). The Cole-Hopf
+    stepper, which matched the production solver with relative difference 0.0 in the
+    evaluated restart-equivalence tests). The Cole-Hopf
     routine above remains available as an independent reference generator, but
-    it is NOT the runtime corrector: the deployed handoff continues with the
+    it is NOT the runtime corrector: the integrated runtime hand-off continues with the
     pseudo-spectral scheme, exactly as reported in the evaluation."""
 
     name = "spectral-restart (verified)"
@@ -91,7 +92,10 @@ def _build(model, ic, pinn_index, mode, target=0.05):
         return float(trust[i]), bool(corr[i])
 
     hybrid = np.asarray(M2Coupling().rollout(ic0, X, T, _MLStub(pred), _NumSolver(), trigger), float)
-    return T, pred, true, hybrid, trust, corr, switch, nt
+    # Full pure pseudo-spectral baseline, so the reported numerical error is measured
+    # against the independent Cole-Hopf reference rather than defined as zero.
+    numer_full = np.asarray(_NumSolver().rollout(ic0, X, T), dtype=float)
+    return T, pred, true, hybrid, trust, corr, switch, nt, numer_full
 
 
 async def _run(ws, req):
@@ -101,7 +105,7 @@ async def _run(ws, req):
     mode = req.get("mode", "reference_free")
     target = float(req.get("target", 0.05))
     loop = asyncio.get_running_loop()
-    T, pred, true, hybrid, trust, okc, switch, nt = await loop.run_in_executor(
+    T, pred, true, hybrid, trust, okc, switch, nt, numer_full = await loop.run_in_executor(
         None, _build, model, ic, pinn_index, mode, target)
     ml_per, num_per = _per_step_rates(nt)
     s = switch if switch is not None else nt
@@ -131,7 +135,7 @@ async def _run(ws, req):
         "cost_num": round(num_per * nt, 2),
         "err_hybrid": round(_relerr(hybrid[-1], true[-1]), 3),
         "err_ml": round(_relerr(pred[-1], true[-1]), 3),
-        "err_num": 0.0,
+        "err_num": round(_relerr(numer_full[-1], true[-1]), 3),
         "switch_t": (float(T[switch]) if switch is not None else None),
     }}))
 
@@ -267,7 +271,7 @@ async def _run_race(ws, req):
     nt = len(T)
     ml_per, num_per = _per_step_rates(nt)
     coupling, num = M2Coupling(), _NumSolver()
-    numer = cole_hopf_from(ic0, T)
+    numer = np.asarray(_NumSolver().rollout(ic0, X, T), dtype=float)
 
     hyb = np.asarray(ic0, dtype=float)
     prev_t = float(T[0])

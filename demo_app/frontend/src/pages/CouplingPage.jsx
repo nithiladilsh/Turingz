@@ -280,10 +280,10 @@ export default function CouplingPage() {
         </div>
       </div>
 
-      {/* THE LAW — the equality that names the module's finding */}
+      {/* EMPIRICAL RELATIONSHIP — the equality that names the module's finding */}
       <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
         <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-3 flex items-center gap-2">
-          <Microscope size={14} /> The law this page demonstrates — hybrid error ≈ state error at handoff
+          <Microscope size={14} /> Empirical relationship observed on this benchmark — hybrid error ≈ state error at hand-off
         </div>
         <div className="flex items-center justify-center gap-6 flex-wrap">
           <div className="text-center">
@@ -315,11 +315,11 @@ export default function CouplingPage() {
           The production solver only knew <span className="font-mono text-[13px]">solve(u0)</span> from t = 0. I made it restartable:
         </p>
         <div className="mt-2 rounded-lg bg-slate-50 dark:bg-slate-700/40 px-3 py-2 font-mono text-[13px] text-slate-700 dark:text-slate-200">
-          solve_from(u_ML(t_s), i_start) → verified <span className="text-emerald-600 dark:text-emerald-400 font-semibold">bit-for-bit identical</span> to the team solver (rel diff 0.0)
+          solve_from(u_ML(t_s), i_start) → <span className="text-emerald-600 dark:text-emerald-400 font-semibold">matched the production solver</span>, with relative difference 0.0 in the evaluated restart-equivalence tests
         </div>
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
-          Guarded by 12 automated tests — including a regression check against an oracle-contaminated alternative — and a stress test showing a
-          restart that drops one “cosmetic” safety step fails or blows up beyond Re_cell ≈ {RL_META.reCell} while this one holds.
+          Guarded by 12 automated tests — including a regression check against an oracle-contaminated alternative — and a stress test showing that a
+          restart omitting the production scheme&apos;s de-aliasing treatment loses fidelity and eventually becomes unstable in the evaluated stress test, whereas the verified restart retains the production treatment.
           The exact adapter this page calls is the one Module 3&apos;s runtime executes.
         </p>
       </div>

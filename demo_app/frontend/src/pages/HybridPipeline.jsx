@@ -86,7 +86,7 @@ export default function HybridPipeline() {
       <p className="text-slate-600 dark:text-slate-300 mt-1 max-w-3xl text-sm">
         The whole system in one run: the ML model predicts, <b>Module 1</b> scores trust, <b>Module 3</b> decides when to switch to hit your accuracy target,
         <b> Module 2</b> hands the state over to the numerical solver, and <b>Module 3</b> accounts for the cost —
-        landing at usable accuracy for a fraction of the numerical cost.
+        the page reports the resulting accuracy and measured numerical cost.
       </p>
       {err && <div className="mt-3 text-sm text-rose-600 dark:text-rose-300 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 rounded-lg px-3 py-2">{err}</div>}
 
@@ -173,7 +173,7 @@ export default function HybridPipeline() {
                 { x, y: frame.u_ml, color: "#e11d48", dashed: true, width: 1.5 },
                 { x, y: frame.u_hybrid, color: "#059669", width: 2.5 },
               ] : []} />
-            <div className={`text-xs mt-1 ${faint}`}>green = hybrid (tracks truth) · red dashed = pure ML (drifts) · grey dashed = true answer</div>
+            <div className={`text-xs mt-1 ${faint}`}>green = hybrid · red dashed = pure ML · grey dashed = Cole–Hopf evaluation reference</div>
           </Card>
 
           <div className="grid grid-cols-3 gap-4">
@@ -189,7 +189,7 @@ export default function HybridPipeline() {
             <Card title="Module 2 — Hand-off">
               <div className="text-sm text-slate-600 dark:text-slate-300 space-y-2">
                 <Banner ok={!switched} text={switched ? "Numerical correction active" : "Not yet — ML still trusted"} />
-                <p className={`text-xs ${muted}`}>At the switch the ML state is re-anchored into the verified numerical solver — a stable, jump-free hand-off.</p>
+                <p className={`text-xs ${muted}`}>At the switch the ML state is re-anchored into the verified numerical solver — a verified numerical hand-off with zero represented-state jump.</p>
               </div>
             </Card>
             <Card title="Module 3 — Cost">
@@ -220,7 +220,7 @@ export default function HybridPipeline() {
             </Card>
           </div>
 
-          <Card title="Cost vs accuracy — only the hybrid clears both bars"
+          <Card title="Cost versus accuracy — measured comparison"
             subtitle={summary ? "final run · lower is better on both" : "run to populate"}>
             {summary ? (
               <div className="space-y-3">
@@ -228,16 +228,16 @@ export default function HybridPipeline() {
                   <div className={`text-xs font-medium ${muted}`}>Error</div>
                   <Bar label="pure ML" value={summary.err_ml} max={errMax} display={pct(summary.err_ml)} color="#e11d48" />
                   <Bar label="hybrid" value={summary.err_hybrid} max={errMax} display={pct(summary.err_hybrid)} color="#059669" />
-                  <Bar label="pure numerical" value={summary.err_num} max={errMax} display={pct(summary.err_num)} color="#4f46e5" />
+                  <Bar label="pure pseudo-spectral" value={summary.err_num} max={errMax} display={pct(summary.err_num)} color="#4f46e5" />
                 </div>
                 <div className="space-y-1.5">
                   <div className={`text-xs font-medium ${muted}`}>Cost (relative seconds)</div>
                   <Bar label="pure ML" value={summary.cost_ml} max={costMax} display={`${summary.cost_ml}s`} color="#e11d48" />
                   <Bar label="hybrid" value={summary.cost_hybrid} max={costMax} display={`${summary.cost_hybrid}s`} color="#059669" />
-                  <Bar label="pure numerical" value={summary.cost_num} max={costMax} display={`${summary.cost_num}s`} color="#4f46e5" />
+                  <Bar label="pure pseudo-spectral" value={summary.cost_num} max={costMax} display={`${summary.cost_num}s`} color="#4f46e5" />
                 </div>
                 <p className="text-sm text-slate-600 dark:text-slate-300">
-                  Pure ML is cheap but drifts; pure numerical is accurate but slow. The hybrid keeps ML accuracy honest at a fraction of numerical cost.
+                  Pure ML is cheap but drifts; the pure pseudo-spectral solver is accurate but slow. The hybrid sits between them, at the accuracy and cost measured above.
                 </p>
               </div>
             ) : <p className={`text-sm ${faint}`}>Run the pipeline to see the head-to-head.</p>}

@@ -221,7 +221,7 @@ export default function RobustnessPage() {
             series={[{ x: upto.map((f) => f.t), y: upto.map((f) => f.sd), color: "#2563eb", width: 2.5 }]}
             xr={[0, 2]} yr={[0, Math.max(0.35, ...ROB_FRAMES.map((f) => f.sd)) * 1.05]}
             vline={1.0} h={175} xlabel="t" ylabel="spectral distance" />
-          <p className={`text-[11px] mt-1 ${muted}`}>a related frequency-space idea — computed from the state alone — becomes the reference-free restart-safety diagnostic (Coupling page)</p>
+          <p className={`text-[11px] mt-1 ${muted}`}>a related high-wavenumber state feature was evaluated offline as a candidate reference-free diagnostic; it is not currently enforced at runtime (Coupling page)</p>
         </Card>
       </div>
 
@@ -249,8 +249,8 @@ export default function RobustnessPage() {
           The ML solvers are <span className="font-medium">fast but not robust</span> — they fail beyond the
           training horizon and on unfamiliar inputs, and the failure is <span className="font-medium">measured, not assumed</span>.
           This is exactly the failure the <span className="font-semibold">trust module detects</span> and my{" "}
-          <span className="font-semibold">coupling module corrects</span> — and the spectral signal above returns
-          there as the restart-safety diagnostic.
+          <span className="font-semibold">coupling module corrects</span>. A related high-wavenumber state feature was
+          evaluated offline as a candidate reference-free diagnostic; it is not currently enforced at runtime.
         </p>
       </div>
 
