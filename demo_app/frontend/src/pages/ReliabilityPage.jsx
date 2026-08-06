@@ -274,7 +274,7 @@ export default function ReliabilityPage() {
   const [model, setModel] = useState("FNO");
   const [modes, setModes] = useState(4);
   const [amplitude, setAmplitude] = useState(0.4);
-  const [seed, setSeed] = useState(1);
+  const [seed, setSeed] = useState(0);
   const [pinnIndex, setPinnIndex] = useState(0);
   const [ic, setIc] = useState(null);
   const [frame, setFrame] = useState(null);

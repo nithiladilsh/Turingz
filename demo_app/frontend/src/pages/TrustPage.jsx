@@ -44,7 +44,7 @@ export default function TrustPage() {
   const [modes, setModes] = useState(4);
   const [amplitude, setAmplitude] = useState(0.4);
   const [pinnIndex, setPinnIndex] = useState(0);
-  const [fnoMode, setFnoMode] = useState("reference_free");
+  const [fnoMode, setFnoMode] = useState("coarse");
   const [ic, setIc] = useState(null);
   const [frame, setFrame] = useState(null);
   const [hist, setHist] = useState([]);
@@ -130,12 +130,17 @@ export default function TrustPage() {
               <div className="mt-3">
                 <div className={`text-xs mb-1 ${muted}`}>Trust mode</div>
                 <div className="flex gap-2">
-                  {[["reference_free", "Reference-free"], ["coarse", "Cheap-reference"]].map(([v, l]) => (
+                  {[["coarse", "Cheap-reference"], ["reference_free", "Reference-free"]].map(([v, l]) => (
                     <button key={v} onClick={() => setFnoMode(v)}
                       className={`flex-1 px-2 py-1.5 rounded-lg text-xs border ${fnoMode === v
                         ? "bg-slate-800 dark:bg-slate-600 text-white border-slate-800 dark:border-slate-600" : inactiveBtn}`}>{l}</button>
                   ))}
                 </div>
+                {fnoMode === "reference_free" && (
+                  <div className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                    FNO drifts smoothly — reference-free signals can miss it, so it may not switch. Cheap-reference catches it.
+                  </div>
+                )}
               </div>
             )}
             {ic && (

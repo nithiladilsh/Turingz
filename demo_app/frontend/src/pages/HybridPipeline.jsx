@@ -38,7 +38,7 @@ export default function HybridPipeline() {
   const [meta, setMeta] = useState(null);
   const [model, setModel] = useState("FNO");
   const [modes, setModes] = useState(4);
-  const [amplitude, setAmplitude] = useState(1.0);
+  const [amplitude, setAmplitude] = useState(0.4);
   const [seed, setSeed] = useState(0);
   const [pinnIndex, setPinnIndex] = useState(0);
   const [fnoMode, setFnoMode] = useState("coarse");
@@ -118,7 +118,7 @@ export default function HybridPipeline() {
                 </div>
                 <div>
                   <div className={`flex justify-between text-xs ${muted}`}><span>Amplitude</span><span>{amplitude.toFixed(1)}</span></div>
-                  <input type="range" min="0.5" max="1.5" step="0.1" value={amplitude} onChange={(e) => setAmplitude(+e.target.value)} className="w-full" />
+                  <input type="range" min="0.4" max="1.5" step="0.1" value={amplitude} onChange={(e) => setAmplitude(+e.target.value)} className="w-full" />
                 </div>
                 <button onClick={() => setSeed((s) => s + 1)}
                   className={`w-full inline-flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border ${inactiveBtn} hover:bg-slate-100 dark:hover:bg-slate-700`}>
@@ -130,7 +130,7 @@ export default function HybridPipeline() {
               <div className="mt-3">
                 <div className={`text-xs mb-1 ${muted}`}>Trust mode (Module 1)</div>
                 <div className="flex gap-2">
-                  {[["reference_free", "Reference-free"], ["coarse", "Cheap-reference"]].map(([v, l]) => (
+                  {[["coarse", "Cheap-reference"], ["reference_free", "Reference-free"]].map(([v, l]) => (
                     <button key={v} onClick={() => setFnoMode(v)}
                       className={`flex-1 px-2 py-1.5 rounded-lg text-xs border ${fnoMode === v ? "bg-slate-800 dark:bg-slate-600 text-white border-slate-800 dark:border-slate-600" : inactiveBtn}`}>{l}</button>
                   ))}
