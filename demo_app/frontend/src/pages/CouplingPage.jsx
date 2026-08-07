@@ -46,6 +46,91 @@ function Badge({ kind }) {
   return <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${c[1]}`}>{c[0]}</span>;
 }
 
+/* committed restart-safety boundary (results/module2/figures/restart_safety_boundary.json) */
+const SAFETY = [
+  { re: 0.87, verified: 1.6e-12, careless: 3.17e-5 },
+  { re: 1.78, verified: 7.8e-12, careless: 1.87e-3 },
+  { re: 3.72, verified: 1.6e-11, careless: 1.98e-2 },
+  { re: 5.81, verified: 1.3e-11, careless: 5.60e-2 },
+  { re: 8.16, verified: 9.6e-12, careless: 1.08e-1 },
+  { re: 12.87, verified: 5.5e-12, careless: 2.52e-1 },
+  { re: 17.59, verified: 3.4e-12, careless: null, unstable: true },
+];
+const SAFETY_CROSS = 3.16;   // careless restart crosses the 1% target here
+
+/* oracle decomposition — same continuation, restarted from ML state vs the true state (log bars) */
+function OracleBars({ mlTail, hyTail, oracle }) {
+  const W = 640, H = 156, padL = 176, padR = 60, padT = 14, padB = 26;
+  const rows = [
+    { label: "Pure ML — no hand-off", v: mlTail, color: "#e11d48" },
+    { label: "Hybrid — restart from ML state", v: hyTail, color: "#4f46e5" },
+    { label: "Oracle — restart from TRUE state", v: oracle, color: "#059669" },
+  ];
+  const L = Math.log10;
+  const x0 = L(Math.max(oracle, 1e-7)) - 0.3, x1 = L(Math.max(mlTail, 1e-2)) + 0.3;
+  const sx = (v) => padL + ((L(Math.max(v, 1e-7)) - x0) / (x1 - x0)) * (W - padL - padR);
+  const bh = 20, gap = (H - padT - padB - rows.length * bh) / (rows.length - 1);
+  const y = (i) => padT + i * (bh + gap);
+  const dec = []; for (let k = Math.ceil(x0); k <= Math.floor(x1); k++) dec.push(k);
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
+      {dec.map((k) => (
+        <g key={k}>
+          <line x1={sx(10 ** k)} x2={sx(10 ** k)} y1={padT} y2={H - padB} stroke="var(--chart-grid)" strokeDasharray="2 4" />
+          <text x={sx(10 ** k)} y={H - padB + 14} textAnchor="middle" fontSize="9" fill="var(--chart-axis)">{`1e${k}`}</text>
+        </g>
+      ))}
+      {rows.map((d, i) => (
+        <g key={d.label}>
+          <text x={padL - 8} y={y(i) + bh - 5} textAnchor="end" fontSize="10.5" fill="var(--chart-axis)">{d.label}</text>
+          <rect x={padL} y={y(i)} width={Math.max(3, sx(d.v) - padL)} height={bh} rx="4" fill={d.color} opacity="0.9" />
+          <text x={Math.max(sx(d.v) + 6, padL + 6)} y={y(i) + bh - 5} fontSize="10.5" fontWeight="700" fill={d.color}>
+            {d.v >= 0.001 ? `${(d.v * 100).toFixed(d.v < 0.1 ? 2 : 1)}%` : d.v.toExponential(0)}
+          </text>
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+/* restart-safety boundary — verified vs shortcut restart tail error vs cell Reynolds number (log-log) */
+function SafetyChart({ data, cross }) {
+  const W = 640, H = 236, padL = 54, padR = 20, padT = 16, padB = 40;
+  const L = Math.log10;
+  const res = data.map((d) => d.re);
+  const xmin = L(Math.min(...res) * 0.8), xmax = L(Math.max(...res) * 1.2);
+  const ymin = L(1e-12), ymax = L(0.4);
+  const sx = (v) => padL + ((L(v) - xmin) / (xmax - xmin)) * (W - padL - padR);
+  const sy = (v) => H - padB - ((L(Math.max(v, 1e-12)) - ymin) / (ymax - ymin)) * (H - padT - padB);
+  const line = (key) => data.filter((d) => d[key] != null && d[key] > 0)
+    .map((d, i) => `${i ? "L" : "M"}${sx(d.re).toFixed(1)} ${sy(d[key]).toFixed(1)}`).join(" ");
+  const unstable = data.find((d) => d.unstable);
+  const xdec = []; for (let k = Math.ceil(xmin); k <= Math.floor(xmax); k++) xdec.push(k);
+  const ydec = []; for (let k = Math.ceil(ymin); k <= Math.floor(ymax); k += 2) ydec.push(k);
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
+      <rect x={padL} y={padT} width={W - padL - padR} height={H - padT - padB} fill="var(--chart-surface)" stroke="var(--chart-grid)" />
+      {ydec.map((k) => (
+        <g key={"y" + k}>
+          <line x1={padL} x2={W - padR} y1={sy(10 ** k)} y2={sy(10 ** k)} stroke="var(--chart-grid)" strokeDasharray="2 4" />
+          <text x={padL - 6} y={sy(10 ** k) + 3} textAnchor="end" fontSize="9" fill="var(--chart-axis)">{`1e${k}`}</text>
+        </g>
+      ))}
+      {xdec.map((k) => (
+        <text key={"x" + k} x={sx(10 ** k)} y={H - padB + 14} textAnchor="middle" fontSize="9" fill="var(--chart-axis)">{10 ** k}</text>
+      ))}
+      <line x1={padL} x2={W - padR} y1={sy(0.01)} y2={sy(0.01)} stroke="#f59e0b" strokeDasharray="4 3" />
+      <text x={W - padR - 2} y={sy(0.01) - 3} textAnchor="end" fontSize="9" fill="#f59e0b">1% target</text>
+      <line x1={sx(cross)} x2={sx(cross)} y1={padT} y2={H - padB} stroke="#e11d48" strokeWidth="1.2" strokeDasharray="3 3" />
+      <text x={sx(cross) + 3} y={padT + 10} fontSize="9" fill="#e11d48">{`Re≈${cross.toFixed(1)}`}</text>
+      <path d={line("careless")} fill="none" stroke="#e11d48" strokeWidth="2.5" strokeLinejoin="round" />
+      <path d={line("verified")} fill="none" stroke="#059669" strokeWidth="2.5" strokeLinejoin="round" />
+      {unstable && <text x={sx(unstable.re)} y={sy(0.33)} textAnchor="middle" fontSize="9" fontWeight="700" fill="#e11d48">UNSTABLE ✕</text>}
+      <text x={(padL + W - padR) / 2} y={H - 4} textAnchor="middle" fontSize="10" fill="var(--chart-axis)">cell Reynolds number at hand-off (sharper waves →)</text>
+    </svg>
+  );
+}
+
 export default function CouplingPage() {
   const [tab, setTab] = useState("story");
 
@@ -306,6 +391,24 @@ export default function CouplingPage() {
         </div>
       </div>
 
+      {/* ORACLE DECOMPOSITION — visualises where the error comes from (was text-only) */}
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
+        <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1 flex items-center gap-2">
+          <Microscope size={14} /> Where the error comes from — oracle decomposition
+        </div>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
+          Same numerical continuation, two starting states: restart from the ML state vs from the true state (log scale).
+        </p>
+        <OracleBars mlTail={sw.mlTail} hyTail={sw.hyTail} oracle={Number(RL_META.oracle)} />
+        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+          Restarting from the <span className="font-semibold">true</span> state collapses to ~{RL_META.oracle} — the continuation
+          is near-perfect. So the hybrid&apos;s error is{" "}
+          <span className="font-medium text-slate-700 dark:text-slate-200">inherited from the ML state you hand over, not created
+          by the switch</span> — which is why hybrid error tracks state error above (drag the slider to watch the top two bars move
+          while the oracle stays put).
+        </p>
+      </div>
+
       {/* NOVELTY IN CODE — mirrors the Cost page's card, with M2's receipts */}
       <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
         <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2 flex items-center gap-2">
@@ -322,6 +425,23 @@ export default function CouplingPage() {
           restart omitting the production scheme&apos;s de-aliasing treatment loses fidelity and eventually becomes unstable in the evaluated stress test, whereas the verified restart retains the production treatment.
           The exact adapter this page calls is the one Module 3&apos;s runtime executes.
         </p>
+      </div>
+
+      {/* RESTART-SAFETY BOUNDARY — visualises the stress-test claim (was text-only) */}
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
+        <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1 flex items-center gap-2">
+          <Microscope size={14} /> Why the restart is verified — it holds where a shortcut breaks
+        </div>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
+          Push to sharper waves (higher cell Reynolds number). The verified restart stays exact; a shortcut restart that
+          drops the de-aliasing climbs past the target and finally goes unstable.
+        </p>
+        <SafetyChart data={SAFETY} cross={SAFETY_CROSS} />
+        <div className="flex gap-4 flex-wrap text-[11px] text-slate-400 dark:text-slate-500 mt-1">
+          <span className="text-emerald-600 dark:text-emerald-400">— verified restart (stays ~1e-11)</span>
+          <span className="text-rose-500">— shortcut restart (no de-aliasing)</span>
+          <span className="text-amber-500">-- 1% target · shortcut crosses at Re≈3.2</span>
+        </div>
       </div>
 
       </div>)}
