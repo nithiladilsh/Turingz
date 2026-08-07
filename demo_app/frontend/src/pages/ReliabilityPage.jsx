@@ -272,7 +272,7 @@ export default function ReliabilityPage() {
   // interactive explorer state
   const [meta, setMeta] = useState(null);
   const [model, setModel] = useState("FNO");
-  const [modes, setModes] = useState(4);
+  const [modes, setModes] = useState(2);
   const [amplitude, setAmplitude] = useState(0.4);
   const [seed, setSeed] = useState(0);
   const [pinnIndex, setPinnIndex] = useState(0);
@@ -565,37 +565,11 @@ export default function ReliabilityPage() {
                         <input
                           type="range"
                           min="1"
-                          max="10"
+                          max="4"
                           value={modes}
                           onChange={(e) => setModes(+e.target.value)}
                           className="w-full accent-indigo-600"
                         />
-                        {/* trained-band markers under the track */}
-                        <div className="flex justify-between text-[9px] text-slate-400 dark:text-slate-500 mt-0.5 px-0.5">
-                          <span>1</span>
-                          <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
-                            4 ◂ trained
-                          </span>
-                          <span>10</span>
-                        </div>
-                        {/* in / out of distribution badge */}
-                        <div
-                          className={`mt-2 flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-medium border ${
-                            modes <= 4
-                              ? "text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30"
-                              : "text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/30"
-                          }`}
-                        >
-                          <span
-                            className="w-1.5 h-1.5 rounded-full shrink-0"
-                            style={{
-                              background: modes <= 4 ? "#059669" : "#d97706",
-                            }}
-                          />
-                          {modes <= 4
-                            ? "In training distribution — model is reliable here"
-                            : "Beyond training (modes 1–4) — error is expected to be high"}
-                        </div>
                       </div>
                       <div>
                         <div
