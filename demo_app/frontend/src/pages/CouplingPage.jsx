@@ -41,7 +41,7 @@ function Badge({ kind }) {
     live: ["LIVE BACKEND", "bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300"],
     committed: ["COMMITTED RESULT", "bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300"],
     rep: ["REPRESENTATIVE WAVE", "bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300"],
-    agg: ["AGGREGATE n = 20", "bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300"],
+    agg: ["AGGREGATE · n = 20 OF 100 TEST", "bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300"],
   }[kind];
   return <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${c[1]}`}>{c[0]}</span>;
 }
@@ -85,7 +85,7 @@ function OracleBars({ mlTail, hyTail, oracle }) {
           <text x={padL - 8} y={y(i) + bh - 5} textAnchor="end" fontSize="10.5" fill="var(--chart-axis)">{d.label}</text>
           <rect x={padL} y={y(i)} width={Math.max(3, sx(d.v) - padL)} height={bh} rx="4" fill={d.color} opacity="0.9" />
           <text x={Math.max(sx(d.v) + 6, padL + 6)} y={y(i) + bh - 5} fontSize="10.5" fontWeight="700" fill={d.color}>
-            {d.v >= 0.001 ? `${(d.v * 100).toFixed(d.v < 0.1 ? 2 : 1)}%` : d.v.toExponential(0)}
+            {d.v >= 0.001 ? `${(d.v * 100).toFixed(d.v < 0.1 ? 2 : 1)}%` : `${d.v.toExponential(0)} ≈ ${(d.v * 100).toFixed(4)}%`}
           </text>
         </g>
       ))}
@@ -289,7 +289,7 @@ export default function CouplingPage() {
           </div>
           <div className="rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 px-3 py-2 text-center">
             <div className="text-[10px] uppercase tracking-wide text-emerald-600">jump at handoff</div>
-            <div className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400">{sw.jump.toExponential(0)}</div>
+            <div className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400">{sw.jump === 0 ? "0" : sw.jump.toExponential(0)}</div>
           </div>
           <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2">
             Later hand-offs are <span className="font-medium">cheaper</span> (less numerical work) but{" "}
@@ -344,7 +344,7 @@ export default function CouplingPage() {
           <span className="text-indigo-600 dark:text-indigo-400">when the hand-off is still worth doing</span>.
         </p>
         <div className="flex flex-wrap gap-2 mt-3 text-[11px] font-semibold">
-          {["restart vs original = 0.0", "jump at switch = 0", "13.44% → 0.98%", "20 / 20 improved", "last useful switch ≈ 1.47"].map((t) => (
+          {["restart vs original = 0.0", "jump at switch = 0", "13.44% → 0.98% (mean)", "improved on every tested IC", "last useful switch ≈ 1.47"].map((t) => (
             <span key={t} className="px-2.5 py-1 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200">{t}</span>
           ))}
         </div>
@@ -356,7 +356,7 @@ export default function CouplingPage() {
           <Badge kind="agg" /><Badge kind="committed" />
         </div>
         <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
-          Mean over 20 held-out waves (the figure above animates one representative wave, so its numbers differ slightly).
+          Mean over 20 held-out test ICs — from a 100-IC held-out test set (1,000 trajectories total: 800 train / 100 validation / 100 test). The figure above animates one representative wave, so its numbers differ slightly.
         </p>
         <div className="grid grid-cols-4 gap-3">
           <div className="rounded-xl bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 px-3 py-2 text-center">
@@ -372,8 +372,8 @@ export default function CouplingPage() {
             <div className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">91.7%</div>
           </div>
           <div className="rounded-xl bg-slate-50 dark:bg-slate-700/40 border border-slate-100 dark:border-slate-600/40 px-3 py-2 text-center">
-            <div className="text-[10px] uppercase tracking-wide text-slate-400">waves improved</div>
-            <div className="text-2xl font-extrabold text-slate-700 dark:text-slate-200">20 / 20</div>
+            <div className="text-[10px] uppercase tracking-wide text-slate-400">held-out ICs tested</div>
+            <div className="text-2xl font-extrabold text-slate-700 dark:text-slate-200">20 of 100</div>
           </div>
         </div>
       </div>
@@ -410,7 +410,7 @@ export default function CouplingPage() {
           <Microscope size={14} /> Where the error comes from — oracle decomposition
         </div>
         <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
-          Same numerical continuation, two starting states: restart from the ML state vs from the true state (log scale).
+          Each bar is the error against the true answer, over the tail. Same numerical continuation, different starting states — the ML state vs the true state (log scale).
         </p>
         <OracleBars mlTail={sw.mlTail} hyTail={sw.hyTail} oracle={Number(RL_META.oracle)} />
         <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
@@ -451,7 +451,7 @@ export default function CouplingPage() {
         </p>
         <SafetyChart data={SAFETY} cross={SAFETY_CROSS} />
         <div className="flex gap-4 flex-wrap text-[11px] text-slate-400 dark:text-slate-500 mt-1">
-          <span className="text-emerald-600 dark:text-emerald-400">— verified restart (stays ~1e-11)</span>
+          <span className="text-emerald-600 dark:text-emerald-400">— verified restart — error ≈ 0 (stays ~1e-11)</span>
           <span className="text-rose-500">— shortcut restart (no de-aliasing)</span>
           <span className="text-amber-500">-- 1% target · shortcut crosses at Re≈3.2</span>
         </div>
