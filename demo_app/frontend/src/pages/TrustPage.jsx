@@ -38,6 +38,105 @@ function SignalBar({ label, desc, color, weight, level }) {
   );
 }
 
+// the trust-score method, shown step by step in the "How it's built" tab
+const BUILD_STEPS = [
+  { n: 1, color: "#4f46e5", title: "Read four physics signals",
+    what: "From the prediction alone, compute four signals that each catch a different kind of failure.",
+    detail: "physics residual · energy drift · roughness · momentum drift",
+    why: "The Burgers equation and conservation laws are a free, always-available truth the prediction must obey — no true answer needed." },
+  { n: 2, color: "#0d9488", title: "Normalise",
+    what: "Put every signal on a common scale as a z-score.",
+    detail: "z = (signal − mean) / spread",
+    why: "Raw signals live on wildly different scales (residual ≈ 0.05, roughness ≈ 0.00001), so they can't be compared or added directly." },
+  { n: 3, color: "#d97706", title: "Weight",
+    what: "Weight each signal by how well it tracked the true error in training; clip negatives to 0; scale so they sum to 1.",
+    detail: "wᵢ = max(0, corr(signalᵢ, true error)) ,   Σ w = 1",
+    why: "Data-driven, not hand-picked — informative signals dominate, useless ones drop to 0. These are the 'shares' shown live." },
+  { n: 4, color: "#7c3aed", title: "Fuse",
+    what: "Combine the weighted signals into one number.",
+    detail: "fused = w₁z₁ + w₂z₂ + w₃z₃ + w₄z₄",
+    why: "One number can be judged with one threshold; a linear sum stays interpretable and has nothing to overfit." },
+  { n: 5, color: "#e11d48", title: "Smooth",
+    what: "Average the fused number over the last few steps.",
+    detail: "smoothed = mean of the last 5 fused values",
+    why: "A single noisy blip shouldn't trigger a switch; only a sustained rise should." },
+  { n: 6, color: "#2563eb", title: "Calibrate → trust 0–1",
+    what: "Map the smoothed number through a fitted logistic curve to a 0–1 trust score.",
+    detail: "trust = 1 − sigmoid(a · smoothed + b)",
+    why: "Turns an arbitrary number into an interpretable 'probability it's still fine', so one cutoff behaves consistently." },
+  { n: 7, color: "#059669", title: "Switch",
+    what: "When trust stays below the cutoff for K steps in a row, hand over to the numerical solver.",
+    detail: "switch if trust < cutoff for K steps",
+    why: "Requiring K steps avoids false alarms; the cost is tuned so a late switch is penalised more than an early one." },
+];
+
+function HowBuilt({ cut, K }) {
+  return (
+    <div className="mt-5 space-y-6">
+      {/* soft header banner */}
+      <div className="rounded-2xl p-6 md:p-7 bg-gradient-to-r from-indigo-50 via-indigo-50 to-violet-50 dark:from-indigo-500/10 dark:via-indigo-500/10 dark:to-violet-500/10 border border-indigo-100 dark:border-indigo-500/25">
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Reference-free · no true answer is ever used</div>
+        <h2 className="text-2xl font-bold mt-1 text-slate-800 dark:text-slate-100">How the trust score is built</h2>
+        <p className="text-sm text-slate-600 dark:text-slate-300 mt-2 leading-relaxed">
+          The four physics signals are turned into one 0–1 trust score by a short pipeline. The dials it uses — the averages, the weights, and the logistic curve — are learned once, offline, on data where the true error was known, then simply applied live from the prediction alone.
+        </p>
+      </div>
+
+      {/* pipeline overview strip */}
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 px-5 py-4">
+        <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500 mb-3">The pipeline at a glance</div>
+        <div className="flex flex-wrap items-center gap-y-3">
+          {BUILD_STEPS.map((s, i) => (
+            <div key={s.n} className="flex items-center">
+              <div className="flex items-center gap-2">
+                <span className="w-7 h-7 rounded-full text-white text-xs font-bold flex items-center justify-center shrink-0" style={{ background: s.color }}>{s.n}</span>
+                <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 whitespace-nowrap">{s.title.replace(" → trust 0–1", "")}</span>
+              </div>
+              {i < BUILD_STEPS.length - 1 && <span className="mx-3 text-slate-300 dark:text-slate-600">→</span>}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* detailed step cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {BUILD_STEPS.map((s) => (
+          <div key={s.n}
+            className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition flex flex-col"
+            style={{ borderTop: `3px solid ${s.color}` }}>
+            <div className="flex items-center gap-3">
+              <span className="w-9 h-9 rounded-xl text-white text-sm font-bold flex items-center justify-center shrink-0" style={{ background: s.color }}>{s.n}</span>
+              <div className="text-sm font-bold text-slate-800 dark:text-slate-100 leading-tight">{s.title}</div>
+            </div>
+            <div className="text-sm text-slate-600 dark:text-slate-300 mt-3">{s.what}</div>
+            <div className="mt-3 rounded-lg bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 px-3 py-2 font-mono text-[12px] text-slate-700 dark:text-slate-200 overflow-x-auto">{s.detail}</div>
+            <div className="mt-auto pt-3">
+              <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: s.color }}>Why</span>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">{s.why}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* highlighted notes */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="rounded-2xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 p-5">
+          <div className="text-sm font-bold text-emerald-800 dark:text-emerald-300">No true answer at run time</div>
+          <p className="text-sm text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">The true error is used only once, offline, to set the weights and the logistic curve. After that, the score comes purely from the prediction.</p>
+        </div>
+        <div className="rounded-2xl border border-teal-200 dark:border-teal-500/30 bg-teal-50 dark:bg-teal-500/10 p-5">
+          <div className="text-sm font-bold text-teal-800 dark:text-teal-300">FNO's safeguard</div>
+          <p className="text-sm text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">FNO can drift while still looking smooth, which these signals can miss. For FNO a cheap coarse solver runs alongside as a second opinion (the "cheap-reference" mode), and the score comes from how far FNO has drifted from it.</p>
+        </div>
+      </div>
+
+      <div className="text-xs text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-700 pt-3">
+        For this model: <b>cutoff = {cut}</b> · <b>patience K = {K}</b> · fail tolerance = 10% error.
+      </div>
+    </div>
+  );
+}
+
 export default function TrustPage() {
   const [meta, setMeta] = useState(null);
   const [model, setModel] = useState("FNO");
@@ -50,6 +149,7 @@ export default function TrustPage() {
   const [hist, setHist] = useState([]);
   const [running, setRunning] = useState(false);
   const [err, setErr] = useState(null);
+  const [tab, setTab] = useState("demo");
   const wsRef = useRef(null);
 
   useEffect(() => { getMeta().then(setMeta).catch(() => setErr("Backend not reachable. Start it with: uvicorn main:app")); }, []);
@@ -87,6 +187,15 @@ export default function TrustPage() {
       </p>
       {err && <div className="mt-3 text-sm text-rose-600 dark:text-rose-300 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 rounded-lg px-3 py-2">{err}</div>}
 
+      {/* TABS */}
+      <div className="mt-4 inline-flex rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-1">
+        {[["demo", "Live demo"], ["built", "How it's built"]].map(([id, label]) => (
+          <button key={id} onClick={() => setTab(id)}
+            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition ${tab === id ? "bg-indigo-600 text-white" : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"}`}>{label}</button>
+        ))}
+      </div>
+
+      {tab === "demo" && (
       <div className="mt-5 grid grid-cols-[320px_1fr] gap-5">
         {/* CONTROLS */}
         <div className="space-y-4">
@@ -225,6 +334,9 @@ export default function TrustPage() {
           </Card>
         </div>
       </div>
+      )}
+
+      {tab === "built" && <HowBuilt cut={cut} K={p?.K ?? 4} />}
     </div>
   );
 }
