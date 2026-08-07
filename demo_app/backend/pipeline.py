@@ -62,9 +62,9 @@ def _relerr(a, b):
     return float(np.linalg.norm(a - b) / (np.linalg.norm(b) + 1e-12))
 
 
-def _build(model, ic, pinn_index, mode, target=0.05):
+def _build(model, ic, pinn_index, mode, target=0.05, real_ic_index=None):
     from hybrid_pde.control_214133E.controller import AdaptiveController, thresholds_for_target
-    ic0, pred, true = core.get_prediction(model, ic, pinn_index)
+    ic0, pred, true = core.get_prediction(model, ic, pinn_index, real_ic_index=real_ic_index)
     T, X, nt = core.T, core.X, len(core.T)
     if model == "FNO" and mode == "coarse":
         mon = core.CoarseReferenceMonitor(ic0, X, n=256)
@@ -104,10 +104,11 @@ async def _run(ws, req):
     pinn_index = int(req.get("pinn_index", 0))
     mode = req.get("mode", "reference_free")
     target = float(req.get("target", 0.05))
+    real_ic_index = req.get("real_ic_index")
     loop = asyncio.get_running_loop()
     T, pred, true, hybrid, trust, okc, switch, nt, numer_full = await loop.run_in_executor(
-        None, _build, model, ic, pinn_index, mode, target)
-    ml_per, num_per = _per_step_rates(nt)
+        None, _build, model, ic, pinn_index, mode, target, real_ic_index)
+    ml_per, num_per = _per_step_rates(nt, model)
     s = switch if switch is not None else nt
     for n in range(nt):
         await ws.send_text(json.dumps({
@@ -133,9 +134,12 @@ async def _run(ws, req):
         "cost_hybrid": round(ml_steps * ml_per + corr_steps * num_per, 2),
         "cost_ml": round(ml_per * nt, 2),
         "cost_num": round(num_per * nt, 2),
-        "err_hybrid": round(_relerr(hybrid[-1], true[-1]), 3),
-        "err_ml": round(_relerr(pred[-1], true[-1]), 3),
-        "err_num": round(_relerr(numer_full[-1], true[-1]), 3),
+        # whole-trajectory relative L2 (matches groundtruth.relative_l2 / achieved_error) --
+        # NOT the final-time-slice error, which reads much higher and isn't what the
+        # target/theta_lo threshold was calibrated against (see _run_costcontrol above).
+        "err_hybrid": round(_relerr(hybrid, true), 3),
+        "err_ml": round(_relerr(pred, true), 3),
+        "err_num": round(_relerr(numer_full, true), 3),
         "switch_t": (float(T[switch]) if switch is not None else None),
     }}))
 
@@ -154,27 +158,40 @@ async def ws_pipeline(ws: WebSocket):
 
 # ---------------- live cost-control run (Module 3) ----------------
 
-def _per_step_rates(nt):
-    """Per-step cost rates taken from the measured timed frontier, so a live run
-    lands on the same frontier the Findings tab shows."""
-    ml_per = num_per = None
+_TIMED_COST_FILES = {
+    "FNO": "timed_cost_result_m2.json",
+    "DeepONet": "timed_cost_result_deeponet.json",
+}
+
+
+def _per_step_rates(nt, model="FNO"):
+    """Per-step cost rates taken from the measured timed frontier for THIS
+    surrogate, so a live run lands on the same frontier the Findings tab shows.
+    Previously this always read the FNO file regardless of which model was
+    selected, so a live DeepONet run reported cost_s/rel_cost computed from
+    FNO's measured timing (~0.174s/traj ML cost) instead of DeepONet's own
+    (~0.120s/traj) -- a ~31% mismatch. PINN has no measured per-step file of
+    its own (its cost is reported separately and already excludes the
+    2114s-per-problem retrain, per the UI note), so it falls back to FNO's
+    timing as a labelled approximation, same as before."""
+    fname = _TIMED_COST_FILES.get(model, _TIMED_COST_FILES["FNO"])
     try:
-        p = os.path.join(core.ROOT, "results", "m3", "step9d_coarse_integration", "timed_cost_result_m2.json")
+        p = os.path.join(core.ROOT, "results", "m3", "step9d_coarse_integration", fname)
         with open(p, encoding="utf-8") as fh:
             d = json.load(fh)
         ml_per = d["pure_ml"]["cost_s"] / nt
         num_per = d["pure_numerical"]["cost_s"] / nt
     except Exception as e:
         raise RuntimeError(
-            "per-step costs unavailable: could not read timed_cost_result_m2.json (%s). "
-            "Run: python -m hybrid_pde.control_214133E._run_full" % e)
+            "per-step costs unavailable: could not read %s (%s). "
+            "Run: python -m hybrid_pde.control_214133E._run_full" % (fname, e))
     return ml_per, num_per
 
 
-def _cc_setup(model, ic, pinn_index, target):
+def _cc_setup(model, ic, pinn_index, target, real_ic_index=None):
     from hybrid_pde.control_214133E.controller import AdaptiveController, thresholds_for_target
     from hybrid_pde.trust.coarse_reference import CoarseReferenceMonitor
-    ic0, pred, true = core.get_prediction(model, ic, pinn_index)
+    ic0, pred, true = core.get_prediction(model, ic, pinn_index, real_ic_index=real_ic_index)
     lo, hi = thresholds_for_target(float(target))
     mon = CoarseReferenceMonitor(ic0, core.X, n=256)
     ctrl = AdaptiveController(lo, 1.1)
@@ -188,13 +205,14 @@ async def _run_costcontrol(ws, req):
     ic = req.get("ic")
     pinn_index = int(req.get("pinn_index", 0))
     target = float(req.get("target", 0.05))
+    real_ic_index = req.get("real_ic_index")
     loop = asyncio.get_running_loop()
     ic0, pred, true, mon, ctrl, lo, hi = await loop.run_in_executor(
-        None, _cc_setup, model, ic, pinn_index, target)
+        None, _cc_setup, model, ic, pinn_index, target, real_ic_index)
 
     X, T = core.X, core.T
     nt = len(T)
-    ml_per, num_per = _per_step_rates(nt)
+    ml_per, num_per = _per_step_rates(nt, model)
     coupling, num = M2Coupling(), _NumSolver()
 
     state = np.asarray(ic0, dtype=float)
@@ -202,6 +220,15 @@ async def _run_costcontrol(ws, req):
     ml_steps = corr_steps = 0
     cost = 0.0
     switch_t = None
+    # accumulated across every (t, x) pair so the final number matches
+    # groundtruth.relative_l2(out, reference) -- the whole-trajectory Frobenius-norm
+    # metric that thresholds_for_target/AdaptiveController were actually calibrated
+    # against and that the offline hit-rate (100% @ target 0.05 on ICs 900-909) was
+    # measured with. A single final-time-slice error reads much higher because it
+    # isn't diluted by the many near-perfect early ML steps, and was producing
+    # spurious "target missed" results here even on the exact validated ICs.
+    sq_diff_sum = 0.0
+    sq_true_sum = 0.0
 
     for n in range(nt):
         o = mon.update(state, float(T[n]))
@@ -219,7 +246,13 @@ async def _run_costcontrol(ws, req):
             ml_steps += 1
             cost += ml_per
         prev_t = float(T[n])
-        err = float(np.linalg.norm(state - true[n]) / (np.linalg.norm(true[n]) + 1e-12))
+        sq_diff_sum += float(((state - true[n]) ** 2).sum())
+        sq_true_sum += float((true[n] ** 2).sum())
+        # running trajectory-so-far error -- same formula as the final "hit" check,
+        # so this converges to exactly the summary number by the last frame instead
+        # of showing an unrelated (and usually larger) instantaneous snapshot error
+        # side by side with a "target met" banner that used a different metric.
+        cum_err = float(np.sqrt(sq_diff_sum) / (np.sqrt(sq_true_sum) + 1e-12))
         await ws.send_text(json.dumps({
             "t": float(T[n]),
             "u": np.round(state, 4).tolist(),
@@ -229,12 +262,12 @@ async def _run_costcontrol(ws, req):
             "ml_steps": ml_steps,
             "corr_steps": corr_steps,
             "cost_s": round(cost, 4),
-            "error": round(err, 4),
+            "error": round(cum_err, 4),
             "switch_t": switch_t,
         }))
         await asyncio.sleep(0.02)
 
-    final_err = float(np.linalg.norm(state - true[-1]) / (np.linalg.norm(true[-1]) + 1e-12))
+    final_err = float(np.sqrt(sq_diff_sum) / (np.sqrt(sq_true_sum) + 1e-12))
     await ws.send_text(json.dumps({"summary": {
         "target": target, "theta_lo": round(lo, 2), "theta_hi": None, "latched": True,
         "ml_steps": ml_steps, "corr_steps": corr_steps,
@@ -242,6 +275,7 @@ async def _run_costcontrol(ws, req):
         "hit": bool(final_err <= target),
         "rel_cost": round(cost / max(num_per * nt, 1e-9), 3),
         "switch_t": switch_t,
+        "real_ic_index": real_ic_index,
     }}))
     await ws.send_text(json.dumps({"done": True}))
 
@@ -263,17 +297,19 @@ async def _run_race(ws, req):
     ic = req.get("ic")
     pinn_index = int(req.get("pinn_index", 0))
     target = float(req.get("target", 0.05))
+    real_ic_index = req.get("real_ic_index")
     loop = asyncio.get_running_loop()
     ic0, pred, true, mon, ctrl, lo, hi = await loop.run_in_executor(
-        None, _cc_setup, model, ic, pinn_index, target)
+        None, _cc_setup, model, ic, pinn_index, target, real_ic_index)
 
     X, T = core.X, core.T
     nt = len(T)
-    ml_per, num_per = _per_step_rates(nt)
+    ml_per, num_per = _per_step_rates(nt, model)
     coupling, num = M2Coupling(), _NumSolver()
     numer = np.asarray(_NumSolver().rollout(ic0, X, T), dtype=float)
 
     hyb = np.asarray(ic0, dtype=float)
+    hyb_full = np.empty_like(pred)
     prev_t = float(T[0])
     ml_c = num_c = hyb_c = 0.0
     corr_steps = ml_steps = 0
@@ -298,6 +334,7 @@ async def _run_race(ws, req):
             hyb = np.asarray(pred[n], dtype=float)
             ml_steps += 1
             hyb_c += ml_per
+        hyb_full[n] = hyb
         prev_t = float(T[n])
         ml_c += ml_per
         num_c += num_per
@@ -313,15 +350,17 @@ async def _run_race(ws, req):
         }))
         await asyncio.sleep(0.035)
 
-    fe = lambda a: round(float(np.linalg.norm(a - true[-1]) / (np.linalg.norm(true[-1]) + 1e-12)), 5)
+    # whole-trajectory relative L2 (matches groundtruth.relative_l2), not the final
+    # time slice -- see the note in _run_costcontrol.
+    fe = lambda a: round(float(np.linalg.norm(a - true) / (np.linalg.norm(true) + 1e-12)), 5)
     await ws.send_text(json.dumps({"summary": {
         "target": target, "corr_steps": corr_steps, "ml_steps": ml_steps, "marks": marks,
-        "ml":  {"cost": round(ml_c, 3),  "err": fe(pred[-1])},
-        "num": {"cost": round(num_c, 3), "err": fe(numer[-1])},
-        "hyb": {"cost": round(hyb_c, 3), "err": fe(hyb)},
+        "ml":  {"cost": round(ml_c, 3),  "err": fe(pred)},
+        "num": {"cost": round(num_c, 3), "err": fe(numer)},
+        "hyb": {"cost": round(hyb_c, 3), "err": fe(hyb_full)},
         "saving": round(1.0 - hyb_c / max(num_c, 1e-9), 3),
         "speedup": round(num_c / max(hyb_c, 1e-9), 2),
-        "acc_gain": round(fe(pred[-1]) / max(fe(hyb), 1e-9), 2),
+        "acc_gain": round(fe(pred) / max(fe(hyb_full), 1e-9), 2),
     }}))
     await ws.send_text(json.dumps({"done": True}))
 

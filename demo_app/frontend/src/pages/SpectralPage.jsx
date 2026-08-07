@@ -62,7 +62,10 @@ export default function SpectralPage() {
   }, []);
   const frame = FR[i];
   const errShown = (frame.err * 100).toFixed(3);
-  const vsFdm = Math.round(S.fdmVsExactPct / Math.max(S.accVsExactPct, 1e-6));
+  // use the precise measured ratio (fdm_evaluation_values.json's fdm_times_worse) rather than
+  // recomputing from the two already-rounded display percentages, which would compound
+  // rounding error (16.3/0.011 ~= 1482, not the real ~1513x).
+  const vsFdm = S.vsFdm;
 
   return (
     <div className="space-y-7">

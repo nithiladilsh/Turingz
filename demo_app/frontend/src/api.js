@@ -20,6 +20,23 @@ export async function pinnIC(index) {
   return r.json();
 }
 
+// one of the 10 official held-out test ICs (dataset index 900+index) --
+// the exact set the reported hit-rate numbers were measured on
+export async function realTestIC(index) {
+  const r = await fetch(`${API}/api/real_test_ic/${index}`);
+  return r.json();
+}
+
+export async function pinnRegime() {
+  const r = await fetch(`${API}/api/m3/pinn_regime`);
+  return r.json();
+}
+
+export async function switchingAblation() {
+  const r = await fetch(`${API}/api/m3/switching_ablation`);
+  return r.json();
+}
+
 // opens a websocket at `path`, calls onFrame(frame) for each streamed frame, onDone when finished
 function runWS(path, payload, onFrame, onDone, onError) {
   const ws = new WebSocket(`${WS}${path}`);

@@ -34,6 +34,14 @@ def pinn_ic(index: int):
     return {"x": core.X.round(4).tolist(), "ic": core.PINN_ICS[index].round(4).tolist()}
 
 
+@app.get("/api/real_test_ic/{index}")
+def real_test_ic(index: int):
+    """One of the 10 official held-out test ICs (dataset index 900+index) --
+    the exact set the reported hit-rate numbers were measured on."""
+    ic, _true = core.real_test_ic(index)
+    return {"x": core.X.round(4).tolist(), "ic": ic.round(4).tolist()}
+
+
 @app.websocket("/ws/reliability")
 async def ws_reliability(ws: WebSocket):
     await ws.accept()

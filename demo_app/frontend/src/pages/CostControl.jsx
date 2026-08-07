@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Card } from "../components/ui.jsx";
-import { API, WS, getMeta, buildIC, pinnIC } from "../api.js";
+import { LineChart } from "../components/Charts.jsx";
+import { API, WS, getMeta, buildIC, pinnIC, realTestIC, pinnRegime, switchingAblation } from "../api.js";
 import { Trophy, Check, X, Play } from "lucide-react";
 
 const COLOR = { FNO: "#059669", DeepONet: "#e11d48", PINN: "#d97706" };
@@ -205,13 +206,20 @@ export default function CostControl() {
   const [cmp, setCmp] = useState(null);
   const [rob, setRob] = useState(null);
   const [regime, setRegime] = useState(null);
+  const [pinnR, setPinnR] = useState(null);
+  const [swAbl, setSwAbl] = useState(null);
   const [pick, setPick] = useState("FNO");
-  const [idx, setIdx] = useState(2);
+  // fr (built below from /api/m3/frontiers) is [0.30, 0.20, 0.10, 0.05, 0.02, 0.01] in
+  // that order -- index 1 is target 0.20. Kept in sync dynamically below in case the
+  // underlying frontier file's target list is ever reordered or regenerated.
+  const [idx, setIdx] = useState(1);
   const [meta, setMeta] = useState(null);
   const [modes, setModes] = useState(2);
   const [amp, setAmp] = useState(1.0);
   const [model, setModel] = useState("FNO");
   const [pidx, setPidx] = useState(0);
+  const [source, setSource] = useState("real"); // "synthetic" | "real" -- default to the validated held-out set
+  const [ridx, setRidx] = useState(0);
   const [ic, setIc] = useState(null);
   const [frame, setFrame] = useState(null);
   const [hist, setHist] = useState([]);
@@ -220,20 +228,36 @@ export default function CostControl() {
   const wsRef = useRef(null);
   const [err, setErr] = useState(null);
   const p = useDraw(1400, tab);
+  const idxTouched = useRef(false);
 
   useEffect(() => {
     fetch(`${API}/api/m3/frontiers`).then((r) => r.json()).then(setCmp)
       .catch(() => setErr("Backend not reachable — start it with: uvicorn main:app"));
     fetch(`${API}/api/m3/robustness`).then((r) => r.json()).then(setRob).catch(() => {});
     fetch(`${API}/api/m3/regime`).then((r) => r.json()).then(setRegime).catch(() => {});
+    pinnRegime().then(setPinnR).catch(() => {});
+    switchingAblation().then(setSwAbl).catch(() => {});
     getMeta().then(setMeta).catch(() => {});
   }, []);
+
+  // default the accuracy target to 0.20 once the real frontier loads, by target
+  // value rather than a hardcoded index -- so this stays correct even if the
+  // underlying frontier file's target list is ever reordered or regenerated.
+  // Only runs before the user has touched the slider themselves.
+  useEffect(() => {
+    if (idxTouched.current) return;
+    const arr = cmp?.FNO?.frontier;
+    if (!arr || !arr.length) return;
+    const i = arr.findIndex((q) => Math.abs(q.target - 0.2) < 1e-9);
+    if (i >= 0) setIdx(i);
+  }, [cmp]);
 
   useEffect(() => {
     if (!meta) return;
     if (model === "PINN") pinnIC(pidx).then((d) => setIc(d.ic)).catch(() => {});
+    else if (source === "real") realTestIC(ridx).then((d) => setIc(d.ic)).catch(() => {});
     else buildIC(modes, amp).then((d) => setIc(d.ic)).catch(() => {});
-  }, [meta, model, modes, amp, pidx]);
+  }, [meta, model, modes, amp, pidx, source, ridx]);
 
   function run() {
     if (wsRef.current) wsRef.current.close();
@@ -241,6 +265,8 @@ export default function CostControl() {
     wsRef.current = runCostControl(
       model === "PINN"
         ? { model, pinn_index: pidx, target: sel?.target ?? 0.05 }
+        : source === "real"
+        ? { model, real_ic_index: ridx, target: sel?.target ?? 0.05 }
         : { model, ic, target: sel?.target ?? 0.05 },
       (f) => { setFrame(f); setHist((h) => [...h, f]); },
       (s2) => setSum(s2),
@@ -252,6 +278,17 @@ export default function CostControl() {
   const rng = (m, f) => (m ? [Math.min(...m.frontier.map(f)), Math.max(...m.frontier.map(f))] : [0, 0]);
   const [fLo, fHi] = rng(F, (q) => q.rel_cost), [fE1, fE2] = rng(F, (q) => q.error);
   const [dLo, dHi] = rng(D, (q) => q.rel_cost), [dE1, dE2] = rng(D, (q) => q.error);
+  // hit-rate varies a lot by target (e.g. FNO is 100% down to target 0.05, then falls
+  // to 10% at 0.02/0.01; DeepONet is 80%/60% at loose targets, 0% only once targets
+  // get tight) -- show the real range instead of one flat, misleading number.
+  const [fH1, fH2] = rng(F, (q) => q.hit_rate);
+  const [dH1, dH2] = rng(D, (q) => q.hit_rate);
+  const pRows = pinnR?.rows || [];
+  const rngArr = (rows, f) => (rows.length ? [Math.min(...rows.map(f)), Math.max(...rows.map(f))] : [0, 0]);
+  const [pE1, pE2] = rngArr(pRows, (r) => r.error);
+  const [pH1, pH2] = rngArr(pRows, (r) => r.hit_rate);
+  const hitStr = (lo, hi) => (lo === hi ? pct(lo) : `${Math.round(lo * 100)}–${Math.round(hi * 100)}%`);
+  const errStr = (lo, hi) => (lo === hi ? pct(lo) : `${pct(lo)}–${pct(hi)}`);
   const pinnX = regime?.surrogates?.PINN && regime?.numerical?.ColeHopf
     ? Math.round(regime.surrogates.PINN.deploy_s / regime.numerical.ColeHopf.deploy_s) : 950;
   const fr = F?.frontier || [];
@@ -281,11 +318,11 @@ export default function CostControl() {
         <>
           <div className="grid grid-cols-3 gap-4">
             <RegimeCard name="FNO" best active={pick === "FNO"} onClick={() => setPick("FNO")}
-              a={{ k: "cost", v: `${fLo.toFixed(2)}×` }} b={{ k: "error", v: pct(fE1) }} c={{ k: "hit-rate", v: "100%" }} />
+              a={{ k: "cost", v: `${fLo.toFixed(2)}×` }} b={{ k: "error", v: pct(fE1) }} c={{ k: "hit-rate", v: hitStr(fH1, fH2) }} />
             <RegimeCard name="DeepONet" ok="dominated" active={pick === "DeepONet"} onClick={() => setPick("DeepONet")}
-              a={{ k: "cost", v: `${dLo.toFixed(2)}×` }} b={{ k: "error", v: pct(dE1) }} c={{ k: "hit-rate", v: "0%" }} />
+              a={{ k: "cost", v: `${dLo.toFixed(2)}×` }} b={{ k: "error", v: pct(dE1) }} c={{ k: "hit-rate", v: hitStr(dH1, dH2) }} />
             <RegimeCard name="PINN" ok="not amortized" active={pick === "PINN"} onClick={() => setPick("PINN")}
-              a={{ k: "cost", v: `${pinnX}×` }} b={{ k: "error", v: "8.0%" }} c={{ k: "hit-rate", v: "80%" }}
+              a={{ k: "cost", v: `${pinnX}×` }} b={{ k: "error", v: pct(pE1) }} c={{ k: "hit-rate", v: hitStr(pH1, pH2) }}
               foot="error and hit-rate given a free pre-trained model — the controller works, the 2114 s retrain per problem is what rules it out" />
           </div>
 
@@ -320,6 +357,37 @@ export default function CostControl() {
             </div>
           </div>
 
+          {swAbl?.target_response && (
+            <Card title="Why the latch policy" subtitle="four switching designs on the same 10 held-out ICs, every target — alternative smart triggers, not a brute-force baseline">
+              <div className="space-y-2.5">
+                {[["latch", "latch (ours)"], ["deadband", "deadband"], ["naive", "naive"], ["hardcoded", "hardcoded"]].map(([k, label]) => {
+                  const tr = swAbl.target_response[k];
+                  const hr = swAbl.hit_range[k];
+                  if (!tr || !hr) return null;
+                  const responds = tr.responds_to_target;
+                  return (
+                    <div key={k} className="flex flex-wrap items-center gap-2 text-sm">
+                      <div className={`w-28 font-semibold ${k === "latch" ? "text-indigo-600 dark:text-indigo-400" : "text-slate-600 dark:text-slate-300"}`}>{label}</div>
+                      <div className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${responds
+                        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300"
+                        : "bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300"}`}>
+                        {responds ? "responds to target" : "ignores target"}
+                      </div>
+                      <div className="text-xs text-slate-500 dark:text-slate-400 sm:ml-auto">
+                        error {errStr(tr.min, tr.max)} · hit-rate {hitStr(hr[0], hr[1])}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-3">
+                hardcoded uses a fixed threshold no matter what target you ask for, so its error and hit-rate never move —
+                it isn't actually a knob. Latch isn't always the lowest error (hardcoded gets lucky at loose targets),
+                but it's the only policy that reliably tracks the requested target across the whole range.
+              </p>
+            </Card>
+          )}
+
           <div className="rounded-2xl p-5 bg-gradient-to-r from-emerald-50 via-white to-white dark:from-emerald-500/10 dark:via-slate-800 dark:to-slate-800 border border-emerald-200 dark:border-emerald-500/30">
             <div className="text-sm font-semibold text-emerald-800 dark:text-emerald-300 flex items-center gap-2"><Check size={16} /> Conclusion</div>
             <p className="text-sm text-slate-700 dark:text-slate-200 mt-1">
@@ -340,7 +408,9 @@ export default function CostControl() {
               sub={frame ? (frame.correcting ? "correcting" : "trusting ML") : "—"} />
             <Tile label="cost so far" value={frame ? `${frame.cost_s.toFixed(2)} s` : "—"}
               tone={model === "PINN" ? "red" : "green"}
-              sub={model === "PINN" ? "excludes 2114 s retrain" : (frame ? `${frame.ml_steps} ML · ${frame.corr_steps} numerical` : "—")} />
+              sub={frame
+                ? `${frame.ml_steps} ML · ${frame.corr_steps} numerical${model === "PINN" ? " · excludes 2114 s retrain" : ""}`
+                : "—"} />
             <Tile label="error now" value={frame ? pct(frame.error) : "—"}
               tone={sum ? (sum.hit ? "green" : "red") : "slate"} sub={`target ${sel ? sel.target : "—"}`} />
           </div>
@@ -372,19 +442,52 @@ export default function CostControl() {
                   </select>
                 ) : (
                   <>
-                    <div className="flex justify-between text-[11px] text-slate-500 dark:text-slate-400"><span>modes</span><span>{modes}</span></div>
-                    <input type="range" min="1" max="4" value={modes} onChange={(e) => setModes(+e.target.value)} className="w-full" />
-                    <div className="flex justify-between text-[11px] text-slate-500 dark:text-slate-400 mt-2"><span>amplitude</span><span>{amp.toFixed(1)}</span></div>
-                    <input type="range" min="0.5" max="1.5" step="0.1" value={amp} onChange={(e) => setAmp(+e.target.value)} className="w-full" />
-                    {modes > 4 && <div className="text-[11px] text-amber-600 mt-1">above 4 = out-of-distribution</div>}
+                    <div className="flex gap-2 mb-3">
+                      {[["real", "Held-out test IC"], ["synthetic", "Random shape"]].map(([v, label]) => (
+                        <button key={v} onClick={() => setSource(v)}
+                          className={`flex-1 px-2 py-1.5 rounded-lg text-xs font-bold border transition ${source === v ? "bg-indigo-600 text-white border-transparent" : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700"}`}>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    {source === "real" ? (
+                      <>
+                        <select value={ridx} onChange={(e) => setRidx(+e.target.value)}
+                          className="w-full bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm">
+                          {Array.from({ length: meta?.n_real_test_ics || 10 }, (_, i) => <option key={i} value={i}>Test IC #{900 + i}</option>)}
+                        </select>
+                        <div className="text-[11px] text-slate-400 dark:text-slate-500 mt-2">
+                          one of the 10 problems the reported hit-rate numbers were measured on — not a random draw
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex justify-between text-[11px] text-slate-500 dark:text-slate-400"><span>modes</span><span>{modes}</span></div>
+                        <input type="range" min="1" max="4" value={modes} onChange={(e) => setModes(+e.target.value)} className="w-full" />
+                        <div className="flex justify-between text-[11px] text-slate-500 dark:text-slate-400 mt-2"><span>amplitude</span><span>{amp.toFixed(1)}</span></div>
+                        <input type="range" min="0.5" max="1.5" step="0.1" value={amp} onChange={(e) => setAmp(+e.target.value)} className="w-full" />
+                        {modes > 4 && <div className="text-[11px] text-amber-600 mt-1">above 4 = out-of-distribution</div>}
+                        <div className="text-[11px] text-slate-400 dark:text-slate-500 mt-2">
+                          a fresh random shape — may land off the distribution the hit-rate was measured on
+                        </div>
+                      </>
+                    )}
                   </>
+                )}
+                {ic && (
+                  <div className="mt-3">
+                    <div className="text-[11px] mb-1 text-slate-400 dark:text-slate-500">starting wave preview</div>
+                    <LineChart series={[{ x: meta?.x || [], y: ic, color: "#6366f1", width: 2 }]}
+                      xr={[-1, 1]} yr={[-1.6, 1.6]} h={130} xlabel="x" />
+                  </div>
                 )}
               </Card>
 
               <Card title="3 · Accuracy target (Module 3)"
                 subtitle="the accuracy you ask for — the controller turns it into when to correct">
                 <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400"><span>loose 0.30</span><span>tight 0.01</span></div>
-                <input type="range" min="0" max={Math.max(0, fr.length - 1)} value={idx} onChange={(e) => setIdx(+e.target.value)} className="w-full" />
+                <input type="range" min="0" max={Math.max(0, fr.length - 1)} value={idx}
+                  onChange={(e) => { idxTouched.current = true; setIdx(+e.target.value); }} className="w-full" />
                 <div className="text-xs mt-1 text-slate-400 dark:text-slate-500">
                   target {sel ? sel.target : "—"} → θlo {lo.toFixed(2)} (one-way handover)
                 </div>

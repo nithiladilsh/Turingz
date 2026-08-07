@@ -41,6 +41,39 @@ def build_ic(modes=4, amplitude=1.0, phase=0.0, seed=0):
     return (float(amplitude) * u).astype(float)
 
 
+# -------- real held-out test set (ICs 900-909) --------
+# Same grid, same file (data/colehopf/burgers_colehopf.pt) as the offline
+# achievability/hit-rate evaluation in experiments/m3_achievability.py and
+# m3_error_decomposition.py. build_ic() above draws fresh synthetic shapes on
+# every call -- useful for exploring the input space, but it is NOT the
+# distribution the reported 100% hit-rate @ target 0.05 was measured on.
+# These are the exact 10 problems that number came from.
+_real_ref = None
+
+
+def _get_real_reference():
+    global _real_ref
+    if _real_ref is None:
+        from hybrid_pde.control_214133E.groundtruth import load_reference
+        _real_ref = load_reference()
+    return _real_ref
+
+
+def real_test_ic(i):
+    """Official held-out test IC #i (i = 0..9, dataset index 900+i). Returns
+    (ic, true_u) where true_u is the exact reference trajectory used in the
+    offline evaluation -- not a Cole-Hopf recompute."""
+    from hybrid_pde.control_214133E import config
+    idx = config.TEST_IC_INDICES[int(i)]
+    R = _get_real_reference()
+    return R.ICs[idx].astype(float), R.u[idx].astype(float)
+
+
+def n_real_test_ics():
+    from hybrid_pde.control_214133E import config
+    return len(config.TEST_IC_INDICES)
+
+
 def cole_hopf(ic):
     ic = np.asarray(ic, float)[None, :]
     cumint = np.concatenate([np.zeros((1, 1)),
@@ -76,10 +109,13 @@ def _predict_operator(model, ic):
     return s.predict_grid(np.asarray(ic)[None, :], X, T)[0]
 
 
-def get_prediction(model, ic=None, pinn_index=0):
+def get_prediction(model, ic=None, pinn_index=0, real_ic_index=None):
     if model == "PINN":
         i = int(pinn_index)
         return PINN_ICS[i].copy(), PINN_PRED[i], PINN_TRUE[i]
+    if real_ic_index is not None:
+        ic0, true = real_test_ic(real_ic_index)
+        return ic0, _predict_operator(model, ic0), true
     ic = np.asarray(ic, float)
     return ic, _predict_operator(model, ic), cole_hopf(ic)
 
@@ -149,7 +185,7 @@ def stream_run(model, ic=None, pinn_index=0, mode="reference_free"):
 
 def meta():
     return {"x": np.round(X, 4).tolist(), "t": np.round(T, 4).tolist(),
-            "n_pinn_ics": int(len(PINN_ICS)), "fail_threshold": FAIL,
+            "n_pinn_ics": int(len(PINN_ICS)), "n_real_test_ics": n_real_test_ics(), "fail_threshold": FAIL,
             "params": {m: {"CUT": round(float(PARAMS[m]["CUT"]), 2), "K": int(PARAMS[m]["K"])} for m in PARAMS}}
 
 

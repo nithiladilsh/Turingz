@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Card } from "../components/ui.jsx";
 import { API } from "../api.js";
 import { Trophy, X, Play, RotateCcw } from "lucide-react";
@@ -16,6 +16,31 @@ function useDraw(ms = 1300, key = 0) {
     return () => cancelAnimationFrame(raf);
   }, [ms, key]);
   return p;
+}
+// smoothly counts a displayed number toward a new target whenever it changes (e.g. the
+// "cheapest solver that qualifies" switching as you drag the tolerance) instead of snapping
+function useAnimatedNumber(target, ms = 280) {
+  const [v, setV] = useState(target);
+  const ref = useRef({ raf: null, from: target, start: 0 });
+  useEffect(() => {
+    if (target == null) { setV(target); return; }
+    const r = ref.current;
+    r.from = v ?? target; r.start = 0;
+    cancelAnimationFrame(r.raf);
+    const loop = (ts) => {
+      if (!r.start) r.start = ts;
+      const q = Math.min(1, (ts - r.start) / ms);
+      setV(r.from + (target - r.from) * q);
+      if (q < 1) r.raf = requestAnimationFrame(loop);
+    };
+    r.raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(r.raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target, ms]);
+  // on the render where `target` first flips from null to a number, the effect above hasn't
+  // committed yet, so `v` can still be null for one frame -- fall back to target so callers
+  // never see null and crash (this was blanking the whole page on load).
+  return v ?? target;
 }
 function decadeTicks(min, max, maxCount = 5) {
   const lo = Math.ceil(Math.log10(min) - 1e-9), hi = Math.floor(Math.log10(max) + 1e-9);
@@ -117,7 +142,7 @@ const CRIT = [
   { k: "rss_mb", label: "Memory footprint", fmt: (v) => `${Math.round(v)} MB`, log: false },
 ];
 
-function HeadToHead({ models }) {
+function HeadToHead({ models, hitTxt }) {
   const cell = (m, c) => {
     const v = models[m]?.[c.k] ?? 0;
     const all = ML.map((n) => models[n]?.[c.k] ?? 0).filter((x) => x > 0);
@@ -139,10 +164,14 @@ function HeadToHead({ models }) {
       </div>
     );
   };
+  // hit-rate varies a lot by target (e.g. FNO is 100% down to target 0.05 then falls to
+  // 10% at 0.02/0.01) -- hitTxt carries the real range from live data instead of a single
+  // flat number baked in here, which for DeepONet used to just be wrong (it's 80%/60% at
+  // loose targets, 0% only once targets get tight).
   const VERDICT = {
-    FNO: { ok: true, head: "Yes", why: "amortized AND accurate in-window - 1.7-3.4x cheaper than numerical at 100% hit-rate" },
-    DeepONet: { ok: false, head: "No", why: "amortized but 29% wrong in-window - hybrid costs 1.3-3.1x numerical, 0% hit-rate" },
-    PINN: { ok: false, head: "No", why: "controller works on it (8.0% error, 80% hit) but 2114 s retrain per problem rules it out" },
+    FNO: { ok: true, head: "Yes", why: `amortized AND accurate in-window - 1.7-3.4x cheaper than numerical at ${hitTxt?.FNO ?? "100%"} hit-rate` },
+    DeepONet: { ok: false, head: "No", why: `amortized but 29% wrong in-window - hybrid costs 1.3-3.1x numerical, ${hitTxt?.DeepONet ?? "0%"} hit-rate` },
+    PINN: { ok: false, head: "No", why: `controller works on it (${hitTxt?.pinnErr ?? "8.0%"} error, ${hitTxt?.PINN ?? "80%"} hit) but 2114 s retrain per problem rules it out` },
   };
   return (
     <Card title="Head-to-head" subtitle="one row per criterion - green is best, red is worst">
@@ -227,7 +256,7 @@ function Profile({ m, d }) {
 }
 
 
-function Staircase({ M, window_, tol }) {
+function Staircase({ M, window_, tol, floor, marker }) {
   const W = 460, H = 120, padL = 42, padR = 12, padT = 12, padB = 26;
   const names = Object.keys(M);
   const e = (m) => Math.max(((window_ === "in" ? M[m].err_in : M[m].err_extrap) ?? 0) / 100, 1e-6);
@@ -246,6 +275,14 @@ function Staircase({ M, window_, tol }) {
   let d = "", started = false;
   steps.forEach(([t, v]) => { if (v == null) return; d += `${started ? "L" : "M"}${sx(t).toFixed(1)} ${sy(v).toFixed(1)}`; started = true; });
   const here = cheapest(tol);
+  // controller reference marker (target 0.05, the same headline point used elsewhere) --
+  // these were previously two hardcoded constants (3% and 0.85s) that didn't actually
+  // belong to the same measured row; now both come from the same live frontier point,
+  // and the shaded band's right edge (the "beyond window collapse" point) is FNO's
+  // measured err_extrap instead of a hardcoded 14%.
+  const mErr = marker?.error ?? 0.036, mCost = marker?.cost ?? 0.85;
+  const leftEdge = Math.max(1e-3, floor ?? 0.03);
+  const rightEdge = Math.max(0.03, Math.min(0.49, (M.FNO?.err_extrap ?? 14) / 100));
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
       {[0.1, 1, 10].filter((v) => v >= cmin && v <= cmax).map((v) => (
@@ -254,9 +291,11 @@ function Staircase({ M, window_, tol }) {
           <text x={padL - 6} y={sy(v) + 3} textAnchor="end" fontSize="8" fill="var(--chart-axis)">{v}s</text>
         </g>
       ))}
-      <rect x={Math.min(sx(0.14), sx(0.03))} y={padT} width={Math.abs(sx(0.03) - sx(0.14))} height={H - padT - padB} fill="#059669" opacity="0.10" />
-      <text x={(sx(0.03) + sx(0.14)) / 2} y={padT + 9} textAnchor="middle" fontSize="7.5" fill="#059669" fontWeight="700">controller: 3% for 0.85s</text>
-      <circle cx={sx(0.03)} cy={sy(0.85)} r="4" fill="#059669" />
+      <rect x={Math.min(sx(rightEdge), sx(leftEdge))} y={padT} width={Math.abs(sx(leftEdge) - sx(rightEdge))} height={H - padT - padB} fill="#059669" opacity="0.10" />
+      <text x={(sx(leftEdge) + sx(rightEdge)) / 2} y={padT + 9} textAnchor="middle" fontSize="7.5" fill="#059669" fontWeight="700">
+        controller: {(mErr * 100).toFixed(1)}% for {mCost.toFixed(2)}s
+      </text>
+      <circle cx={sx(mErr)} cy={sy(mCost)} r="4" fill="#059669" />
       <path d={d} fill="none" stroke="#4f46e5" strokeWidth="2" />
       {here != null && <>
         <line x1={sx(tol)} x2={sx(tol)} y1={padT} y2={H - padB} stroke="#e11d48" strokeWidth="1.5" />
@@ -277,11 +316,17 @@ export default function CostAnalysis() {
   const [sweeping, setSweeping] = useState(false);
   const [window_, setWindow] = useState("extrap");
   const [err, setErr] = useState(null);
+  const [frontiers, setFrontiers] = useState(null); // FNO + DeepONet, hit-rate per target
+  const [pinnRows, setPinnRows] = useState(null); // PINN, error + hit-rate per target
+  const [fnoFrontier, setFnoFrontier] = useState(null); // FNO absolute {cost, error} per target
   const p = useDraw(1300, mode + tab);
 
   useEffect(() => {
     fetch(`${API}/api/m3/costs`).then((r) => r.json()).then((x) => { if (x.error) setErr(x.error); else setD(x); })
       .catch(() => setErr("Backend not reachable — start it with: uvicorn main:app"));
+    fetch(`${API}/api/m3/frontiers`).then((r) => r.json()).then(setFrontiers).catch(() => {});
+    fetch(`${API}/api/m3/pinn_regime`).then((r) => r.json()).then((x) => setPinnRows(x.rows || null)).catch(() => {});
+    fetch(`${API}/api/m3/frontier`).then((r) => r.json()).then((x) => setFnoFrontier(x.frontier || null)).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -303,10 +348,81 @@ export default function CostAnalysis() {
   const pinn = M.PINN || {};
   const btn = (on) => `px-4 py-1.5 rounded-lg text-sm font-semibold transition ${on ? "bg-indigo-600 text-white" : "text-slate-600 dark:text-slate-300"}`;
   const chip = (on) => `px-3 py-1.5 rounded-lg text-xs font-medium border ${on ? "bg-indigo-600 text-white border-indigo-600" : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700"}`;
-  const line = { in: "Inside the window FNO sits in the cheap-and-reliable corner: 0.57% for 0.44 s.",
-                 extrap: "Beyond it the corner is empty — every surrogate collapses, the numerical solvers stay exact but cost 2–4× more.",
-                 both: "Each surrogate's error jumps 1–2 orders of magnitude the moment you leave the window. The numerical solvers do not move." }[mode];
+
+  // "the numerical solvers stay exact" used to be a blanket claim — it's true for Spectral
+  // and Cole-Hopf (both ~0% error, by construction the accuracy reference) but NOT for FDM,
+  // whose explicit time-stepping has real numerical diffusion: ~8.8% in-window / ~13% beyond,
+  // comparable to FNO's own extrapolation error. FDM is also ~5x cheaper than FNO, not
+  // "2-4x more" — only Spectral/Cole-Hopf carry that cost premium. Split live from cost_summary
+  // instead of hardcoding one number for all three (see deployment_cost_writeup.md's own
+  // "sharpest finding": FDM vs FNO is a window-dependent trade-off, not a clean numerical win).
+  const ratio = (m) => (M[m] && M.FNO ? M[m].deploy_s / M.FNO.deploy_s : null);
+  // require M[m] to actually exist before classifying it -- before /api/m3/costs loads,
+  // M is {} and every NUMERICAL entry is "missing", which used to fall through the ?? 99
+  // fallback into "loose" (inaccurate) and crash on M[m].err_extrap on the next line.
+  const exactNum = NUMERICAL.filter((m) => M[m] && (M[m].err_extrap ?? 99) < 1);
+  const looseNum = NUMERICAL.filter((m) => M[m] && (M[m].err_extrap ?? 99) >= 1);
+  const exactRatios = exactNum.map(ratio).filter((v) => v != null);
+  const exactRatioTxt = exactRatios.length
+    ? (Math.min(...exactRatios) === Math.max(...exactRatios) ? `${Math.min(...exactRatios).toFixed(1)}x` : `${Math.min(...exactRatios).toFixed(1)}–${Math.max(...exactRatios).toFixed(1)}x`)
+    : null;
+  const looseM = looseNum[0], looseErr = looseM ? M[looseM]?.err_extrap : null, looseR = looseM ? ratio(looseM) : null;
+  const fnoIn = M.FNO?.err_in, fnoCost = M.FNO?.deploy_s;
+
+  const line = {
+    in: `Inside the window FNO sits in the cheap-and-reliable corner: ${fnoIn != null ? fnoIn.toFixed(2) : "0.57"}% for ${fnoCost != null ? fnoCost.toFixed(2) : "0.44"} s.`,
+    extrap: `Beyond it the corner is nearly empty — every surrogate collapses.${exactNum.length ? ` ${exactNum.join(" and ")} stay${exactNum.length === 1 ? "s" : ""} exact, but at ${exactRatioTxt} FNO's cost` : ""}${looseM ? `; ${looseM} isn't exact either — numerical diffusion leaves it ~${Math.round(looseErr)}% wrong, though still ${(1 / looseR).toFixed(1)}x cheaper than FNO` : ""}.`,
+    both: `Each surrogate's error jumps 1–2 orders of magnitude the moment you leave the window.${exactNum.length ? ` ${exactNum.join(" and ")} don't move` : ""}${looseM ? `, but ${looseM} does too (~${Math.round(looseErr)}%) — just less than the surrogates, and for less money` : ""}.`,
+  }[mode];
   const order = Object.keys(M).sort((a, b) => (M[a].deploy_s ?? 0) - (M[b].deploy_s ?? 0));
+
+  // real hit-rate ranges (replacing what used to be flat, and in DeepONet's case
+  // outright wrong, hardcoded numbers) -- see the equivalent fix on Cost Control.
+  const rngOf = (rows, f) => (rows && rows.length ? [Math.min(...rows.map(f)), Math.max(...rows.map(f))] : null);
+  const hitStr = (r) => (!r ? null : r[0] === r[1] ? `${Math.round(r[0] * 100)}%` : `${Math.round(r[0] * 100)}–${Math.round(r[1] * 100)}%`);
+  const fHit = rngOf(frontiers?.FNO?.frontier, (q) => q.hit_rate);
+  const dHit = rngOf(frontiers?.DeepONet?.frontier, (q) => q.hit_rate);
+  const pHit = rngOf(pinnRows, (r) => r.hit_rate);
+  const pErr = rngOf(pinnRows, (r) => r.error);
+  const hitTxt = {
+    FNO: hitStr(fHit), DeepONet: hitStr(dHit), PINN: hitStr(pHit),
+    pinnErr: pErr ? (pErr[0] === pErr[1] ? `${(pErr[0] * 100).toFixed(1)}%` : `${(pErr[0] * 100).toFixed(1)}–${(pErr[1] * 100).toFixed(1)}%`) : null,
+  };
+
+  // Staircase's "controller" reference point + floor, both from the same live target
+  // (0.05) row instead of two hardcoded numbers that didn't belong together.
+  const fno05 = fnoFrontier?.find((r) => Math.abs(r.target - 0.05) < 1e-9) || null;
+  const staircaseMarker = fno05 ? { cost: fno05.cost, error: fno05.error } : null;
+  const fnoFloor = fnoFrontier?.length ? Math.min(...fnoFrontier.map((r) => r.error)) : 0.03;
+
+  // "Try it live" tab's tolerance-vs-solver ranking. Hoisted above the tab check (rather than
+  // recomputed inline only when the live tab is open) so the animation hooks below can run on
+  // every render, per the rules of hooks -- harmless no-op work while on the Findings tab.
+  const tolPct = Math.pow(10, tolExp) * 100;
+  const tol = tolPct / 100;
+  const rows = Object.keys(M).map((m) => {
+    const e = (window_ === "in" ? M[m].err_in : M[m].err_extrap) ?? 0;
+    return { m, e, cost: M[m].deploy_s ?? 0, ok: e <= tolPct };
+  }).sort((p_, q_) => p_.cost - q_.cost);
+  const win = rows.find((x) => x.ok);
+  const cheapGap = !win || NUMERICAL.includes(win.m);
+
+  // live-feel polish: count the headline cost smoothly toward the new winner instead of
+  // snapping, and briefly pulse the winning row/number the moment the cheapest qualifying
+  // solver actually changes -- makes dragging the slider read as a live re-evaluation.
+  const winCostAnim = useAnimatedNumber(win ? win.cost : null);
+  const [switchFlash, setSwitchFlash] = useState(false);
+  const prevWinRef = useRef(null);
+  useEffect(() => {
+    const cur = win ? win.m : null;
+    if (prevWinRef.current !== null && cur !== null && cur !== prevWinRef.current) {
+      setSwitchFlash(true);
+      const t = setTimeout(() => setSwitchFlash(false), 450);
+      prevWinRef.current = cur;
+      return () => clearTimeout(t);
+    }
+    prevWinRef.current = cur;
+  }, [win?.m]);
 
   return (
     <div className="space-y-6">
@@ -358,7 +474,7 @@ export default function CostAnalysis() {
             <div className="text-sm text-slate-600 dark:text-slate-300 mt-2">{line}</div>
           </Card>
 
-          <HeadToHead models={M} />
+          <HeadToHead models={M} hitTxt={hitTxt} />
 
           <div className="grid grid-cols-2 gap-5">
             <Card title="The PINN anomaly" subtitle="fastest to run, impossible to deploy">
@@ -385,22 +501,16 @@ export default function CostAnalysis() {
           <div className="rounded-2xl p-5 bg-gradient-to-r from-indigo-50 via-white to-white dark:from-indigo-500/10 dark:via-slate-800 dark:to-slate-800 border border-indigo-200 dark:border-indigo-500/30">
             <div className="text-sm font-semibold text-indigo-800 dark:text-indigo-300">Why the hybrid exists</div>
             <p className="text-sm text-slate-700 dark:text-slate-200 mt-1">
-              Nothing is both cheap and trustworthy past the training window. Surrogates are fast but collapse; numerical solvers stay exact at 2–4× the cost.
-              The hybrid buys numerical accuracy <b>only where it is needed</b>.
+              Nothing is both cheap and trustworthy past the training window. Surrogates collapse (14–61% error);
+              {exactNum.length ? ` ${exactNum.join(" and ")} stay${exactNum.length === 1 ? "s" : ""} exact at ${exactRatioTxt} the cost` : ""}
+              {looseM ? `, while ${looseM} is cheaper than FNO but still ~${Math.round(looseErr)}% wrong from numerical diffusion — not a free lunch either` : ""}.
+              The hybrid buys numerical accuracy <b>only where it is needed</b>, and routes to the fallback that is actually accurate.
             </p>
           </div>
         </>
       )}
 
       {d && tab === "live" && (() => {
-        const tolPct = Math.pow(10, tolExp) * 100;
-        const tol = tolPct / 100;
-        const rows = Object.keys(M).map((m) => {
-          const e = (window_ === "in" ? M[m].err_in : M[m].err_extrap) ?? 0;
-          return { m, e, cost: M[m].deploy_s ?? 0, ok: e <= tolPct };
-        }).sort((p_, q_) => p_.cost - q_.cost);
-        const win = rows.find((x) => x.ok);
-        const cheapGap = !win || NUMERICAL.includes(win.m);
         return (
         <>
           <Card title="How accurate do you need to be?" subtitle="drag the tolerance — watch who survives it">
@@ -426,14 +536,17 @@ export default function CostAnalysis() {
             <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700 flex items-center gap-6">
               <div>
                 <div className="text-[10px] uppercase tracking-wide text-slate-400">what that accuracy costs you</div>
-                <div className="text-4xl font-extrabold tabular-nums" style={{ color: win ? (NUMERICAL.includes(win.m) ? "#4f46e5" : "#059669") : "#e11d48" }}>
-                  {win ? (win.cost >= 60 ? `${Math.round(win.cost / 60)} min` : `${win.cost.toFixed(2)} s`) : "impossible"}
+                <div
+                  className={`text-4xl font-extrabold tabular-nums transition-transform duration-300 ${switchFlash ? "scale-110" : "scale-100"}`}
+                  style={{ color: win ? (NUMERICAL.includes(win.m) ? "#4f46e5" : "#059669") : "#e11d48" }}
+                >
+                  {win ? (winCostAnim >= 60 ? `${Math.round(winCostAnim / 60)} min` : `${winCostAnim.toFixed(2)} s`) : "impossible"}
                 </div>
                 <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                   {win ? <>cheapest solver within {tolPct >= 1 ? `${tolPct.toFixed(0)}%` : `${tolPct.toFixed(2)}%`} is <b style={{ color: COLOR[win.m] }}>{win.m}</b></> : "no solver here is this accurate"}
                 </div>
               </div>
-              <div className="flex-1"><Staircase M={M} window_={window_} tol={tol} /></div>
+              <div className="flex-1"><Staircase M={M} window_={window_} tol={tol} floor={fnoFloor} marker={staircaseMarker} /></div>
             </div>
           </Card>
 
@@ -443,7 +556,8 @@ export default function CostAnalysis() {
               return (
                 <div key={r.m} onClick={() => setOpen(open === r.m ? null : r.m)}
                   className={`cursor-pointer rounded-xl border px-4 py-3 transition-all duration-300 ${
-                    isWin ? "border-2 border-emerald-400 bg-emerald-50 dark:bg-emerald-500/10"
+                    isWin && switchFlash ? "border-2 border-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 ring-4 ring-emerald-300 dark:ring-emerald-500/40"
+                    : isWin ? "border-2 border-emerald-400 bg-emerald-50 dark:bg-emerald-500/10"
                     : r.ok ? "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800"
                     : "border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40"}`}>
                   <div className={`flex items-center gap-4 transition-opacity ${r.ok || open === r.m ? "" : "opacity-40"}`}>
@@ -483,18 +597,19 @@ export default function CostAnalysis() {
 
           <div className={`rounded-2xl p-5 border-2 transition-all duration-300 ${
             cheapGap ? "border-indigo-400 bg-indigo-50 dark:bg-indigo-500/10" : "border-transparent bg-slate-50 dark:bg-slate-800/40"}`}>
-            {cheapGap && tol >= 0.03 ? (
+            {cheapGap && tol >= fnoFloor ? (
               <>
                 <div className="text-sm font-bold text-indigo-800 dark:text-indigo-300">This is the gap my module fills</div>
                 <p className="text-sm text-slate-700 dark:text-slate-200 mt-1">
                   Nothing cheap qualifies here — every surrogate is too wrong, so you are forced onto a numerical solver
-                  at <b>{win ? win.cost.toFixed(2) : "—"} s</b>. My controller reaches <b>3.0%</b> for about <b>0.85 s</b>,
+                  at <b>{win ? win.cost.toFixed(2) : "—"} s</b>. My controller reaches <b>{staircaseMarker ? `${(staircaseMarker.error * 100).toFixed(1)}%` : "3.6%"}</b> for
+                  about <b>{staircaseMarker ? `${staircaseMarker.cost.toFixed(2)} s` : "0.85 s"}</b>,
                   which clears this bar at roughly a third of the price.
                 </p>
               </>
             ) : cheapGap ? (
               <>
-                <div className="text-sm font-bold text-slate-700 dark:text-slate-200">Below the controller's 3.0% floor</div>
+                <div className="text-sm font-bold text-slate-700 dark:text-slate-200">Below the controller's {(fnoFloor * 100).toFixed(1)}% floor</div>
                 <p className="text-sm text-slate-600 dark:text-slate-300 mt-1">
                   The floor is set by how far the trust monitor lets the surrogate drift before handing over. At
                   {" "}{tolPct.toFixed(2)}% the controller does not qualify{win ? <>, so a numerical solver at <b>{win.cost.toFixed(2)} s</b> is the only option</> : " and no solver here is accurate enough"}.
