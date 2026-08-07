@@ -27,7 +27,7 @@ function ShockChart({ frame }) {
       <path d={area} fill="#4f46e5" fillOpacity="0.12" />
       <path d={path(frame.u)} fill="none" stroke="#4f46e5" strokeWidth="3" strokeLinecap="round" />
       <text x={sx(-1) + 4} y={padT + 4} fontSize="11" fill="#818cf8" fontWeight="700">
-        exact — no time-stepping error at all
+        no step-by-step build-up of error
       </text>
     </svg>
   );
@@ -122,10 +122,13 @@ export default function ColeHopfPage() {
       <div>
         <span className="text-xs font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Numerical solvers</span>
         <h1 className="text-3xl font-extrabold text-slate-800 dark:text-slate-100 mt-1">Cole–Hopf — the exact reference</h1>
+        <span className="inline-block mt-2 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300">
+          Evaluation reference — not the runtime corrector
+        </span>
         <p className="text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">
           Every number in this project is scored against one solution. So we asked —{" "}
-          <span className="font-medium text-slate-700 dark:text-slate-200">can we manufacture a perfect answer, and prove it&apos;s perfect?</span>{" "}
-          Here is the trick, the solution, and the proof.
+          <span className="font-medium text-slate-700 dark:text-slate-200">can we build one answer we fully trust, and show why we can trust it?</span>{" "}
+          Here is the trick, the solution, and the check.
         </p>
       </div>
 
@@ -251,7 +254,7 @@ export default function ColeHopfPage() {
           <Play size={14} /> Run it yourself — live <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300">LIVE BACKEND</span>
         </div>
         <p className={`text-xs ${muted} mb-4`}>
-          Build any wave; the backend solves it exactly and cross-verifies against the spectral solver on the spot.
+          Build any wave the generator supports; the backend solves it and cross-checks it against the spectral solver on the spot.
         </p>
         {err && <div className="mb-3 text-sm text-rose-600 dark:text-rose-300 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 rounded-lg px-3 py-2">{err}</div>}
         <div className="grid grid-cols-[300px_1fr] gap-5">

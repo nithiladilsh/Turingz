@@ -216,7 +216,6 @@ export default function CouplingPage() {
           One trajectory, two runners. The <span className="font-semibold text-rose-600 dark:text-rose-400">fast ML model</span> carries
           the wave while it can be trusted; my verified handoff passes it — mid-flight, zero jump — to the{" "}
           <span className="font-semibold text-indigo-600 dark:text-indigo-400">numerical solver</span> that carries it home.{" "}
-          <span className="font-medium text-slate-700 dark:text-slate-200">You hold the baton: drag the handoff and watch what one decision does.</span>
         </p>
       </div>
 
@@ -336,6 +335,20 @@ export default function CouplingPage() {
 
       </div>)}
       {tab === "evidence" && (<div className="space-y-6">
+      {/* NOVELTY + KEY NUMBERS — the first thing the examiner sees on this tab */}
+      <div className="rounded-2xl border-2 border-indigo-300 dark:border-indigo-500/40 bg-indigo-50/60 dark:bg-indigo-500/10 p-5">
+        <div className="text-xs font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 mb-1">My contribution</div>
+        <p className="text-sm text-slate-800 dark:text-slate-100 font-medium">
+          I made the numerical solver able to <span className="text-indigo-600 dark:text-indigo-400">restart from the AI&apos;s state mid-run</span>,
+          proved that restart is <span className="text-indigo-600 dark:text-indigo-400">identical to the original solver</span>, and measured{" "}
+          <span className="text-indigo-600 dark:text-indigo-400">when the hand-off is still worth doing</span>.
+        </p>
+        <div className="flex flex-wrap gap-2 mt-3 text-[11px] font-semibold">
+          {["restart vs original = 0.0", "jump at switch = 0", "13.44% → 0.98%", "20 / 20 improved", "last useful switch ≈ 1.47"].map((t) => (
+            <span key={t} className="px-2.5 py-1 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200">{t}</span>
+          ))}
+        </div>
+      </div>
       {/* AGGREGATE RESULT — the report headline, kept distinct from the single-wave animation */}
       <div className="rounded-2xl border-2 border-indigo-200 dark:border-indigo-500/30 bg-white dark:bg-slate-800 p-5">
         <div className="flex items-center gap-2 mb-1">

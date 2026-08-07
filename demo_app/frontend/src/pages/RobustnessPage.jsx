@@ -161,12 +161,12 @@ export default function RobustnessPage() {
       </div>
 
       {tab === "findings" && (<>
-      {/* SCOREBOARD — the three surrogates compared (mirrors Reliability / Cost) */}
+      {/* SCOREBOARD — same 3-column card format as Reliability / Cost */}
       <div className="grid grid-cols-3 gap-4">
         {[
-          { m: "FNO", color: "#059669", extrap: S.extrap, badge: ["most robust", "emerald"], sub: `in-window ${S.inWindow}% · OOD >${S.oodHighFreq}%` },
-          { m: "PINN", color: "#d97706", extrap: S.pinnExtrap, badge: ["fails early", "amber"], sub: "trained per wave — can't take new inputs" },
-          { m: "DeepONet", color: "#e11d48", extrap: S.deeponetExtrap, badge: ["worst", "rose"], sub: `OOD >${S.deeponetOOD}%` },
+          { m: "FNO", color: "#059669", badge: ["most robust", "emerald"], inW: `${S.inWindow}%`, extrap: `${S.extrap}%`, ood: `>${S.oodHighFreq}%` },
+          { m: "PINN", color: "#d97706", badge: ["fails early", "amber"], inW: "2%", extrap: `${S.pinnExtrap}%`, ood: "per-IC" },
+          { m: "DeepONet", color: "#e11d48", badge: ["worst", "rose"], inW: "29%", extrap: `${S.deeponetExtrap}%`, ood: `>${S.deeponetOOD}%` },
         ].map((d) => {
           const bt = {
             emerald: "text-emerald-700 bg-emerald-100 dark:bg-emerald-500/20 dark:text-emerald-300",
@@ -177,16 +177,25 @@ export default function RobustnessPage() {
             <div key={d.m} className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full" style={{ background: d.color }} />
+                  <span className="w-3 h-3 rounded-full" style={{ background: d.color }} />
                   <span className="text-sm font-bold text-slate-800 dark:text-slate-100">{d.m}</span>
                 </div>
                 <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${bt}`}>{d.badge[0]}</span>
               </div>
-              <div className="mt-3">
-                <div className="text-[10px] uppercase tracking-wide text-slate-400">extrapolation error (t &gt; 1)</div>
-                <div className="text-3xl font-extrabold" style={{ color: d.color }}>{d.extrap}%</div>
+              <div className="grid grid-cols-3 gap-2 mt-3">
+                <div>
+                  <div className="text-[10px] text-slate-400 dark:text-slate-500">in-window</div>
+                  <div className="text-lg font-bold text-slate-700 dark:text-slate-200">{d.inW}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-slate-400 dark:text-slate-500">extrapolation</div>
+                  <div className="text-lg font-bold" style={{ color: d.color }}>{d.extrap}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-slate-400 dark:text-slate-500">OOD</div>
+                  <div className="text-lg font-bold text-slate-700 dark:text-slate-200">{d.ood}</div>
+                </div>
               </div>
-              <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">{d.sub}</div>
             </div>
           );
         })}
@@ -300,6 +309,10 @@ export default function RobustnessPage() {
                     ? "bg-indigo-600 text-white border-indigo-600" : inactiveBtn}`}>{m}</button>
               ))}
             </div>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              PINN isn&apos;t offered here: each PINN is fitted to one fixed wave, so it can&apos;t take a new
+              unfamiliar input to fail on. Its extrapolation number is on the scoreboard above.
+            </p>
             <div className="space-y-2">
               {PRESETS.map(([v, label, desc]) => (
                 <button key={v} onClick={() => setPreset(v)}
@@ -314,7 +327,7 @@ export default function RobustnessPage() {
               <div className="space-y-3 text-sm">
                 <label className={`block ${muted}`}>
                   modes: {modes} {modes > 4 && <span className="text-amber-600 dark:text-amber-400">(beyond trained band)</span>}
-                  <input type="range" min="1" max="4" value={modes} onChange={(e) => setModes(+e.target.value)} className="w-full" />
+                  <input type="range" min="1" max="8" value={modes} onChange={(e) => setModes(+e.target.value)} className="w-full" />
                 </label>
                 <label className={`block ${muted}`}>
                   amplitude: {amplitude.toFixed(2)}
