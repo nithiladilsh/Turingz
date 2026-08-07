@@ -208,7 +208,7 @@ export default function CostControl() {
   const [pick, setPick] = useState("FNO");
   const [idx, setIdx] = useState(2);
   const [meta, setMeta] = useState(null);
-  const [modes, setModes] = useState(4);
+  const [modes, setModes] = useState(2);
   const [amp, setAmp] = useState(1.0);
   const [model, setModel] = useState("FNO");
   const [pidx, setPidx] = useState(0);
@@ -373,7 +373,7 @@ export default function CostControl() {
                 ) : (
                   <>
                     <div className="flex justify-between text-[11px] text-slate-500 dark:text-slate-400"><span>modes</span><span>{modes}</span></div>
-                    <input type="range" min="1" max="10" value={modes} onChange={(e) => setModes(+e.target.value)} className="w-full" />
+                    <input type="range" min="1" max="4" value={modes} onChange={(e) => setModes(+e.target.value)} className="w-full" />
                     <div className="flex justify-between text-[11px] text-slate-500 dark:text-slate-400 mt-2"><span>amplitude</span><span>{amp.toFixed(1)}</span></div>
                     <input type="range" min="0.5" max="1.5" step="0.1" value={amp} onChange={(e) => setAmp(+e.target.value)} className="w-full" />
                     {modes > 4 && <div className="text-[11px] text-amber-600 mt-1">above 4 = out-of-distribution</div>}
