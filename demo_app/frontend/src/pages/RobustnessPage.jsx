@@ -101,7 +101,7 @@ export default function RobustnessPage() {
   const [meta, setMeta] = useState(null);
   const [model, setModel] = useState("FNO");
   const [preset, setPreset] = useState("high_freq");
-  const [modes, setModes] = useState(6);
+  const [modes, setModes] = useState(2);
   const [amplitude, setAmplitude] = useState(1.0);
   const [ic, setIc] = useState(null);
   const [lf, setLf] = useState(null);
@@ -287,7 +287,7 @@ export default function RobustnessPage() {
               <div className="space-y-3 text-sm">
                 <label className={`block ${muted}`}>
                   modes: {modes} {modes > 4 && <span className="text-amber-600 dark:text-amber-400">(beyond trained band)</span>}
-                  <input type="range" min="1" max="8" value={modes} onChange={(e) => setModes(+e.target.value)} className="w-full" />
+                  <input type="range" min="1" max="4" value={modes} onChange={(e) => setModes(+e.target.value)} className="w-full" />
                 </label>
                 <label className={`block ${muted}`}>
                   amplitude: {amplitude.toFixed(2)}

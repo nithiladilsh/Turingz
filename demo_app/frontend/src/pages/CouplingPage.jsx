@@ -73,7 +73,7 @@ export default function CouplingPage() {
   /* ---- live run state (real backend, real M2Coupling) ---- */
   const [meta, setMeta] = useState(null);
   const [model, setModel] = useState("FNO");
-  const [modes, setModes] = useState(4);
+  const [modes, setModes] = useState(2);
   const [amplitude, setAmplitude] = useState(1.0);
   const [pinnIndex, setPinnIndex] = useState(0);
   const [switchMode, setSwitchMode] = useState("manual");
@@ -357,7 +357,7 @@ export default function CouplingPage() {
               <div className="space-y-3 text-sm">
                 <label className={`block ${muted}`}>
                   modes: {modes}
-                  <input type="range" min="1" max="8" value={modes} onChange={(e) => setModes(+e.target.value)} className="w-full" />
+                  <input type="range" min="1" max="4" value={modes} onChange={(e) => setModes(+e.target.value)} className="w-full" />
                 </label>
                 <label className={`block ${muted}`}>
                   amplitude: {amplitude.toFixed(2)}
