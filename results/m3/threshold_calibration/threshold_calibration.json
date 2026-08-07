@@ -1,0 +1,65 @@
+{
+  "purpose": "Derivation of controller.py's thresholds_for_target() constants (0.62, 1.4, clamped [0.12, 0.58]) from two calibration points taken from the system's measured behaviour. Complementary to verify_thresholds_for_target.py, which independently checks the same constants against a brute-force sweep.",
+  "calibration_points": {
+    "1_accuracy_saturation": {
+      "target": 0.029,
+      "theta_lo": 0.58
+    },
+    "2_loosest_evaluated_target": {
+      "target": 0.3,
+      "theta_lo": 0.2
+    }
+  },
+  "fitted_formula": {
+    "intercept": 0.6207,
+    "slope": -1.4022
+  },
+  "shipped_constants": {
+    "intercept": 0.62,
+    "slope": -1.4,
+    "clamp_lo": 0.12,
+    "clamp_hi": 0.58
+  },
+  "trust_signal_measured_range": {
+    "min": 0.183,
+    "max": 0.818
+  },
+  "cross_check_per_target": [
+    {
+      "target": 0.3,
+      "reconstructed_theta_lo": 0.2,
+      "shipped_theta_lo": 0.2,
+      "match": true
+    },
+    {
+      "target": 0.2,
+      "reconstructed_theta_lo": 0.3402,
+      "shipped_theta_lo": 0.34,
+      "match": true
+    },
+    {
+      "target": 0.1,
+      "reconstructed_theta_lo": 0.4804,
+      "shipped_theta_lo": 0.48,
+      "match": true
+    },
+    {
+      "target": 0.05,
+      "reconstructed_theta_lo": 0.5506,
+      "shipped_theta_lo": 0.55,
+      "match": true
+    },
+    {
+      "target": 0.02,
+      "reconstructed_theta_lo": 0.58,
+      "shipped_theta_lo": 0.58,
+      "match": true
+    },
+    {
+      "target": 0.01,
+      "reconstructed_theta_lo": 0.58,
+      "shipped_theta_lo": 0.58,
+      "match": true
+    }
+  ]
+}

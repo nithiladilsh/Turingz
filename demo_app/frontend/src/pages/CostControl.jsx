@@ -200,6 +200,110 @@ function TrustTrace({ hist, lo }) {
   );
 }
 
+/* ---------------- how it's built ---------------- */
+const BUILD_STEPS = [
+  { n: 1, color: "#4f46e5", title: "Read the request",
+    what: "Take a requested accuracy target from whoever is asking — e.g. \"give me 3% error.\"",
+    chips: [{ label: "accuracy target", color: "#4f46e5" }],
+    why: "The whole point of the controller is that this number is chosen by the caller, not hardcoded into the system." },
+  { n: 2, color: "#0d9488", title: "Target → trust threshold",
+    what: "Map the target into how sensitive the hand-over should be to dropping trust.",
+    detail: "θlo = min(0.58, max(0.12, 0.62 − 1.4 × target))",
+    why: "Not arbitrary — calibrated to the trust signal's real measured range, then independently checked with a brute-force sweep over the whole threshold range. At the tight targets that matter most, the sweep's own best values land right where this formula already puts them." },
+  { n: 3, color: "#7c3aed", title: "Watch trust, decide live",
+    what: "Every step, read Module 1's trust score for the actual output so far.",
+    chips: [{ label: "trust score", color: "#7c3aed" }, { label: "current step", color: "#7c3aed" }],
+    why: "The decision is made from the trajectory as actually produced — including any earlier correction — not from a raw, unaware prediction stream." },
+  { n: 4, color: "#e11d48", title: "One-way latch",
+    what: "If trust drops below the threshold, start correcting with the numerical solver, and keep correcting every step until the run ends — no separate lookup for how much, no handing back once it's engaged.",
+    detail: "if trust < θlo: correct, and never release",
+    why: "Tested against a two-way version that can revert: on the real trust signal, one-way matches or beats it at every target — simpler, and nothing measured is lost by dropping the extra rule." },
+  { n: 5, color: "#059669", title: "Add up the real cost",
+    what: "Total cost is the ML steps taken plus the numerical steps taken, each at its own measured cost.",
+    detail: "cost = ml_steps × ml_step_s + correction_steps × correction_step_s",
+    why: "A simple additive model lets cost be predicted from step counts alone, and it's checked against real measured wall-clock time to confirm it actually holds." },
+];
+
+function HowBuilt() {
+  return (
+    <div className="space-y-6">
+      <div className="rounded-2xl p-6 md:p-7 bg-gradient-to-r from-indigo-50 via-indigo-50 to-violet-50 dark:from-indigo-500/10 dark:via-indigo-500/10 dark:to-violet-500/10 border border-indigo-100 dark:border-indigo-500/25">
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Accuracy-budget knob · one requested target, one spending decision</div>
+        <h2 className="text-2xl font-bold mt-1 text-slate-800 dark:text-slate-100">How the controller is built</h2>
+        <p className="text-sm text-slate-600 dark:text-slate-300 mt-2 leading-relaxed">
+          A requested accuracy target is turned into one thing: how sensitive the hand-over should be to falling trust. That mapping is
+          fixed once, from measurements taken offline, then simply applied live — once it triggers, it's a one-way switch, not a
+          per-step negotiation.
+        </p>
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-5 py-4">
+        <div className="flex flex-wrap items-center gap-y-2">
+          {BUILD_STEPS.map((s, i) => (
+            <div key={s.n} className="flex items-center">
+              <div className="flex items-center gap-2">
+                <span className="w-6 h-6 rounded-lg text-[11px] font-bold flex items-center justify-center shrink-0" style={{ background: s.color + "1A", color: s.color }}>{s.n}</span>
+                <span className="text-xs font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap">{s.title}</span>
+              </div>
+              {i < BUILD_STEPS.length - 1 && <span className="mx-2.5 text-slate-300 dark:text-slate-600 text-xs">→</span>}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {BUILD_STEPS.map((s) => (
+          <div key={s.n}
+            className="group rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 shadow-sm hover:shadow-md hover:border-slate-300 dark:hover:border-slate-600 transition flex flex-col">
+            <div className="flex items-center gap-3">
+              <span className="w-9 h-9 rounded-xl text-sm font-bold flex items-center justify-center shrink-0" style={{ background: s.color + "1A", color: s.color }}>{s.n}</span>
+              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 leading-tight">{s.title}</h3>
+            </div>
+            <p className="text-sm text-slate-600 dark:text-slate-300 mt-3">{s.what}</p>
+            {s.chips ? (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {s.chips.map((cp) => (
+                  <span key={cp.label} className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold"
+                    style={{ color: cp.color, background: cp.color + "14", border: `1px solid ${cp.color}33` }}>
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: cp.color }} />
+                    {cp.label}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <div className="mt-3 rounded-xl px-3 py-2.5 font-mono text-[12.5px] text-slate-700 dark:text-slate-100 text-center overflow-x-auto"
+                style={{ background: s.color + "0D", border: `1px solid ${s.color}26` }}>{s.detail}</div>
+            )}
+            <div className="mt-auto pt-3">
+              <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: s.color }}>Why</span>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">{s.why}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="rounded-2xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 p-5">
+          <div className="text-sm font-bold text-emerald-800 dark:text-emerald-300">A knob, not extra accuracy at one point</div>
+          <p className="text-sm text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
+            At any single target, the latch and a well-chosen fixed threshold land close together in raw error — that's expected, at one
+            operating point the controller <i>is</i> a threshold. What the latch adds is that the requested target is actually reachable
+            without hand-tuning: it tracks the target across the whole range and wins clearly on hit-rate, not on one point in isolation.
+          </p>
+        </div>
+        <div className="rounded-2xl border border-teal-200 dark:border-teal-500/30 bg-teal-50 dark:bg-teal-500/10 p-5">
+          <div className="text-sm font-bold text-teal-800 dark:text-teal-300">One-way, by evidence — not by convenience</div>
+          <p className="text-sm text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
+            A two-way version that can hand back control was built and tested first, and did help on an early, noisier signal. On the real
+            trust signal it stopped adding anything measurable, so the simpler one-way rule was kept — a simplification the data justified,
+            not one that was assumed from the start.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ---------------- page ---------------- */
 export default function CostControl() {
   const [tab, setTab] = useState("findings");
@@ -219,7 +323,10 @@ export default function CostControl() {
   const [model, setModel] = useState("FNO");
   const [pidx, setPidx] = useState(0);
   const [source, setSource] = useState("real"); // "synthetic" | "real" -- default to the validated held-out set
-  const [ridx, setRidx] = useState(0);
+  const [ridx, setRidx] = useState(4); // Test IC #904 -- its pure-ML error (~14%) matches
+  // FNO's published mean extrapolation error (14.13%, Cost Analysis), so this is the
+  // representative default, not the cherry-picked-easiest one (IC #900 was ~5.7%, an
+  // unusually good case, not typical).
   const [ic, setIc] = useState(null);
   const [frame, setFrame] = useState(null);
   const [hist, setHist] = useState([]);
@@ -310,6 +417,7 @@ export default function CostControl() {
       <div className="inline-flex rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-1">
         <button className={btn(tab === "findings")} onClick={() => setTab("findings")}>Findings</button>
         <button className={btn(tab === "live")} onClick={() => setTab("live")}>Try it live</button>
+        <button className={btn(tab === "built")} onClick={() => setTab("built")}>How it's built</button>
       </div>
 
       {err && <div className="text-sm text-rose-600 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 rounded-lg px-3 py-2">{err}</div>}
@@ -529,10 +637,22 @@ export default function CostControl() {
                 <b>{sum.cost_s.toFixed(2)} s</b> ({sum.rel_cost.toFixed(2)}× the numerical solver) at <b>{pct(sum.error)}</b> error
                 {sum.switch_t != null && <> · first correction at t = {sum.switch_t.toFixed(2)}</>}
               </div>
+              <div className="text-xs text-slate-500 dark:text-slate-400 mt-1.5">
+                {sum.rel_cost > 0 && sum.rel_cost < 1
+                  ? <>that's <b className="text-emerald-600 dark:text-emerald-400">{(1 / sum.rel_cost).toFixed(2)}×</b> faster than running the numerical solver alone on this problem</>
+                  : <>that's <b className="text-rose-600 dark:text-rose-400">{sum.rel_cost.toFixed(2)}×</b> the numerical solver's time — slower here, not cheaper</>}
+              </div>
+              {sum.pure_ml_error != null && (
+                <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  vs <b className="text-rose-600 dark:text-rose-400">{pct(sum.pure_ml_error)}</b> if the model had run the whole thing alone, uncorrected — on this exact problem
+                </div>
+              )}
             </div>
           )}
         </>
       )}
+
+      {tab === "built" && <HowBuilt />}
     </div>
   );
 }

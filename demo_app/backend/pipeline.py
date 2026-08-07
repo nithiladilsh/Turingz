@@ -268,10 +268,16 @@ async def _run_costcontrol(ws, req):
         await asyncio.sleep(0.02)
 
     final_err = float(np.sqrt(sq_diff_sum) / (np.sqrt(sq_true_sum) + 1e-12))
+    # same whole-trajectory formula as final_err, applied to the raw ML rollout
+    # (pred) for this exact problem instance -- an apples-to-apples "what if we
+    # never corrected" baseline, not a different IC or a pre-aggregated number.
+    pure_ml_err = float(np.sqrt(((np.asarray(pred) - true) ** 2).sum())
+                         / (np.sqrt((true ** 2).sum()) + 1e-12))
     await ws.send_text(json.dumps({"summary": {
         "target": target, "theta_lo": round(lo, 2), "theta_hi": None, "latched": True,
         "ml_steps": ml_steps, "corr_steps": corr_steps,
         "cost_s": round(cost, 3), "error": round(final_err, 4),
+        "pure_ml_error": round(pure_ml_err, 4),
         "hit": bool(final_err <= target),
         "rel_cost": round(cost / max(num_per * nt, 1e-9), 3),
         "switch_t": switch_t,

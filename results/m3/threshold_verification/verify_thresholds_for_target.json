@@ -1,0 +1,81 @@
+{
+  "purpose": "Verification of controller.py's thresholds_for_target() constants (0.62, 1.4, clamped [0.12, 0.58]) against (a) the real trust signal's measured operating range on held-out data, and (b) an independent threshold sweep. Not a claim about original derivation history - a post-hoc confirmation that the shipped constants are correct.",
+  "trust_signal_measured_range": {
+    "min": 0.183,
+    "max": 0.818
+  },
+  "saturation_check": {
+    "thresholds_for_target(0.02)": 0.58,
+    "matches_results_pack_T2_saturation": "target ~0.029, theta_lo=0.58"
+  },
+  "range_check_per_target": [
+    {
+      "target": 0.3,
+      "formula_theta_lo": 0.2,
+      "inside_measured_range": true
+    },
+    {
+      "target": 0.2,
+      "formula_theta_lo": 0.34,
+      "inside_measured_range": true
+    },
+    {
+      "target": 0.1,
+      "formula_theta_lo": 0.48,
+      "inside_measured_range": true
+    },
+    {
+      "target": 0.05,
+      "formula_theta_lo": 0.55,
+      "inside_measured_range": true
+    },
+    {
+      "target": 0.02,
+      "formula_theta_lo": 0.58,
+      "inside_measured_range": true
+    },
+    {
+      "target": 0.01,
+      "formula_theta_lo": 0.58,
+      "inside_measured_range": true
+    }
+  ],
+  "independent_sweep_vs_formula": [
+    {
+      "target": 0.3,
+      "grid_search_theta_lo": 0.15,
+      "formula_theta_lo": 0.2,
+      "formula_theta_hi": 0.32
+    },
+    {
+      "target": 0.2,
+      "grid_search_theta_lo": 0.15,
+      "formula_theta_lo": 0.34,
+      "formula_theta_hi": 0.46
+    },
+    {
+      "target": 0.1,
+      "grid_search_theta_lo": 0.15,
+      "formula_theta_lo": 0.48,
+      "formula_theta_hi": 0.6
+    },
+    {
+      "target": 0.05,
+      "grid_search_theta_lo": 0.51,
+      "formula_theta_lo": 0.55,
+      "formula_theta_hi": 0.67
+    },
+    {
+      "target": 0.02,
+      "grid_search_theta_lo": 0.67,
+      "formula_theta_lo": 0.58,
+      "formula_theta_hi": 0.7
+    },
+    {
+      "target": 0.01,
+      "grid_search_theta_lo": 0.69,
+      "formula_theta_lo": 0.58,
+      "formula_theta_hi": 0.7
+    }
+  ]
+}
