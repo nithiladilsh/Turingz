@@ -56,15 +56,11 @@ const BUILD_STEPS = [
     what: "Combine the weighted signals into one number.",
     detail: "fused = w₁z₁ + w₂z₂ + w₃z₃ + w₄z₄",
     why: "One number can be judged with one threshold; a linear sum stays interpretable and has nothing to overfit." },
-  { n: 5, color: "#e11d48", title: "Smooth",
-    what: "Average the fused number over the last few steps.",
-    detail: "smoothed = mean of the last 5 fused values",
-    why: "A single noisy blip shouldn't trigger a switch; only a sustained rise should." },
-  { n: 6, color: "#2563eb", title: "Calibrate → trust 0–1",
-    what: "Map the smoothed number through a fitted logistic curve to a 0–1 trust score.",
-    detail: "trust = 1 − sigmoid(a · smoothed + b)",
+  { n: 5, color: "#2563eb", title: "Calibrate → trust 0–1",
+    what: "Map the fused number through a fitted logistic curve to a 0–1 trust score.",
+    detail: "trust = 1 − sigmoid(a · fused + b)",
     why: "Turns an arbitrary number into an interpretable 'probability it's still fine', so one cutoff behaves consistently." },
-  { n: 7, color: "#059669", title: "Switch",
+  { n: 6, color: "#059669", title: "Switch",
     what: "When trust stays below the cutoff for K steps in a row, hand over to the numerical solver.",
     detail: "switch if trust < cutoff for K steps",
     why: "Requiring K steps avoids false alarms; the cost is tuned so a late switch is penalised more than an early one." },
@@ -82,34 +78,32 @@ function HowBuilt({ cut, K }) {
         </p>
       </div>
 
-      {/* pipeline overview strip */}
-      <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 px-5 py-4">
-        <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500 mb-3">The pipeline at a glance</div>
-        <div className="flex flex-wrap items-center gap-y-3">
+      {/* pipeline at a glance */}
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-5 py-4">
+        <div className="flex flex-wrap items-center gap-y-2">
           {BUILD_STEPS.map((s, i) => (
             <div key={s.n} className="flex items-center">
               <div className="flex items-center gap-2">
-                <span className="w-7 h-7 rounded-full text-white text-xs font-bold flex items-center justify-center shrink-0" style={{ background: s.color }}>{s.n}</span>
-                <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 whitespace-nowrap">{s.title.replace(" → trust 0–1", "")}</span>
+                <span className="w-6 h-6 rounded-lg text-[11px] font-bold flex items-center justify-center shrink-0" style={{ background: s.color + "1A", color: s.color }}>{s.n}</span>
+                <span className="text-xs font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap">{s.title.replace(" → trust 0–1", "")}</span>
               </div>
-              {i < BUILD_STEPS.length - 1 && <span className="mx-3 text-slate-300 dark:text-slate-600">→</span>}
+              {i < BUILD_STEPS.length - 1 && <span className="mx-2.5 text-slate-300 dark:text-slate-600 text-xs">→</span>}
             </div>
           ))}
         </div>
       </div>
 
-      {/* detailed step cards */}
+      {/* step cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {BUILD_STEPS.map((s) => (
           <div key={s.n}
-            className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition flex flex-col"
-            style={{ borderTop: `3px solid ${s.color}` }}>
+            className="group rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 shadow-sm hover:shadow-md hover:border-slate-300 dark:hover:border-slate-600 transition flex flex-col">
             <div className="flex items-center gap-3">
-              <span className="w-9 h-9 rounded-xl text-white text-sm font-bold flex items-center justify-center shrink-0" style={{ background: s.color }}>{s.n}</span>
-              <div className="text-sm font-bold text-slate-800 dark:text-slate-100 leading-tight">{s.title}</div>
+              <span className="w-9 h-9 rounded-xl text-sm font-bold flex items-center justify-center shrink-0" style={{ background: s.color + "1A", color: s.color }}>{s.n}</span>
+              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 leading-tight">{s.title}</h3>
             </div>
-            <div className="text-sm text-slate-600 dark:text-slate-300 mt-3">{s.what}</div>
-            <div className="mt-3 rounded-lg bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 px-3 py-2 font-mono text-[12px] text-slate-700 dark:text-slate-200 overflow-x-auto">{s.detail}</div>
+            <p className="text-sm text-slate-600 dark:text-slate-300 mt-3">{s.what}</p>
+            <div className="mt-3 rounded-lg bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-700 px-3 py-2 font-mono text-[12px] text-slate-700 dark:text-slate-200 overflow-x-auto">{s.detail}</div>
             <div className="mt-auto pt-3">
               <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: s.color }}>Why</span>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">{s.why}</p>
@@ -128,10 +122,6 @@ function HowBuilt({ cut, K }) {
           <div className="text-sm font-bold text-teal-800 dark:text-teal-300">FNO's safeguard</div>
           <p className="text-sm text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">FNO can drift while still looking smooth, which these signals can miss. For FNO a cheap coarse solver runs alongside as a second opinion (the "cheap-reference" mode), and the score comes from how far FNO has drifted from it.</p>
         </div>
-      </div>
-
-      <div className="text-xs text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-700 pt-3">
-        For this model: <b>cutoff = {cut}</b> · <b>patience K = {K}</b> · fail tolerance = 10% error.
       </div>
     </div>
   );
