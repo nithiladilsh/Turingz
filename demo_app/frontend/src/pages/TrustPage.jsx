@@ -42,7 +42,12 @@ function SignalBar({ label, desc, color, weight, level }) {
 const BUILD_STEPS = [
   { n: 1, color: "#4f46e5", title: "Read four physics signals",
     what: "From the prediction alone, compute four signals that each catch a different kind of failure.",
-    detail: "physics residual · energy drift · roughness · momentum drift",
+    chips: [
+      { label: "physics residual", color: "#4f46e5" },
+      { label: "energy drift", color: "#0d9488" },
+      { label: "roughness", color: "#e11d48" },
+      { label: "momentum drift", color: "#d97706" },
+    ],
     why: "The Burgers equation and conservation laws are a free, always-available truth the prediction must obey — no true answer needed." },
   { n: 2, color: "#0d9488", title: "Normalise",
     what: "Put every signal on a common scale as a z-score.",
@@ -103,7 +108,20 @@ function HowBuilt({ cut, K }) {
               <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 leading-tight">{s.title}</h3>
             </div>
             <p className="text-sm text-slate-600 dark:text-slate-300 mt-3">{s.what}</p>
-            <div className="mt-3 rounded-lg bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-700 px-3 py-2 font-mono text-[12px] text-slate-700 dark:text-slate-200 overflow-x-auto">{s.detail}</div>
+            {s.chips ? (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {s.chips.map((cp) => (
+                  <span key={cp.label} className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold"
+                    style={{ color: cp.color, background: cp.color + "14", border: `1px solid ${cp.color}33` }}>
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: cp.color }} />
+                    {cp.label}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <div className="mt-3 rounded-xl px-3 py-2.5 font-mono text-[12.5px] text-slate-700 dark:text-slate-100 text-center overflow-x-auto"
+                style={{ background: s.color + "0D", border: `1px solid ${s.color}26` }}>{s.detail}</div>
+            )}
             <div className="mt-auto pt-3">
               <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: s.color }}>Why</span>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">{s.why}</p>
