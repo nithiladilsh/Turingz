@@ -446,12 +446,12 @@ export default function CouplingPage() {
           <Microscope size={14} /> Why the restart is verified — it holds where a shortcut breaks
         </div>
         <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
-          Push to sharper waves (higher cell Reynolds number). The verified restart stays exact; a shortcut restart that
+          Push to sharper waves (higher cell Reynolds number). The verified restart stays accurate (~10<sup>−11</sup>); a shortcut restart that
           drops the de-aliasing climbs past the target and finally goes unstable.
         </p>
         <SafetyChart data={SAFETY} cross={SAFETY_CROSS} />
         <div className="flex gap-4 flex-wrap text-[11px] text-slate-400 dark:text-slate-500 mt-1">
-          <span className="text-emerald-600 dark:text-emerald-400">— verified restart — error ≈ 0 (stays ~1e-11)</span>
+          <span className="text-emerald-600 dark:text-emerald-400">— verified restart — error ≈ 0 (stays ~10<sup>−11</sup>)</span>
           <span className="text-rose-500">— shortcut restart (no de-aliasing)</span>
           <span className="text-amber-500">-- 1% target · shortcut crosses at Re≈3.2</span>
         </div>
