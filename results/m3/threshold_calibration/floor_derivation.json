@@ -1,0 +1,11 @@
+{
+  "purpose": "Reference point for controller.py's theta_lo at the loosest evaluated target (0.20), built from the measured trust floor plus a noise margin, both measured on held-out data.",
+  "measured_trust_floor": 0.1828,
+  "step_jitter_std": 0.0099,
+  "margin_sigma": 2.0,
+  "floor_plus_margin": 0.2026,
+  "shipped_theta_lo_at_loosest_target": {
+    "target": 0.3,
+    "theta_lo": 0.2
+  }
+}

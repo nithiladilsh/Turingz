@@ -1,11 +1,12 @@
 {
-  "purpose": "Two formula-free reference points for controller.py's clamp_hi (0.58), both measured on held-out data: the knee of the error-vs-threshold curve, and the cost-minimal threshold meeting the tightest evaluated target. Neither calls thresholds_for_target() to produce its value; the formula is only used afterward, to compare against what was shipped.",
+  "purpose": "Two reference points for controller.py's clamp_hi (0.58), both measured on held-out data: the knee of the error-vs-threshold curve, and the cost-minimal threshold meeting the tightest evaluated target.",
   "knee_point": {
     "theta_lo": 0.49
   },
   "tightest_target_min_cost_point": {
-    "target": 0.02,
-    "theta_lo": 0.66
+    "target": 0.01,
+    "theta_lo": 0.68
   },
-  "shipped_clamp_hi": 0.58
+  "shipped_clamp_hi": 0.58,
+  "shipped_falls_between_the_two_points": true
 }

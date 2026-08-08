@@ -37,7 +37,6 @@ def main():
             mon = TrustMonitorAdapter(CoarseReferenceMonitor(ic, x, n=256))
             res = HybridRuntime(ml, num, mon, coupling, AdaptiveController(lo, 1.1)).run(ic, x, t, tg, reference=ref)
             tc = np.asarray(res.trust_curve, float)
-            # reference-free feature: share of the trajectory the trust sits below the switch line
             frac_below = float(np.mean(tc < lo))
             met = bool(res.cost.achieved_error <= tg)
             feats.append(frac_below); mets.append(met); errs.append(res.cost.achieved_error)
@@ -50,7 +49,6 @@ def main():
         })
 
     mf = np.asarray(met_feats); xf = np.asarray(missed_feats)
-    # a single reference-free threshold on the feature that best separates met/missed
     allf = np.concatenate([mf, xf]) if mf.size and xf.size else np.array([])
     best = {"threshold": None, "accuracy": None}
     if allf.size:

@@ -1,6 +1,9 @@
 import os
 import sys
 import numpy as np
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, ROOT)
@@ -12,6 +15,9 @@ from hybrid_pde.control_214133E.controller import thresholds_for_target
 
 FAIL = 0.10
 TIGHTEST_TARGET = 0.01
+LOOSEST_TARGET = 0.30
+MARGIN_SIGMA = 2.0
+OUT_DIR = os.path.join(ROOT, "results", "m3", "threshold_calibration")
 
 
 def _sigs(u, coeff, x, t):
@@ -75,7 +81,50 @@ def find_min_cost_theta(target, grid, table):
     return min(feasible, key=lambda r: r[2])[0] if feasible else None
 
 
+def plot_ceiling(grid, errs, knee_theta, tight_theta, shipped_hi):
+    fig, ax = plt.subplots(figsize=(8, 5))
+    ax.plot(grid, errs * 100, color="#2b5b84", linewidth=2, label="mean hybrid error (held-out)")
+    ax.axvline(knee_theta, color="#c1841a", linestyle="--", linewidth=1.5,
+               label=f"knee (diminishing returns) = {knee_theta:.2f}")
+    ax.axvline(tight_theta, color="#7a3a9c", linestyle="--", linewidth=1.5,
+               label=f"cost-min. theta for target {TIGHTEST_TARGET:.2f} = {tight_theta:.2f}")
+    ax.axvline(shipped_hi, color="#2e8b57", linestyle="-", linewidth=2,
+               label=f"shipped clamp_hi = {shipped_hi:.2f}")
+    ax.set_xlabel("theta_lo (switch threshold)")
+    ax.set_ylabel("mean hybrid error (%)")
+    ax.set_title("Where the upper clamp (0.58) sits, vs. two independent reference points")
+    ax.legend(fontsize=9)
+    ax.grid(alpha=0.25)
+    fig.tight_layout()
+    out = os.path.join(OUT_DIR, "ceiling_derivation.png")
+    fig.savefig(out, dpi=150)
+    plt.close(fig)
+    print(f"Saved: {out}")
+
+
+def plot_floor(trust_eval, floor, jitter_std, margin_point, shipped_lo):
+    fig, ax = plt.subplots(figsize=(8, 4.5))
+    ax.hist(trust_eval.flatten(), bins=60, color="#8fb3d9", edgecolor="white", alpha=0.9)
+    ax.axvline(floor, color="#c0392b", linestyle="-", linewidth=2,
+               label=f"measured floor = {floor:.3f}")
+    ax.axvline(margin_point, color="#c1841a", linestyle="--", linewidth=1.5,
+               label=f"floor + {MARGIN_SIGMA:.0f} sigma jitter = {margin_point:.3f}")
+    ax.axvline(shipped_lo, color="#2e8b57", linestyle="-", linewidth=2,
+               label=f"shipped theta_lo @ target 0.30 = {shipped_lo:.3f}")
+    ax.set_xlabel("trust score (held-out eval set, all steps)")
+    ax.set_ylabel("count")
+    ax.set_title("Where the loosest-target threshold (0.20) sits, vs. floor + noise margin")
+    ax.legend(fontsize=9)
+    ax.grid(alpha=0.25)
+    fig.tight_layout()
+    out = os.path.join(OUT_DIR, "floor_derivation.png")
+    fig.savefig(out, dpi=150)
+    plt.close(fig)
+    print(f"Saved: {out}")
+
+
 def main():
+    os.makedirs(OUT_DIR, exist_ok=True)
     t, trust_eval, err_eval, fno_eval, true_eval = load_trust_and_error()
 
     grid = np.round(np.arange(0.15, 0.85, 0.01), 3)
@@ -87,35 +136,15 @@ def main():
 
     knee_theta = float(find_knee(grid, errs))
     tight_theta = float(find_min_cost_theta(TIGHTEST_TARGET, grid, table))
-    midpoint = round((knee_theta + tight_theta) / 2, 4)
+    shipped_hi, _ = thresholds_for_target(TIGHTEST_TARGET)
+    plot_ceiling(grid, errs, knee_theta, tight_theta, shipped_hi)
 
-    shipped, _ = thresholds_for_target(TIGHTEST_TARGET)
-
-    within_range = knee_theta <= shipped <= tight_theta
-
-    print(f"Knee of the error-vs-threshold curve (diminishing-returns point): theta = {knee_theta:.3f}")
-    print(f"Cost-minimal theta meeting the tightest evaluated target ({TIGHTEST_TARGET}): theta = {tight_theta:.3f}")
-    print(f"Shipped clamp_hi in controller.py: {shipped:.3f}")
-    print(f"Falls between the two reference points: {within_range}")
-
-    return {
-        "purpose": "Two reference points for controller.py's clamp_hi (0.58), both measured on held-out "
-                   "data: the knee of the error-vs-threshold curve, and the cost-minimal threshold "
-                   "meeting the tightest evaluated target.",
-        "knee_point": {"theta_lo": round(knee_theta, 4)},
-        "tightest_target_min_cost_point": {"target": TIGHTEST_TARGET, "theta_lo": round(tight_theta, 4)},
-        "shipped_clamp_hi": round(shipped, 4),
-        "shipped_falls_between_the_two_points": bool(within_range),
-    }
+    floor = float(trust_eval.min())
+    jitter_std = float(np.diff(trust_eval, axis=1).std())
+    margin_point = floor + MARGIN_SIGMA * jitter_std
+    shipped_lo, _ = thresholds_for_target(LOOSEST_TARGET)
+    plot_floor(trust_eval, floor, jitter_std, margin_point, shipped_lo)
 
 
 if __name__ == "__main__":
-    import json
-
-    result = main()
-    out_dir = os.path.join(ROOT, "results", "m3", "threshold_calibration")
-    os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "ceiling_derivation.json")
-    with open(out_path, "w") as f:
-        json.dump(result, f, indent=2)
-    print(f"\nSaved: {out_path}")
+    main()

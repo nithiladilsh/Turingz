@@ -1,0 +1,44 @@
+{
+  "purpose": "Reference table for controller.py's lower clamp (0.12): theta_lo before and after clamping, for every evaluated target, showing the clamp is never reached in practice.",
+  "clamp_lo": 0.12,
+  "measured_trust_floor": 0.183,
+  "per_target": [
+    {
+      "target": 0.3,
+      "theta_lo_unclamped": 0.2,
+      "theta_lo_shipped": 0.2,
+      "lower_clamp_reached": false
+    },
+    {
+      "target": 0.2,
+      "theta_lo_unclamped": 0.34,
+      "theta_lo_shipped": 0.34,
+      "lower_clamp_reached": false
+    },
+    {
+      "target": 0.1,
+      "theta_lo_unclamped": 0.48,
+      "theta_lo_shipped": 0.48,
+      "lower_clamp_reached": false
+    },
+    {
+      "target": 0.05,
+      "theta_lo_unclamped": 0.55,
+      "theta_lo_shipped": 0.55,
+      "lower_clamp_reached": false
+    },
+    {
+      "target": 0.02,
+      "theta_lo_unclamped": 0.592,
+      "theta_lo_shipped": 0.58,
+      "lower_clamp_reached": false
+    },
+    {
+      "target": 0.01,
+      "theta_lo_unclamped": 0.606,
+      "theta_lo_shipped": 0.58,
+      "lower_clamp_reached": false
+    }
+  ],
+  "clamp_first_activates_at_target": 0.3571
+}

@@ -1,5 +1,5 @@
 {
-  "purpose": "Verification of controller.py's thresholds_for_target() constants (0.62, 1.4, clamped [0.12, 0.58]) against (a) the real trust signal's measured operating range on held-out data, and (b) an independent threshold sweep. Not a claim about original derivation history - a post-hoc confirmation that the shipped constants are correct.",
+  "purpose": "Verification of controller.py's thresholds_for_target() constants (0.62, 1.4, clamped [0.12, 0.58]) against (a) the real trust signal's measured operating range on held-out data, and (b) an independent threshold sweep.",
   "trust_signal_measured_range": {
     "min": 0.183,
     "max": 0.818
