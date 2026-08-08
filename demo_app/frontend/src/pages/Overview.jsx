@@ -201,8 +201,72 @@ export default function Overview({ go }) {
       <div className="grid grid-cols-[320px_1fr] gap-4">
         <div className={`${cardCls} p-5 flex flex-col justify-center`}>
           <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Benchmark equation</div>
-          <div className="text-2xl text-slate-800 dark:text-slate-100 mt-2" style={{ fontFamily: "Cambria, Georgia, serif" }}>
-            u<sub>t</sub> + u·u<sub>x</sub> = ν·u<sub>xx</sub>
+          <div
+            className="text-2xl text-slate-800 dark:text-slate-100 mt-2"
+            style={{ fontFamily: "Cambria, Georgia, serif" }}
+          >
+            <math
+              xmlns="http://www.w3.org/1998/Math/MathML"
+              display="inline"
+            >
+              <mrow>
+                {/* ∂u / ∂t */}
+                <mfrac>
+                  <mrow>
+                    <mo>∂</mo>
+                    <mi>u</mi>
+                  </mrow>
+                  <mrow>
+                    <mo>∂</mo>
+                    <mi>t</mi>
+                  </mrow>
+                </mfrac>
+
+                {/* + */}
+                <mo>+</mo>
+
+                {/* u · */}
+                <mi>u</mi>
+                <mo>·</mo>
+
+                {/* ∂u / ∂x */}
+                <mfrac>
+                  <mrow>
+                    <mo>∂</mo>
+                    <mi>u</mi>
+                  </mrow>
+                  <mrow>
+                    <mo>∂</mo>
+                    <mi>x</mi>
+                  </mrow>
+                </mfrac>
+
+                {/* = */}
+                <mo>=</mo>
+
+                {/* ν · */}
+                <mi>ν</mi>
+                <mo>·</mo>
+
+                {/* ∂²u / ∂x² */}
+                <mfrac>
+                  <mrow>
+                    <msup>
+                      <mo>∂</mo>
+                      <mn>2</mn>
+                    </msup>
+                    <mi>u</mi>
+                  </mrow>
+                  <mrow>
+                    <mo>∂</mo>
+                    <msup>
+                      <mi>x</mi>
+                      <mn>2</mn>
+                    </msup>
+                  </mrow>
+                </mfrac>
+              </mrow>
+            </math>
           </div>
           <div className="text-xs text-slate-500 dark:text-slate-400 mt-2">
             1D viscous Burgers — forms a moving <span className="font-medium text-slate-700 dark:text-slate-200">shock</span>, ideal for stress-testing extrapolation.
