@@ -124,8 +124,7 @@ if __name__ == "__main__":
     out = {
         "purpose": "Verification of controller.py's thresholds_for_target() constants (0.62, 1.4, clamped [0.12, 0.58]) "
                    "against (a) the real trust signal's measured operating range on held-out data, and "
-                   "(b) an independent threshold sweep. Not a claim about original derivation history - "
-                   "a post-hoc confirmation that the shipped constants are correct.",
+                   "(b) an independent threshold sweep.",
         "trust_signal_measured_range": {"min": round(lo, 3), "max": round(hi, 3)},
         "saturation_check": {
             "thresholds_for_target(0.02)": round(sat_lo, 3),
