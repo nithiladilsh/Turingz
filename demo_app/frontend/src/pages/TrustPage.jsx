@@ -145,6 +145,141 @@ function HowBuilt({ cut, K }) {
   );
 }
 
+// ---- evaluation data (measured on held-out waves against the exact answer) ----
+const EVAL_WORST = [
+  { label: "Only physics residual", v: 0.45 },
+  { label: "Only energy drift", v: -0.03 },
+  { label: "Only roughness", v: -0.16 },
+  { label: "Fused (all four)", v: 0.66, hi: true },
+];
+const EVAL_CORR = [
+  { m: "PINN", residual: 0.80, energy: 0.70, roughness: 0.32 },
+  { m: "FNO", residual: 0.73, energy: 0.10, roughness: -0.16 },
+  { m: "DeepONet", residual: 0.48, energy: -0.02, roughness: 0.83 },
+];
+const EVAL_AUC = [
+  { label: "PINN", v: 0.964 },
+  { label: "FNO", v: 0.885 },
+  { label: "Both pooled", v: 0.955, hi: true },
+];
+const EVAL_COARSE = [
+  { label: "Physics signals only", v: 0.68 },
+  { label: "+ cheap coarse reference", v: 0.999, hi: true },
+];
+
+function EvalBar({ label, value, hi }) {
+  const pct = Math.max(0, Math.min(1, value)) * 100;
+  const neg = value < 0;
+  return (
+    <div className="flex items-center gap-3">
+      <div className="w-44 shrink-0 text-xs text-slate-600 dark:text-slate-300">{label}</div>
+      <div className="flex-1 h-3 rounded-full bg-slate-100 dark:bg-slate-700/70 overflow-hidden">
+        <div className="h-3 rounded-full transition-all duration-700"
+          style={{ width: `${pct}%`, background: hi ? "linear-gradient(90deg,#34d399,#059669)" : "linear-gradient(90deg,#a5b4fc,#6366f1)" }} />
+      </div>
+      <div className={`w-12 text-right text-sm font-bold ${neg ? "text-rose-500" : hi ? "text-emerald-600 dark:text-emerald-400" : "text-slate-600 dark:text-slate-300"}`}>{value.toFixed(2)}</div>
+    </div>
+  );
+}
+
+function StatTile({ value, label, hint, color }) {
+  return (
+    <div className="rounded-2xl border p-4 shadow-sm" style={{ background: color + "0D", borderColor: color + "2E" }}>
+      <div className="text-[28px] leading-none font-extrabold" style={{ color }}>{value}</div>
+      <div className="text-xs font-semibold text-slate-700 dark:text-slate-200 mt-2">{label}</div>
+      <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{hint}</div>
+    </div>
+  );
+}
+
+function corrTone(v) {
+  if (v >= 0.6) return "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300";
+  if (v >= 0.3) return "bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300";
+  if (v >= 0) return "bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400";
+  return "bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300";
+}
+
+function Evaluation() {
+  return (
+    <div className="mt-5 space-y-5">
+      {/* header */}
+      <div className="rounded-2xl p-6 md:p-7 bg-gradient-to-r from-indigo-50 via-indigo-50 to-violet-50 dark:from-indigo-500/10 dark:via-indigo-500/10 dark:to-violet-500/10 border border-indigo-100 dark:border-indigo-500/25">
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">How the module is evaluated</div>
+        <h2 className="text-2xl font-bold mt-1 text-slate-800 dark:text-slate-100">Does the trust score actually work?</h2>
+        <p className="text-sm text-slate-600 dark:text-slate-300 mt-2 leading-relaxed">
+          Every result below is measured on held-out waves against the exact answer. The module still uses no
+          true answer while running — the exact answer is only used here, offline, to check whether it was right.
+        </p>
+      </div>
+
+      {/* headline numbers */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatTile value="0.955" label="Detection quality (AUC)" hint="0.5 = guessing · 1 = perfect" color="#4f46e5" />
+        <StatTile value="0.66" label="Fused worst-case match" hint="best single signal: 0.45" color="#0d9488" />
+        <StatTile value="0.999" label="Coarse catches the drift" hint="signals alone: 0.68" color="#7c3aed" />
+        <StatTile value="±0.28" label="Reliable-horizon error" hint="in time · correlation 0.85" color="#059669" />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* fusion beats single */}
+        <Card title="Fusing beats any single signal"
+          subtitle="worst-case match with the true error across the three models (−1…1 · higher is better)">
+          <div className="space-y-2.5 mt-1">
+            {EVAL_WORST.map((r) => <EvalBar key={r.label} label={r.label} value={r.v} hi={r.hi} />)}
+          </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-3">No single signal is reliable for every model — one is even negative. Fused, it never drops below <b>0.66</b>. This is why we combine them.</p>
+        </Card>
+
+        {/* per-model correlation */}
+        <Card title="Each model leans on a different signal"
+          subtitle="how well each signal tracks the true error, per model">
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-slate-400 dark:text-slate-500">
+                  <th className="text-left py-1 font-medium">Model</th>
+                  <th className="py-1 font-medium">residual</th>
+                  <th className="py-1 font-medium">energy</th>
+                  <th className="py-1 font-medium">roughness</th>
+                </tr>
+              </thead>
+              <tbody>
+                {EVAL_CORR.map((r) => (
+                  <tr key={r.m}>
+                    <td className="py-1.5 font-semibold text-slate-700 dark:text-slate-200">{r.m}</td>
+                    <td className="p-1"><div className={`rounded-md py-1 text-center font-semibold ${corrTone(r.residual)}`}>{r.residual.toFixed(2)}</div></td>
+                    <td className="p-1"><div className={`rounded-md py-1 text-center font-semibold ${corrTone(r.energy)}`}>{r.energy.toFixed(2)}</div></td>
+                    <td className="p-1"><div className={`rounded-md py-1 text-center font-semibold ${corrTone(r.roughness)}`}>{r.roughness.toFixed(2)}</div></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-3">PINN and FNO show up in the residual, DeepONet in roughness — so the learned weights adapt to each model.</p>
+        </Card>
+
+        {/* AUC */}
+        <Card title="It separates good from failed predictions"
+          subtitle="detection quality (ROC AUC): 0.5 = guessing, 1.0 = perfect">
+          <div className="space-y-2.5 mt-1">
+            {EVAL_AUC.map((r) => <EvalBar key={r.label} label={r.label} value={r.v} hi={r.hi} />)}
+          </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-3">Pooled score is <b>0.955</b> — very reliable — with a low false-alarm rate (PINN 0%, FNO 11%, DeepONet 0%).</p>
+        </Card>
+
+        {/* coarse reference */}
+        <Card title="The cheap reference closes the blind spot"
+          subtitle="match with the true error on FNO's smooth-drift failure">
+          <div className="space-y-2.5 mt-1">
+            {EVAL_COARSE.map((r) => <EvalBar key={r.label} label={r.label} value={r.v} hi={r.hi} />)}
+          </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-3">The physics signals miss FNO's smooth drift (0.68), but the cheap coarse solver catches it almost perfectly (<b>0.999</b>) and fires right at the failure.</p>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
 export default function TrustPage() {
   const [meta, setMeta] = useState(null);
   const [model, setModel] = useState("FNO");
@@ -190,14 +325,14 @@ export default function TrustPage() {
   return (
     <div>
       <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Trust Score — live demo</h1>
-      <p className="text-slate-600 dark:text-slate-300 mt-1 max-w-3xl text-sm">
+      <p className="text-slate-600 dark:text-slate-300 mt-1 text-sm">
         Give a starting wave, run the ML model, and watch the trust score fall and the switch fire — all with no true answer used by the module.
       </p>
       {err && <div className="mt-3 text-sm text-rose-600 dark:text-rose-300 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 rounded-lg px-3 py-2">{err}</div>}
 
       {/* TABS */}
       <div className="mt-4 inline-flex rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-1">
-        {[["demo", "Live demo"], ["built", "How it's built"]].map(([id, label]) => (
+        {[["demo", "Live demo"], ["built", "How it's built"], ["eval", "Evaluation"]].map(([id, label]) => (
           <button key={id} onClick={() => setTab(id)}
             className={`px-4 py-1.5 rounded-lg text-sm font-medium transition ${tab === id ? "bg-indigo-600 text-white" : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"}`}>{label}</button>
         ))}
@@ -345,6 +480,8 @@ export default function TrustPage() {
       )}
 
       {tab === "built" && <HowBuilt cut={cut} K={p?.K ?? 4} />}
+
+      {tab === "eval" && <Evaluation />}
     </div>
   );
 }
