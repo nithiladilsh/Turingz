@@ -503,7 +503,7 @@ export default function CostAnalysis() {
             <p className="text-sm text-slate-700 dark:text-slate-200 mt-1">
               Nothing is both cheap and trustworthy past the training window. Surrogates collapse (14–61% error);
               {exactNum.length ? ` ${exactNum.join(" and ")} stay${exactNum.length === 1 ? "s" : ""} exact at ${exactRatioTxt} the cost` : ""}
-              {looseM ? `, while ${looseM} is cheaper than FNO but still ~${Math.round(looseErr)}% wrong from numerical diffusion — not a free lunch either` : ""}.
+              {looseM ? `, while ${looseM} is cheaper than FNO but still ~${Math.round(looseErr)}% wrong from numerical diffusion — cheaper is not the same as reliable` : ""}.
               The hybrid buys numerical accuracy <b>only where it is needed</b>, and routes to the fallback that is actually accurate.
             </p>
           </div>

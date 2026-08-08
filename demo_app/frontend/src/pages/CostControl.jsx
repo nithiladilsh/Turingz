@@ -763,12 +763,26 @@ export default function CostControl() {
                 {sum.hit ? `Target ${sum.target} met` : `Target ${sum.target} missed — the ${pct(sum.error)} floor is the monitor, not the knob`}
               </div>
               <div className="flex h-7 rounded-lg overflow-hidden text-[11px] font-bold mt-3">
-                <div className="text-white grid place-items-center" style={{ width: `${(sum.ml_steps / (sum.ml_steps + sum.corr_steps)) * 100}%`, background: "#059669" }}>
-                  ML {Math.round((sum.ml_steps / (sum.ml_steps + sum.corr_steps)) * 100)}%
-                </div>
-                <div className="text-white grid place-items-center" style={{ width: `${(sum.corr_steps / (sum.ml_steps + sum.corr_steps)) * 100}%`, background: "#e11d48" }}>
-                  num {Math.round((sum.corr_steps / (sum.ml_steps + sum.corr_steps)) * 100)}%
-                </div>
+                {(() => {
+                  const mlPct = Math.round((sum.ml_steps / (sum.ml_steps + sum.corr_steps)) * 100);
+                  const numPct = 100 - mlPct;
+                  return (
+                    <>
+                      {mlPct > 0 && (
+                        <div className="text-white flex items-center justify-center whitespace-nowrap px-1.5"
+                          style={{ flex: `${mlPct} 1 0%`, minWidth: "38px", background: "#059669" }}>
+                          ML {mlPct}%
+                        </div>
+                      )}
+                      {numPct > 0 && (
+                        <div className="text-white flex items-center justify-center whitespace-nowrap px-1.5"
+                          style={{ flex: `${numPct} 1 0%`, minWidth: "44px", background: "#e11d48" }}>
+                          num {numPct}%
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
               <div className="text-sm text-slate-700 dark:text-slate-200 mt-3">
                 <b>{sum.cost_s.toFixed(2)} s</b> ({sum.rel_cost.toFixed(2)}× the numerical solver) at <b>{pct(sum.error)}</b> error
