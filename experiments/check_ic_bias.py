@@ -1,14 +1,3 @@
-"""
-Checks whether the held-out 10 ICs' skew toward smoother/higher-energy
-waveforms (found by check_ic_representativeness.py) actually biases M3's
-error results - i.e. does FNO error correlate with these IC shape features
-across the held-out set? If not, the representativeness gap is unlikely to
-be systematically inflating or deflating the headline error numbers.
-
-Data sources: results/eval/predictions.npz (u_true_eval, FNO_eval, 10 ICs,
-900-909) and data/colehopf/burgers_colehopf.pt (ICs waveforms), loaded via
-the same torch-free reader used by check_ic_representativeness.py.
-"""
 import os
 import sys
 import json

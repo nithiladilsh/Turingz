@@ -1,15 +1,3 @@
-"""
-Check whether the 10 held-out ICs used throughout M3's analysis (900-909)
-are representative of the full 1000-IC dataset, or an unusual/clustered
-subset. Computes real, verifiable shape features on the actual initial
-condition waveforms (not trajectories) and compares the 10-IC (and 20-IC
-extended) subsets against the full 1000-IC distribution via percentile rank.
-
-Data source: data/colehopf/burgers_colehopf.pt, "ICs" array (1000, 512).
-Loaded via a torch-free reader (_load_pt_no_torch.py) since torch is not
-installed in this environment; verified against pickletools disassembly
-of the file (all storages are float32, contiguous).
-"""
 import os
 import sys
 import json
@@ -28,20 +16,10 @@ HELD_OUT_20 = np.arange(900, 920)
 
 
 def features(ICs, x):
-    """Per-IC scalar features describing waveform shape.
-
-    Note: max amplitude and low-mode energy fraction were tried first and
-    dropped - every IC is normalized to peak amplitude 1.0 and has ~100% of
-    its power in modes 1-4 by construction (the generation process is
-    "band-limited random Fourier profiles of up to four modes"), so those
-    two are constant across the dataset and carry no discriminative signal.
-    """
-    energy = np.linalg.norm(ICs, axis=1)                      # L2 norm
-    roughness = np.sum(np.abs(np.diff(ICs, axis=1)), axis=1)  # total variation
+    energy = np.linalg.norm(ICs, axis=1)
+    roughness = np.sum(np.abs(np.diff(ICs, axis=1)), axis=1)
     zero_cross = np.sum(np.diff(np.sign(ICs), axis=1) != 0, axis=1).astype(float)
 
-    # Spectral centroid within modes 1-4: which mode dominates each IC's
-    # power (varies per IC even though all power is confined to modes 1-4).
     F = np.fft.rfft(ICs, axis=1)
     P = np.abs(F[:, 1:5]) ** 2
     mode_idx = np.arange(1, 5)

@@ -1,8 +1,3 @@
-"""Load burgers_colehopf.pt without requiring torch to be installed.
-Reconstructs numpy arrays directly from the zip-based torch.save format by
-implementing persistent_load ourselves. Validated against pickletools.dis
-output: all storages are FloatStorage (float32), contiguous, offset 0.
-"""
 import zipfile
 import pickle
 import io
@@ -31,7 +26,7 @@ def load(pt_path=PT_PATH, archive=ARCHIVE):
 
     def find_class(module, name):
         if module == "torch" and name.endswith("Storage"):
-            return name  # GLOBAL is used directly as a marker object, not instantiated
+            return name
         if module == "torch._utils" and name == "_rebuild_tensor_v2":
             def _rebuild(storage, storage_offset, size, stride, requires_grad, backward_hooks, *rest):
                 arr = storage.arr
