@@ -40,7 +40,7 @@ x = np.linspace(-1, 1, nx, endpoint=False)
 dx = L / nx
 t_start = 0.01
 t = np.concatenate([[0.0], np.linspace(t_start, T, nt - 1)])
-FIRST, LAST = 900, 920                       # test waves 900..919 (20 held out)
+FIRST, LAST = 900, 1000                      # test waves 900..999 (100 held out)
 
 # ---- reproduce the exact initial conditions (seed 42) ----
 def random_ic(rng, n_modes=4):
@@ -99,4 +99,4 @@ assert err_fno < 1e-3, "FNO inference does not match committed predictions - che
 
 np.savez(OUT, x=x.astype(np.float32), t=t.astype(np.float32),
          u_true_eval=u_true.astype(np.float32), FNO_eval=fno_pred.astype(np.float32))
-print(f"OK - wrote {OUT} with n=20 held-out waves. Rebuild figures with MODULE2_PRED set to it.")
+print(f"OK - wrote {OUT} with n={LAST - FIRST} held-out waves. Rebuild figures with MODULE2_PRED set to it.")
