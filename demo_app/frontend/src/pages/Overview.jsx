@@ -178,7 +178,7 @@ export default function Overview({ go }) {
             <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400">ML diverges</span>
             <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">hybrid stays accurate</span>
           </div>
-          <button onClick={() => go("trust")}
+          <button onClick={() => go("hybrid")}
             className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold shadow-sm shadow-indigo-500/30 hover:bg-indigo-700 hover:-translate-y-0.5 transition-all">
             See it live <ArrowRight size={16} />
           </button>
