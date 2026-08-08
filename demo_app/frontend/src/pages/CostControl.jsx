@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { Card } from "../components/ui.jsx";
+import { Card, Stat } from "../components/ui.jsx";
 import { LineChart } from "../components/Charts.jsx";
-import { API, WS, getMeta, buildIC, pinnIC, realTestIC, pinnRegime, switchingAblation } from "../api.js";
+import { API, WS, STATIC, getMeta, buildIC, pinnIC, realTestIC, pinnRegime, switchingAblation, achievability, costModel, icRepresentativeness } from "../api.js";
 import { Trophy, Check, X, Play } from "lucide-react";
 
 const COLOR = { FNO: "#059669", DeepONet: "#e11d48", PINN: "#d97706" };
@@ -304,6 +304,134 @@ function HowBuilt() {
   );
 }
 
+/* ---------------- results ---------------- */
+function PlotCard({ title, subtitle, src }) {
+  return (
+    <Card title={title} subtitle={subtitle}>
+      <img src={src} alt={title} className="w-full rounded-xl border border-slate-100 dark:border-slate-700" loading="lazy" />
+    </Card>
+  );
+}
+
+function ResultsTab({ ach, cm, icRep, cmp }) {
+  const achRows = ach?.rows || [];
+  const F = cmp?.FNO;
+  const headline = F?.frontier?.find((q) => Math.abs(q.target - 0.1) < 1e-9);
+
+  return (
+    <div className="space-y-6">
+      {headline && F.pure_numerical && (
+        <Card title="What the hybrid actually delivers" subtitle="real wall-clock time, target 0.1 · numerical-only cost as baseline">
+          <div className="grid grid-cols-3 gap-3">
+            <Stat label="hybrid" value={`${headline.cost.toFixed(2)} s`} tone="green" />
+            <Stat label="numerical-only" value={`${F.pure_numerical.cost.toFixed(2)} s`} tone="slate" />
+            <Stat label="savings" value={pct(1 - headline.cost / F.pure_numerical.cost)} tone="indigo" />
+          </div>
+        </Card>
+      )}
+
+      <Card title="The full cost-accuracy frontier" subtitle="every target swept, FNO hybrid vs. both pure baselines — real timed runs">
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-6 items-center">
+          <PlotCard title="Cheaper than numerical, more accurate than the surrogate, across the whole sweep" src={`${STATIC}/step9d_coarse_integration/fig_6_5_1_frontier.png`} />
+
+          {F?.frontier?.length > 0 && F.pure_ml && F.pure_numerical && (
+            <div>
+              <div className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">each point, against both baselines</div>
+              <div className="overflow-x-auto -mx-1">
+                <table className="w-full text-xs border-collapse">
+                  <thead>
+                    <tr className="text-left text-[9.5px] uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                      <th className="py-1.5 px-1 font-semibold">target</th>
+                      <th className="py-1.5 px-1 font-semibold">cost / err</th>
+                      <th className="py-1.5 px-1 font-semibold">vs. ML</th>
+                      <th className="py-1.5 px-1 font-semibold">vs. numerical</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...F.frontier].sort((a, b) => b.target - a.target).map((r) => (
+                      <tr key={r.target} className="border-t border-slate-100 dark:border-slate-700">
+                        <td className="py-2 px-1 font-semibold text-slate-700 dark:text-slate-200">{r.target}</td>
+                        <td className="py-2 px-1 text-slate-500 dark:text-slate-400 whitespace-nowrap">{r.cost.toFixed(2)}s · {pct(r.error)}</td>
+                        <td className="py-2 px-1 font-semibold text-rose-600 dark:text-rose-400 whitespace-nowrap">{(F.pure_ml.error / r.error).toFixed(1)}×</td>
+                        <td className="py-2 px-1 font-semibold text-indigo-600 dark:text-indigo-400 whitespace-nowrap">{(F.pure_numerical.cost / r.cost).toFixed(1)}×</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="text-[10.5px] text-slate-400 dark:text-slate-500 mt-2">
+                "vs. ML" = pure-ML error ÷ hybrid error (more accurate). "vs. numerical" = numerical-only cost ÷ hybrid cost (cheaper).
+              </p>
+            </div>
+          )}
+        </div>
+        <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-4">
+          the hybrid (green) never leaves the shaded region — cheaper than running the numerical solver alone, and more accurate than
+          running the ML surrogate alone — across every target from loose to tight; error bars are real run-to-run spread, not estimated.
+        </p>
+      </Card>
+
+      {cm && cm.pearson_r != null && (
+        <Card title="Cost model checks out against real wall-clock time" subtitle={`n = ${cm.n_points ?? "60"} timed runs, predicted vs measured`}>
+          <div className="grid grid-cols-3 gap-3">
+            <Stat label="Pearson r" value={cm.pearson_r.toFixed(3)} tone="green" />
+            <Stat label="MAPE" value={pct(cm.mape)} tone="indigo" />
+            <Stat label="slope (measured / predicted)" value={cm.slope_measured_vs_predicted.toFixed(3)} tone="slate" />
+          </div>
+        </Card>
+      )}
+
+      {achRows.length > 0 && (
+        <Card title="Accuracy target vs. what's actually achieved" subtitle="held-out test conditions — shown honestly, floor included">
+          <div className="space-y-2">
+            {achRows.map((r) => (
+              <div key={r.target} className="flex items-center gap-3 text-sm">
+                <div className="w-20 text-xs font-semibold text-slate-600 dark:text-slate-300">target {r.target}</div>
+                <div className="flex-1 h-4 rounded-full bg-slate-100 dark:bg-slate-700 relative overflow-hidden">
+                  <div className="absolute h-4 rounded-full transition-all duration-700"
+                    style={{ width: `${Math.max(3, r.hit_rate * 100)}%`, background: r.hit_rate >= 0.9 ? "#059669" : r.hit_rate >= 0.5 ? "#d97706" : "#e11d48" }} />
+                </div>
+                <div className="w-24 text-right text-xs font-bold text-slate-600 dark:text-slate-300">{pct(r.hit_rate)} hit</div>
+                <div className="w-20 text-right text-xs text-slate-400 dark:text-slate-500">{pct(r.mean_error)} err</div>
+              </div>
+            ))}
+          </div>
+          <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-3">
+            hit-rate stays at 100% down to target 0.05, then drops once the target passes a real ~3% accuracy floor — the controller
+            can't correct its way past what the surrogate and coarse monitor are able to resolve.
+          </p>
+        </Card>
+      )}
+
+      <Card title="Why the switch thresholds sit where they do" subtitle="ceiling (0.58), floor (0.20), saturation (0.029) — each checked against real held-out data">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <PlotCard title="Upper clamp (0.58)" src={`${STATIC}/threshold_calibration/ceiling_derivation.png`} />
+          <PlotCard title="Loosest-target threshold (0.20)" src={`${STATIC}/threshold_calibration/floor_derivation.png`} />
+          <PlotCard title="Accuracy-saturation reference (0.029)" src={`${STATIC}/threshold_calibration/saturation_point.png`} />
+          <PlotCard title="Trust signal's observed operating range" src={`${STATIC}/threshold_calibration/trust_range.png`} />
+        </div>
+      </Card>
+
+      <Card title="Why the latch policy" subtitle="four switching designs, same held-out test conditions, every target">
+        <PlotCard title="Achieved error and hit-rate by switching policy" src={`${STATIC}/step11_switching_ablation/fig_6_5_2_ablation.png`} />
+        <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-3">
+          fixed interval (grey) ignores the trust signal entirely and pays for it in error; the latch (green) is the only policy that
+          keeps tracking the requested target down to the tightest ones, not just matching the alternatives at one operating point.
+        </p>
+      </Card>
+
+      {icRep?.representativeness && icRep?.bias_check && (
+        <Card title="Is the held-out test set representative?" subtitle="checked, not assumed">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <PlotCard title="Held-out test conditions vs. the full dataset" src={`${STATIC}/ic_representativeness/ic_representativeness.png`} />
+            <PlotCard title="Does the skew correlate with error?" src={`${STATIC}/ic_representativeness/ic_bias_check.png`} />
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+}
+
 /* ---------------- page ---------------- */
 export default function CostControl() {
   const [tab, setTab] = useState("findings");
@@ -312,6 +440,9 @@ export default function CostControl() {
   const [regime, setRegime] = useState(null);
   const [pinnR, setPinnR] = useState(null);
   const [swAbl, setSwAbl] = useState(null);
+  const [ach, setAch] = useState(null);
+  const [cm, setCm] = useState(null);
+  const [icRep, setIcRep] = useState(null);
   const [pick, setPick] = useState("FNO");
   // fr (built below from /api/m3/frontiers) is [0.30, 0.20, 0.10, 0.05, 0.02, 0.01] in
   // that order -- index 1 is target 0.20. Kept in sync dynamically below in case the
@@ -344,6 +475,9 @@ export default function CostControl() {
     fetch(`${API}/api/m3/regime`).then((r) => r.json()).then(setRegime).catch(() => {});
     pinnRegime().then(setPinnR).catch(() => {});
     switchingAblation().then(setSwAbl).catch(() => {});
+    achievability().then(setAch).catch(() => {});
+    costModel().then(setCm).catch(() => {});
+    icRepresentativeness().then(setIcRep).catch(() => {});
     getMeta().then(setMeta).catch(() => {});
   }, []);
 
@@ -418,6 +552,7 @@ export default function CostControl() {
         <button className={btn(tab === "findings")} onClick={() => setTab("findings")}>Findings</button>
         <button className={btn(tab === "live")} onClick={() => setTab("live")}>Try it live</button>
         <button className={btn(tab === "built")} onClick={() => setTab("built")}>How it's built</button>
+        <button className={btn(tab === "results")} onClick={() => setTab("results")}>Evaluation</button>
       </div>
 
       {err && <div className="text-sm text-rose-600 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 rounded-lg px-3 py-2">{err}</div>}
@@ -506,6 +641,8 @@ export default function CostControl() {
           </div>
         </>
       )}
+
+      {tab === "results" && <ResultsTab ach={ach} cm={cm} icRep={icRep} cmp={cmp} />}
 
       {tab === "live" && (
         <>

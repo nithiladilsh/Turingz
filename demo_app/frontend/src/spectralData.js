@@ -7,4 +7,9 @@ export const SPECTRAL_FRAMES = [{"t": 0.0, "err": 0.0, "spectral": [-0.0, -0.122
 // fdm_times_worse=1513.36 -- accVsExactPct was previously hand-set to 0.036 (over 3x the real
 // 0.0108), which understated the "more accurate than FDM" ratio computed from it (453x instead
 // of the real ~1513x, which was already sitting correct-but-unused as this same vsFdm field).
-export const SPECTRAL_STATS = {"accVsExactPct": 0.011, "maxErrPct": 0.078, "extrapPct": 0.006, "vsFdm": 1513, "fdmVsExactPct": 16.3};
+// extrapPct was previously 0.006 (from results/m3/step9_integration/verification.json, an
+// adapter self-check), which disagreed with the canonical results/deployment/cost_summary.json
+// (Spectral.err_extrap=0.00387%) used everywhere else in the app (CostAnalysis, CostControl) --
+// switched to that same canonical source so the "extrapolation error" claim is consistent
+// across every page, not just internally correct on this one.
+export const SPECTRAL_STATS = {"accVsExactPct": 0.011, "maxErrPct": 0.078, "extrapPct": 0.0039, "vsFdm": 1513, "fdmVsExactPct": 16.3};

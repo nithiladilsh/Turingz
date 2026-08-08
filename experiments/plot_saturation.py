@@ -1,8 +1,12 @@
 import os
+import sys
 import json
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
+sys.path.insert(0, os.path.dirname(__file__))
+from _plot_style import apply_app_style, PALETTE
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 OUT_DIR = os.path.join(ROOT, "results", "m3", "threshold_calibration")
@@ -17,12 +21,13 @@ def main():
     targets = [r["target"] for r in rows]
     errors = [r["mean_error"] * 100 for r in rows]
 
+    apply_app_style()
     fig, ax = plt.subplots(figsize=(8, 5))
-    ax.plot(targets, errors, marker="o", color="#2b5b84", linewidth=2, markersize=7,
+    ax.plot(targets, errors, marker="o", color=PALETTE["indigo"], linewidth=2, markersize=7,
             label="achieved error (measured, 10 held-out waves)")
-    ax.axvspan(0.02, 0.05, color="#f8dfa0", alpha=0.5,
+    ax.axvspan(0.02, 0.05, color=PALETTE["amber"], alpha=0.15,
                label="saturation region (between measured targets 0.05 and 0.02)")
-    ax.axvline(SATURATION_TARGET, color="#7a3a9c", linestyle="--", linewidth=1.5,
+    ax.axvline(SATURATION_TARGET, color=PALETTE["violet"], linestyle="--", linewidth=1.5,
                label=f"accuracy-saturation reference point = {SATURATION_TARGET}")
     ax.set_xlabel("requested accuracy target")
     ax.set_ylabel("achieved mean error (%)")

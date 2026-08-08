@@ -13,9 +13,9 @@ function MatchChart({ frame }) {
       {[-1.5, -0.75, 0, 0.75, 1.5].map((v) => (
         <line key={v} x1={sx(-1)} x2={sx(1)} y1={sy(v)} y2={sy(v)} stroke="var(--chart-grid)" strokeWidth="1" />
       ))}
-      <path d={path(frame.exact)} fill="none" stroke="#94a3b8" strokeWidth="6" strokeLinejoin="round" strokeLinecap="round" opacity="0.55" />
-      <path d={path(frame.spectral)} fill="none" stroke="#4f46e5" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
-      <text x={sx(-1) + 4} y={padT} fontSize="11" fill="#059669" fontWeight="700">spectral sits on the exact answer</text>
+      <path d={path(frame.spectral)} fill="none" stroke="#4f46e5" strokeWidth="4" strokeLinejoin="round" strokeLinecap="round" />
+      <path d={path(frame.exact)} fill="none" stroke="#059669" strokeWidth="2" strokeDasharray="7 5" strokeLinejoin="round" strokeLinecap="round" />
+      <text x={sx(-1) + 4} y={padT} fontSize="11" fill="#059669" fontWeight="700">dashed exact answer traces the spectral line exactly</text>
     </svg>
   );
 }
@@ -114,7 +114,7 @@ export default function SpectralPage() {
             <MatchChart frame={frame} />
             <div className="flex items-center justify-center gap-5 text-[11px] text-slate-400 dark:text-slate-500">
               <span className="flex items-center gap-1"><span className="w-3 h-1 rounded-full bg-indigo-500" /> spectral</span>
-              <span className="flex items-center gap-1"><span className="w-3 h-1.5 rounded-full bg-slate-400" /> exact (Cole-Hopf)</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-0 border-t-2 border-dashed border-emerald-600" /> exact (Cole-Hopf)</span>
             </div>
           </div>
         </div>

@@ -158,6 +158,77 @@ def frontiers():
     return out
 
 
+@router.get("/api/m3/achievability")
+def achievability():
+    """Hit-rate and mean error per requested accuracy target, on the 10 held-out
+    ICs -- shows the controller tracking the target down to a real accuracy
+    floor, not an unqualified 100% success story."""
+    try:
+        d = _load("results/m3/achievability/m3_achievability.json")
+    except FileNotFoundError:
+        return {"error": "no achievability result found"}
+    rows = sorted(d["per_target"], key=lambda r: -r["target"])
+    return {"rows": [{"target": r["target"], "mean_error": r["mean_error"], "hit_rate": r.get("hit_rate")} for r in rows]}
+
+
+@router.get("/api/m3/cost_model")
+def cost_model():
+    """Validates the additive cost model (ml_steps*ml_step_s + correction_steps*
+    correction_step_s) against real measured wall-clock time."""
+    try:
+        d = _load("results/m3/cost_model/m3_cost_model.json")
+    except FileNotFoundError:
+        return {"error": "no cost model result found"}
+    return {
+        "pearson_r": d.get("pearson_r"),
+        "mape": d.get("mape"),
+        "slope_measured_vs_predicted": d.get("slope_measured_vs_predicted"),
+        "ml_step_s": d.get("ml_step_s"),
+        "num_step_s": d.get("num_step_s"),
+    }
+
+
+@router.get("/api/m3/ood_frontier")
+def ood_frontier():
+    """In-distribution vs out-of-distribution cost/error, same controller and
+    thresholds, on frequency-shifted and amplitude-shifted test waves."""
+    try:
+        d = _load("results/m3/ood_frontier/m3_ood_frontier.json")
+    except FileNotFoundError:
+        return {"error": "no ood frontier result found"}
+    return {"indist": d.get("indist"), "ood": d.get("ood")}
+
+
+@router.get("/api/m3/switch_timing")
+def switch_timing():
+    """How close the controller's real switch time is to a cost-optimal oracle's
+    switch time, per target -- a control-precision check, not an error check."""
+    try:
+        d = _load("results/m3/error_decomposition/m3_error_decomposition.json")
+    except FileNotFoundError:
+        return {"error": "no error decomposition result found"}
+    rows = sorted(d["decomposition"], key=lambda r: -r["target"])
+    return {"rows": [{"target": r["target"], "real_switch_t": r["real_switch_t"],
+                       "oracle_switch_t": r["oracle_switch_t"], "detection_lag_t": r["detection_lag_t"]}
+                      for r in rows]}
+
+
+@router.get("/api/m3/ic_representativeness")
+def ic_representativeness():
+    """Whether the 10 held-out test ICs are a representative sample of the full
+    1000-IC dataset, and whether the resulting skew correlates with error."""
+    out = {}
+    try:
+        out["representativeness"] = _load("results/m3/ic_representativeness/ic_representativeness.json")
+    except FileNotFoundError:
+        out["representativeness"] = None
+    try:
+        out["bias_check"] = _load("results/m3/ic_representativeness/ic_bias_check.json")
+    except FileNotFoundError:
+        out["bias_check"] = None
+    return out
+
+
 @router.get("/api/m3/costs")
 def costs():
     """Full measured deployment-cost analysis for every solver (ML and numerical)."""

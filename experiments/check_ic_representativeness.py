@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(ROOT, "experiments"))
 from _load_pt_no_torch import load  # noqa: E402
+from _plot_style import apply_app_style, PALETTE  # noqa: E402
 
 OUT_DIR = os.path.join(ROOT, "results", "m3", "ic_representativeness")
 HELD_OUT_10 = np.arange(900, 910)
@@ -58,21 +59,19 @@ def plot(feat_full, idx10, idx20):
     names = ["energy", "roughness_tv", "zero_crossings", "spectral_centroid_modes1_4"]
     titles = ["Energy (L2 norm)", "Roughness (total variation)",
               "Zero crossings", "Spectral centroid (modes 1-4)"]
+    apply_app_style()
     fig, axes = plt.subplots(2, 2, figsize=(11, 8))
+    idx_all = np.union1d(idx10, idx20)
     for ax, name, title in zip(axes.flat, names, titles):
         full_vals = feat_full[name]
-        ax.hist(full_vals, bins=40, color="#8fb3d9", edgecolor="white", alpha=0.85,
-                 label="all 1000 ICs")
-        ax.scatter(full_vals[idx10], np.full(len(idx10), ax.get_ylim()[1] * 0.02),
-                   color="#c0392b", marker="v", s=60, zorder=5, label="held-out 10 (900-909)")
-        extra20 = np.setdiff1d(idx20, idx10)
-        if len(extra20):
-            ax.scatter(full_vals[extra20], np.full(len(extra20), ax.get_ylim()[1] * 0.02),
-                       color="#c1841a", marker="v", s=45, zorder=4, label="extended 20 (910-919)")
+        ax.hist(full_vals, bins=40, color=PALETTE["indigo_light"], edgecolor="white", alpha=0.85,
+                 label="all conditions")
+        ax.scatter(full_vals[idx_all], np.full(len(idx_all), ax.get_ylim()[1] * 0.02),
+                   color=PALETTE["rose"], marker="v", s=55, zorder=5, label="held-out test conditions")
         ax.set_title(title, fontsize=11)
         ax.grid(alpha=0.25)
     axes.flat[0].legend(fontsize=8, loc="upper right")
-    fig.suptitle("Held-out test ICs (900-909 / 900-919) vs. the full 1000-IC distribution", fontsize=12)
+    fig.suptitle("Held-out test conditions vs. the full dataset", fontsize=12)
     fig.tight_layout()
     out = os.path.join(OUT_DIR, "ic_representativeness.png")
     fig.savefig(out, dpi=150)

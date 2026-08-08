@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, ROOT)
+sys.path.insert(0, os.path.dirname(__file__))
+from _plot_style import apply_app_style, PALETTE
 
 from hybrid_pde.trust.signals import shock_coeff, corrected_signal, energy_signal, roughness_signal
 from hybrid_pde.trust.fuse import fit_fusion, fuse
@@ -82,13 +84,14 @@ def find_min_cost_theta(target, grid, table):
 
 
 def plot_ceiling(grid, errs, knee_theta, tight_theta, shipped_hi):
+    apply_app_style()
     fig, ax = plt.subplots(figsize=(8, 5))
-    ax.plot(grid, errs * 100, color="#2b5b84", linewidth=2, label="mean hybrid error (held-out)")
-    ax.axvline(knee_theta, color="#c1841a", linestyle="--", linewidth=1.5,
+    ax.plot(grid, errs * 100, color=PALETTE["indigo"], linewidth=2, label="mean hybrid error (held-out)")
+    ax.axvline(knee_theta, color=PALETTE["amber"], linestyle="--", linewidth=1.5,
                label=f"knee (diminishing returns) = {knee_theta:.2f}")
-    ax.axvline(tight_theta, color="#7a3a9c", linestyle="--", linewidth=1.5,
+    ax.axvline(tight_theta, color=PALETTE["violet"], linestyle="--", linewidth=1.5,
                label=f"cost-min. theta for target {TIGHTEST_TARGET:.2f} = {tight_theta:.2f}")
-    ax.axvline(shipped_hi, color="#2e8b57", linestyle="-", linewidth=2,
+    ax.axvline(shipped_hi, color=PALETTE["emerald"], linestyle="-", linewidth=2,
                label=f"shipped clamp_hi = {shipped_hi:.2f}")
     ax.set_xlabel("theta_lo (switch threshold)")
     ax.set_ylabel("mean hybrid error (%)")
@@ -103,13 +106,14 @@ def plot_ceiling(grid, errs, knee_theta, tight_theta, shipped_hi):
 
 
 def plot_floor(trust_eval, floor, jitter_std, margin_point, shipped_lo):
+    apply_app_style()
     fig, ax = plt.subplots(figsize=(8, 4.5))
-    ax.hist(trust_eval.flatten(), bins=60, color="#8fb3d9", edgecolor="white", alpha=0.9)
-    ax.axvline(floor, color="#c0392b", linestyle="-", linewidth=2,
+    ax.hist(trust_eval.flatten(), bins=60, color=PALETTE["indigo_light"], edgecolor="white", alpha=0.9)
+    ax.axvline(floor, color=PALETTE["rose"], linestyle="-", linewidth=2,
                label=f"measured floor = {floor:.3f}")
-    ax.axvline(margin_point, color="#c1841a", linestyle="--", linewidth=1.5,
+    ax.axvline(margin_point, color=PALETTE["amber"], linestyle="--", linewidth=1.5,
                label=f"floor + {MARGIN_SIGMA:.0f} sigma jitter = {margin_point:.3f}")
-    ax.axvline(shipped_lo, color="#2e8b57", linestyle="-", linewidth=2,
+    ax.axvline(shipped_lo, color=PALETTE["emerald"], linestyle="-", linewidth=2,
                label=f"shipped theta_lo @ target 0.30 = {shipped_lo:.3f}")
     ax.set_xlabel("trust score (held-out eval set, all steps)")
     ax.set_ylabel("count")

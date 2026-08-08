@@ -1,14 +1,20 @@
+import os
 import json
 import asyncio
 import numpy as np
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 import core
 
 app = FastAPI(title="Turingz Hybrid PDE Demo")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+
+_RESULTS_M3 = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "results", "m3"))
+if os.path.isdir(_RESULTS_M3):
+    app.mount("/static/m3", StaticFiles(directory=_RESULTS_M3), name="m3_static")
 
 
 @app.get("/api/meta")

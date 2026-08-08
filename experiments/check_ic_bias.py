@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(ROOT, "experiments"))
 from _load_pt_no_torch import load  # noqa: E402
+from _plot_style import apply_app_style, PALETTE  # noqa: E402
 
 OUT_DIR = os.path.join(ROOT, "results", "m3", "ic_representativeness")
 HELD_OUT_10 = np.arange(900, 910)
@@ -46,6 +47,7 @@ def main():
     for name, r in correlations.items():
         print(f"{name}: corr with error = {r:.3f}")
 
+    apply_app_style()
     fig, axes = plt.subplots(2, 2, figsize=(11, 8))
     titles = {
         "energy": "Energy (L2 norm)",
@@ -54,13 +56,13 @@ def main():
         "spectral_centroid_modes1_4": "Spectral centroid (modes 1-4)",
     }
     for ax, (name, v) in zip(axes.flat, feats.items()):
-        ax.scatter(v, err * 100, color="#2b5b84", s=50)
+        ax.scatter(v, err * 100, color=PALETTE["indigo"], s=50)
         r = correlations[name]
         ax.set_title(f"{titles[name]}  (r = {r:.2f})", fontsize=11)
         ax.set_xlabel(name)
         ax.set_ylabel("FNO relative error (%)")
         ax.grid(alpha=0.25)
-    fig.suptitle("Held-out FNO error vs. IC shape features (900-909): no strong correlation = no clear bias", fontsize=12)
+    fig.suptitle("Held-out error vs. IC shape features: no strong correlation = no clear bias", fontsize=12)
     fig.tight_layout()
     out_png = os.path.join(OUT_DIR, "ic_bias_check.png")
     os.makedirs(OUT_DIR, exist_ok=True)

@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, ROOT)
+sys.path.insert(0, os.path.dirname(__file__))
+from _plot_style import apply_app_style, PALETTE
 
 from hybrid_pde.trust.signals import shock_coeff, corrected_signal, energy_signal, roughness_signal
 from hybrid_pde.trust.fuse import fit_fusion, fuse
@@ -47,11 +49,12 @@ def main():
     floor = float(trust_eval.min())
     ceil = float(trust_eval.max())
 
+    apply_app_style()
     fig, ax = plt.subplots(figsize=(8, 5))
     for i in range(trust_eval.shape[0]):
-        ax.plot(t, trust_eval[i], color="#2b5b84", alpha=0.35, linewidth=1)
-    ax.axhline(floor, color="#c0392b", linestyle="-", linewidth=2, label=f"measured minimum = {floor:.3f}")
-    ax.axhline(ceil, color="#2e8b57", linestyle="-", linewidth=2, label=f"measured maximum = {ceil:.3f}")
+        ax.plot(t, trust_eval[i], color=PALETTE["indigo"], alpha=0.35, linewidth=1)
+    ax.axhline(floor, color=PALETTE["rose"], linestyle="-", linewidth=2, label=f"measured minimum = {floor:.3f}")
+    ax.axhline(ceil, color=PALETTE["emerald"], linestyle="-", linewidth=2, label=f"measured maximum = {ceil:.3f}")
     ax.set_xlabel("time")
     ax.set_ylabel("trust score")
     ax.set_title("Trust signal on held-out data: observed operating range")

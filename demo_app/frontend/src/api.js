@@ -37,6 +37,33 @@ export async function switchingAblation() {
   return r.json();
 }
 
+export async function achievability() {
+  const r = await fetch(`${API}/api/m3/achievability`);
+  return r.json();
+}
+
+export async function costModel() {
+  const r = await fetch(`${API}/api/m3/cost_model`);
+  return r.json();
+}
+
+export async function oodFrontier() {
+  const r = await fetch(`${API}/api/m3/ood_frontier`);
+  return r.json();
+}
+
+export async function icRepresentativeness() {
+  const r = await fetch(`${API}/api/m3/ic_representativeness`);
+  return r.json();
+}
+
+export async function switchTiming() {
+  const r = await fetch(`${API}/api/m3/switch_timing`);
+  return r.json();
+}
+
+export const STATIC = `${API}/static/m3`;
+
 // opens a websocket at `path`, calls onFrame(frame) for each streamed frame, onDone when finished
 function runWS(path, payload, onFrame, onDone, onError) {
   const ws = new WebSocket(`${WS}${path}`);
