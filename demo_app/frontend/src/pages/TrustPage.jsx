@@ -40,32 +40,32 @@ function SignalBar({ label, desc, color, weight, level }) {
 
 // the trust-score method, shown step by step in the "How it's built" tab
 const BUILD_STEPS = [
-  { n: 1, color: "#4f46e5", title: "Read four physics signals",
+  { n: 1, color: "#6366f1", title: "Read four physics signals",
     what: "From the prediction alone, compute four signals that each catch a different kind of failure.",
     chips: [
-      { label: "physics residual", color: "#4f46e5" },
-      { label: "energy drift", color: "#0d9488" },
-      { label: "roughness", color: "#e11d48" },
-      { label: "momentum drift", color: "#d97706" },
+      { label: "physics residual", color: "#6366f1" },
+      { label: "energy drift", color: "#14b8a6" },
+      { label: "roughness", color: "#f43f5e" },
+      { label: "momentum drift", color: "#f59e0b" },
     ],
     why: "The Burgers equation and conservation laws are a free, always-available truth the prediction must obey — no true answer needed." },
-  { n: 2, color: "#0d9488", title: "Normalise",
+  { n: 2, color: "#14b8a6", title: "Normalise",
     what: "Put every signal on a common scale as a z-score.",
     detail: "z = (signal − mean) / spread",
     why: "Raw signals live on wildly different scales (residual ≈ 0.05, roughness ≈ 0.00001), so they can't be compared or added directly." },
-  { n: 3, color: "#d97706", title: "Weight",
+  { n: 3, color: "#f59e0b", title: "Weight",
     what: "Weight each signal by how well it tracked the true error in training; clip negatives to 0; scale so they sum to 1.",
     detail: "wᵢ = max(0, corr(signalᵢ, true error)) ,   Σ w = 1",
     why: "Data-driven, not hand-picked — informative signals dominate, useless ones drop to 0. These are the 'shares' shown live." },
-  { n: 4, color: "#7c3aed", title: "Fuse",
+  { n: 4, color: "#8b5cf6", title: "Fuse",
     what: "Combine the weighted signals into one number.",
     detail: "fused = w₁z₁ + w₂z₂ + w₃z₃ + w₄z₄",
     why: "One number can be judged with one threshold; a linear sum stays interpretable and has nothing to overfit." },
-  { n: 5, color: "#2563eb", title: "Calibrate → trust 0–1",
+  { n: 5, color: "#3b82f6", title: "Calibrate → trust 0–1",
     what: "Map the fused number through a fitted logistic curve to a 0–1 trust score.",
     detail: "trust = 1 − sigmoid(a · fused + b)",
     why: "Turns an arbitrary number into an interpretable 'probability it's still fine', so one cutoff behaves consistently." },
-  { n: 6, color: "#059669", title: "Switch",
+  { n: 6, color: "#10b981", title: "Switch",
     what: "When trust stays below the cutoff for K steps in a row, hand over to the numerical solver.",
     detail: "switch if trust < cutoff for K steps",
     why: "Requiring K steps avoids false alarms; the cost is tuned so a late switch is penalised more than an early one." },
@@ -89,7 +89,7 @@ function HowBuilt({ cut, K }) {
           {BUILD_STEPS.map((s, i) => (
             <div key={s.n} className="flex items-center">
               <div className="flex items-center gap-2">
-                <span className="w-6 h-6 rounded-lg text-[11px] font-bold flex items-center justify-center shrink-0" style={{ background: s.color + "1A", color: s.color }}>{s.n}</span>
+                <span className="w-6 h-6 rounded-lg text-[11px] font-bold flex items-center justify-center shrink-0" style={{ background: s.color + "26", color: s.color }}>{s.n}</span>
                 <span className="text-xs font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap">{s.title.replace(" → trust 0–1", "")}</span>
               </div>
               {i < BUILD_STEPS.length - 1 && <span className="mx-2.5 text-slate-300 dark:text-slate-600 text-xs">→</span>}
@@ -104,7 +104,7 @@ function HowBuilt({ cut, K }) {
           <div key={s.n}
             className="group rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 shadow-sm hover:shadow-md hover:border-slate-300 dark:hover:border-slate-600 transition flex flex-col">
             <div className="flex items-center gap-3">
-              <span className="w-9 h-9 rounded-xl text-sm font-bold flex items-center justify-center shrink-0" style={{ background: s.color + "1A", color: s.color }}>{s.n}</span>
+              <span className="w-9 h-9 rounded-xl text-sm font-bold flex items-center justify-center shrink-0" style={{ background: s.color + "26", color: s.color }}>{s.n}</span>
               <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 leading-tight">{s.title}</h3>
             </div>
             <p className="text-sm text-slate-600 dark:text-slate-300 mt-3">{s.what}</p>
@@ -112,15 +112,14 @@ function HowBuilt({ cut, K }) {
               <div className="mt-3 flex flex-wrap gap-2">
                 {s.chips.map((cp) => (
                   <span key={cp.label} className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold"
-                    style={{ color: cp.color, background: cp.color + "14", border: `1px solid ${cp.color}33` }}>
+                    style={{ color: cp.color, background: cp.color + "26", border: `1px solid ${cp.color}55` }}>
                     <span className="w-1.5 h-1.5 rounded-full" style={{ background: cp.color }} />
                     {cp.label}
                   </span>
                 ))}
               </div>
             ) : (
-              <div className="mt-3 rounded-xl px-3 py-2.5 font-mono text-[12.5px] text-slate-700 dark:text-slate-100 text-center overflow-x-auto"
-                style={{ background: s.color + "0D", border: `1px solid ${s.color}26` }}>{s.detail}</div>
+              <div className="mt-3 rounded-xl px-3 py-2.5 font-mono text-[12.5px] text-slate-700 dark:text-slate-100 text-center overflow-x-auto bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700">{s.detail}</div>
             )}
             <div className="mt-auto pt-3">
               <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: s.color }}>Why</span>
@@ -153,9 +152,9 @@ const EVAL_WORST = [
   { label: "Fused (all four)", v: 0.66, hi: true },
 ];
 const EVAL_CORR = [
-  { m: "PINN", residual: 0.80, energy: 0.70, roughness: 0.32 },
-  { m: "FNO", residual: 0.73, energy: 0.10, roughness: -0.16 },
-  { m: "DeepONet", residual: 0.48, energy: -0.02, roughness: 0.83 },
+  { m: "PINN", residual: 0.80, energy: 0.70, roughness: 0.32, momentum: 0.87 },
+  { m: "FNO", residual: 0.73, energy: 0.10, roughness: -0.16, momentum: 0.80 },
+  { m: "DeepONet", residual: 0.48, energy: -0.02, roughness: 0.83, momentum: 0.79 },
 ];
 const EVAL_AUC = [
   { label: "PINN", v: 0.964 },
@@ -184,7 +183,7 @@ function EvalBar({ label, value, hi }) {
 
 function StatTile({ value, label, hint, color }) {
   return (
-    <div className="rounded-2xl border p-4 shadow-sm" style={{ background: color + "0D", borderColor: color + "2E" }}>
+    <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-sm">
       <div className="text-[28px] leading-none font-extrabold" style={{ color }}>{value}</div>
       <div className="text-xs font-semibold text-slate-700 dark:text-slate-200 mt-2">{label}</div>
       <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{hint}</div>
@@ -214,20 +213,20 @@ function Evaluation() {
 
       {/* headline numbers */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatTile value="0.955" label="Detection quality (AUC)" hint="0.5 = guessing · 1 = perfect" color="#4f46e5" />
-        <StatTile value="0.66" label="Fused worst-case match" hint="best single signal: 0.45" color="#0d9488" />
-        <StatTile value="0.999" label="Coarse catches the drift" hint="signals alone: 0.68" color="#7c3aed" />
-        <StatTile value="±0.28" label="Reliable-horizon error" hint="in time · correlation 0.85" color="#059669" />
+        <StatTile value="0.955" label="Detection quality (AUC)" hint="0.5 = guessing · 1 = perfect" color="#6366f1" />
+        <StatTile value="0.66" label="Fused worst-case match" hint="robust across all three models" color="#14b8a6" />
+        <StatTile value="0.999" label="Coarse catches the drift" hint="signals alone: 0.68" color="#8b5cf6" />
+        <StatTile value="±0.28" label="Reliable-horizon error" hint="in time · correlation 0.85" color="#10b981" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* fusion beats single */}
-        <Card title="Fusing beats any single signal"
+        {/* why fuse */}
+        <Card title="Why we fuse the signals"
           subtitle="worst-case match with the true error across the three models (−1…1 · higher is better)">
           <div className="space-y-2.5 mt-1">
             {EVAL_WORST.map((r) => <EvalBar key={r.label} label={r.label} value={r.v} hi={r.hi} />)}
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-3">No single signal is reliable for every model — one is even negative. Fused, it never drops below <b>0.66</b>. This is why we combine them.</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-3">No single signal is dependable for every model — some even go negative. Fusing gives one calibrated score (never below <b>0.66</b>) that works without knowing which signal will fire.</p>
         </Card>
 
         {/* per-model correlation */}
@@ -241,6 +240,7 @@ function Evaluation() {
                   <th className="py-1 font-medium">residual</th>
                   <th className="py-1 font-medium">energy</th>
                   <th className="py-1 font-medium">roughness</th>
+                  <th className="py-1 font-medium">momentum</th>
                 </tr>
               </thead>
               <tbody>
@@ -250,12 +250,13 @@ function Evaluation() {
                     <td className="p-1"><div className={`rounded-md py-1 text-center font-semibold ${corrTone(r.residual)}`}>{r.residual.toFixed(2)}</div></td>
                     <td className="p-1"><div className={`rounded-md py-1 text-center font-semibold ${corrTone(r.energy)}`}>{r.energy.toFixed(2)}</div></td>
                     <td className="p-1"><div className={`rounded-md py-1 text-center font-semibold ${corrTone(r.roughness)}`}>{r.roughness.toFixed(2)}</div></td>
+                    <td className="p-1"><div className={`rounded-md py-1 text-center font-semibold ${corrTone(r.momentum)}`}>{r.momentum.toFixed(2)}</div></td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-3">PINN and FNO show up in the residual, DeepONet in roughness — so the learned weights adapt to each model.</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-3">Residual and momentum are the consistent backbone; roughness is DeepONet's key signal and energy is PINN's — so the learned weights adapt to each model.</p>
         </Card>
 
         {/* AUC */}
