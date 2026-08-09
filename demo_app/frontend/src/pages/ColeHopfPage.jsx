@@ -85,12 +85,12 @@ export default function ColeHopfPage() {
       {/* HEADER */}
       <div>
         <span className="text-xs font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Numerical solvers</span>
-        <h1 className="text-3xl font-extrabold text-slate-800 dark:text-slate-100 mt-1">Cole–Hopf — the exact reference</h1>
+        <h1 className="text-3xl font-extrabold text-slate-800 dark:text-slate-100 mt-1">Cole–Hopf, the exact reference</h1>
         <span className="inline-block mt-2 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300">
-          Evaluation reference — not the runtime corrector
+          Evaluation reference, not the runtime corrector
         </span>
         <p className="text-slate-500 dark:text-slate-400 mt-1">
-          Every number in this project is measured against one reference solution. So we asked —{" "}
+          Every number in this project is measured against one reference solution. So we asked:{" "}
           <span className="font-medium text-slate-700 dark:text-slate-200">can we build one answer we fully trust, and show why we can trust it?</span>{" "}
           Here is the method, the test, and the answer.
         </p>
@@ -99,12 +99,12 @@ export default function ColeHopfPage() {
       {/* HOW IT WORKS */}
       <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
         <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-4">
-          How Cole–Hopf works — three steps
+          How Cole–Hopf works, three steps
         </div>
         <div className="flex items-stretch gap-2 flex-wrap">
           <Step n="1" icon={Wand2} tone="indigo" title="Transform" sub="the nonlinear Burgers equation becomes the linear heat equation" />
           <ArrowRight size={18} className="self-center shrink-0 text-slate-300 dark:text-slate-600" />
-          <Step n="2" icon={Thermometer} tone="violet" title="Solve heat exactly" sub="one heat-kernel convolution — no time marching" />
+          <Step n="2" icon={Thermometer} tone="violet" title="Solve heat exactly" sub="one heat-kernel convolution, no time marching" />
           <ArrowRight size={18} className="self-center shrink-0 text-slate-300 dark:text-slate-600" />
           <Step n="3" icon={Undo2} tone="fuchsia" title="Transform back" sub="recover the Burgers solution, exact in time" />
         </div>
@@ -120,11 +120,11 @@ export default function ColeHopfPage() {
           <div className="flex items-center justify-center gap-6 mt-3 text-xs">
             <span className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
               <span className="w-2.5 h-2.5 rounded bg-rose-500" />
-              <span className="font-semibold text-rose-600 dark:text-rose-400">nonlinear</span> — hard, shock-forming
+              <span className="font-semibold text-rose-600 dark:text-rose-400">nonlinear</span>, hard, shock-forming
             </span>
             <span className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
               <span className="w-2.5 h-2.5 rounded bg-teal-500" />
-              <span className="font-semibold text-teal-600 dark:text-teal-400">linear heat</span> — solved exactly
+              <span className="font-semibold text-teal-600 dark:text-teal-400">linear heat</span>, solved exactly
             </span>
           </div>
         </div>
@@ -139,7 +139,7 @@ export default function ColeHopfPage() {
               <div>
                 <div className="text-sm font-semibold text-slate-800 dark:text-slate-100">The exact solution steepening into the viscous shock</div>
                 <div className="text-xs text-slate-500 dark:text-slate-400">
-                  a real held-out wave — the trajectory every model trains on and is measured against
+                  a real held-out wave, the trajectory every model trains on and is measured against
                 </div>
               </div>
               <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full ${shockPct > 60
@@ -165,7 +165,7 @@ export default function ColeHopfPage() {
             <div>
               <div className="text-xs text-emerald-600 dark:text-emerald-400">time-stepping error</div>
               <div className="text-5xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">0</div>
-              <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">exact in time — one-shot heat kernel, nothing accumulates</div>
+              <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">exact in time, one-shot heat kernel, nothing accumulates</div>
             </div>
           </div>
         </div>
@@ -178,11 +178,11 @@ export default function ColeHopfPage() {
         </h2>
         <div className="grid grid-cols-4 gap-4">
           <Metric icon={Timer} tone="indigo" tag="Exactness" value="0"
-            label="time-stepping error — the heat kernel gives the whole trajectory in one shot" />
+            label="time-stepping error, the heat kernel gives the whole trajectory in one shot" />
           <Metric icon={ShieldCheck} tone="emerald" tag="Cross-check" value={`${S.agreePct}%`}
             label={`agreement with the independent spectral solver (max gap ${eToSup(S.maxDis)})`} />
           <Metric icon={Scale} tone="indigo" tag="Vs FDM" value={`${S.timesWorse}×`}
-            label={`FDM is ${S.fdmVsExact}% off this reference — a cheap baseline, not a truth source`} />
+            label={`FDM is ${S.fdmVsExact}% off this reference, a cheap baseline, not a truth source`} />
           <Metric icon={Target} tone="indigo" tag="Role" value="Reference"
             label="generates the reference dataset and scores every model; the runtime hand-off continues with the pseudo-spectral solver" />
         </div>

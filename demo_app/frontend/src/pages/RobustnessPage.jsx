@@ -85,8 +85,8 @@ function Step({ n, icon: Icon, tone, title, sub }) {
 
 const MODELS = ["FNO", "DeepONet"];
 const PRESETS = [
-  ["in_dist", "familiar wave", "sin(πx) — inside the training family"],
-  ["high_freq", "wigglier wave", "sin(6πx) — a frequency never seen (trained on modes 1–4)"],
+  ["in_dist", "familiar wave", "sin(πx), inside the training family"],
+  ["high_freq", "wigglier wave", "sin(6πx), a frequency never seen (trained on modes 1–4)"],
   ["gaussian", "localized bump", "a shape unlike any training sinusoid"],
   ["custom", "build your own", "more modes = further out of distribution"],
 ];
@@ -146,13 +146,13 @@ export default function RobustnessPage() {
         <span className="text-xs font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">ML model analysis</span>
         <h1 className="text-3xl font-extrabold text-slate-800 dark:text-slate-100 mt-1">Robustness Analysis</h1>
         <p className="text-slate-500 dark:text-slate-400 mt-1">
-          Each surrogate is trained only up to <b>t = 1</b>. We push it two ways it never saw —{" "}
-          <span className="font-medium text-slate-700 dark:text-slate-200">unseen future times (extrapolation) and unseen wave shapes (out-of-distribution)</span>{" "}
-          — and track the signal that catches the failure.
+          Each surrogate is trained only up to <b>t = 1</b>. We push it two ways it never saw:{" "}
+          <span className="font-medium text-slate-700 dark:text-slate-200">unseen future times (extrapolation) and unseen wave shapes (out-of-distribution)</span>,{" "}
+          and track the signal that catches the failure.
         </p>
       </div>
 
-      {/* VIEW TABS — Findings | Try it live (matches Reliability & Cost) */}
+      {/* VIEW TABS, Findings | Try it live (matches Reliability & Cost) */}
       <div className="inline-flex rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-1">
         <button onClick={() => setTab("findings")}
           className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition ${tab === "findings"
@@ -167,7 +167,7 @@ export default function RobustnessPage() {
       </div>
 
       {tab === "findings" && (<>
-        {/* SCOREBOARD — same 3-column card format as Reliability / Cost */}
+        {/* SCOREBOARD, same 3-column card format as Reliability / Cost */}
         <div className="grid grid-cols-3 gap-4">
           {[
             { m: "FNO", color: "#059669", badge: ["most robust", "emerald"], inW: `${S.inWindow}%`, extrap: `${S.extrap}%`, ood: `>${S.oodHighFreq}%` },
@@ -214,7 +214,7 @@ export default function RobustnessPage() {
             <div className="relative">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-sm font-semibold text-slate-800 dark:text-slate-100">Even the most robust model drifts — FNO past t = 1</div>
+                  <div className="text-sm font-semibold text-slate-800 dark:text-slate-100">Even the most robust model drifts, FNO past t = 1</div>
                   <div className="mt-1 flex gap-1.5"><span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">REAL MODEL OUTPUT</span><span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300">TRUTH USED ONLY TO SCORE</span></div>
                 </div>
                 <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full ${extrap
@@ -240,7 +240,7 @@ export default function RobustnessPage() {
           </div>
 
           <div className="flex flex-col gap-5">
-            <Card title="Extrapolation error" subtitle="past the training horizon — the whole family fails">
+            <Card title="Extrapolation error" subtitle="past the training horizon, the whole family fails">
               <div className="space-y-3 mt-1">
                 {[["FNO", S.extrap, "#059669"], ["PINN", S.pinnExtrap, "#d97706"], ["DeepONet", S.deeponetExtrap, "#e11d48"]].map(([m, v, c]) => (
                   <div key={m}>
@@ -250,7 +250,7 @@ export default function RobustnessPage() {
                 ))}
               </div>
             </Card>
-            <Card title="On unfamiliar inputs (OOD)" subtitle="a frequency it never trained on — sin(6πx)">
+            <Card title="On unfamiliar inputs (OOD)" subtitle="a frequency it never trained on, sin(6πx)">
               <div className="space-y-3 mt-1">
                 {[["FNO", S.oodHighFreq, "#059669"], ["DeepONet", S.deeponetOOD, "#e11d48"]].map(([m, v, c]) => (
                   <div key={m}>
@@ -278,7 +278,7 @@ export default function RobustnessPage() {
               series={[{ x: upto.map((f) => f.t), y: upto.map((f) => f.sd), color: "#2563eb", width: 2.5 }]}
               xr={[0, 2]} yr={[0, Math.max(0.35, ...ROB_FRAMES.map((f) => f.sd)) * 1.05]}
               vline={1.0} h={175} xlabel="t" ylabel="spectral distance" />
-            <p className={`text-[11px] mt-1 ${muted}`}>the same drift, viewed in frequency space — spectral distance grows in step with the error as the wave sharpens</p>
+            <p className={`text-[11px] mt-1 ${muted}`}>the same drift, viewed in frequency space, spectral distance grows in step with the error as the wave sharpens</p>
           </Card>
         </div>
 
@@ -302,7 +302,7 @@ export default function RobustnessPage() {
         {/* RUN IT YOURSELF */}
         <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
           <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1 flex items-center gap-2">
-            <Play size={14} /> Run it yourself — live <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300">LIVE BACKEND</span>
+            <Play size={14} /> Run it yourself, live <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300">LIVE BACKEND</span>
           </div>
           <p className={`text-xs ${muted} mb-4`}>
             Pick a model and an input; the backend runs the real model and streams the failure as it happens.
@@ -358,7 +358,7 @@ export default function RobustnessPage() {
               )}
             </div>
             <div className="space-y-3">
-              <Card title={lf ? `t = ${lf.t.toFixed(2)}${lf.t > 1 ? " — extrapolating" : " — in training window"}` : "run to start"}>
+              <Card title={lf ? `t = ${lf.t.toFixed(2)}${lf.t > 1 ? ", extrapolating" : ", in training window"}` : "run to start"}>
                 <LineChart
                   series={[
                     { x, y: lf ? lf.true : [], color: "#94a3b8", dashed: true },
