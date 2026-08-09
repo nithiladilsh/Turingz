@@ -30,34 +30,61 @@ const AGG = {
   fnoTail1: (_AGG_R0.fno_tail * 100).toFixed(1),                  // 13.4
   fnoTail2: (_AGG_R0.fno_tail * 100).toFixed(2),                  // 13.41
   hybTail2: (_AGG_R0.hybrid_tail * 100).toFixed(2),              // 0.86
+  stateErr: (_AGG_R0.e_s * 100).toFixed(2),                      // 1.02 (ML state error at hand-off)
   reduction: (_AGG_R0.benefit * 100).toFixed(1),                 // 92.9
   icsImproved: _AGG_R0.ics_improved,                             // 100
   nIC: sweep.n_ic,                                               // 100
   boundary: Number(sweep.viability_rule.boundary_t_s).toFixed(2), // 1.49
 };
 
+/* Committed oracle (true-state restart) tail error at t_s = 1.0, from the same sweep. */
+const _ORACLE = _AGG_R0.upper_bound_tail;                          // 1.8e-6
+const ORACLE_STR = `${(_ORACLE * 1e6).toFixed(1)}×10⁻⁶`;          // "1.8×10⁻⁶"
+
+/* The committed n=100 sweep, interpolated by hand-off time — so the Story tiles quote the
+   aggregate (handoff_sweep_results.json) rather than the single representative wave. */
+function committedAt(ts) {
+  const R = sweep.results;                                         // rows at t_s = 1.0..1.8, ascending
+  let i = 0;
+  while (i < R.length - 2 && ts > R[i + 1].t_s) i++;
+  const a = R[i], b = R[i + 1];
+  const f = (ts - a.t_s) / (b.t_s - a.t_s);
+  const lerp = (k) => a[k] + f * (b[k] - a[k]);
+  return { mlTail: lerp("fno_tail"), hyTail: lerp("hybrid_tail"), work: lerp("numerical_fraction") };
+}
+
 /* "How it's built", the hand-off mechanism, each step with the design reason (grounded in the code). */
 const COUPLING_BUILD = [
-  { n: 1, color: "#4f46e5", title: "Run the ML solver",
+  {
+    n: 1, color: "#4f46e5", title: "Run the ML solver",
     what: "Roll out the fast ML surrogate (FNO / PINN / DeepONet) across the whole window.",
     chips: [{ label: "ML prediction stream", color: "#4f46e5" }],
-    why: "The ML is cheap, so we let it carry the wave while it can be trusted, we only replace it once, at the switch." },
-  { n: 2, color: "#0d9488", title: "Re-anchor at the switch",
+    why: "The ML is cheap, so we let it carry the wave while it can be trusted, we only replace it once, at the switch."
+  },
+  {
+    n: 2, color: "#0d9488", title: "Re-anchor at the switch",
     what: "Seed the team's pseudo-spectral solver with the EXACT ML state at the switch time t_s, and start there.",
     detail: "solve_from(u_ML(t_s)):  first numerical frame = u_ML(t_s)  →  jump = 0",
-    why: "This makes the hand-off jump zero BY CONSTRUCTION, no blending, no interpolation. The first numerical frame IS the handed-over state, so the seam is continuous." },
-  { n: 3, color: "#7c3aed", title: "Continue under the production scheme",
+    why: "This makes the hand-off jump zero BY CONSTRUCTION, no blending, no interpolation. The first numerical frame IS the handed-over state, so the seam is continuous."
+  },
+  {
+    n: 3, color: "#7c3aed", title: "Continue under the production scheme",
     what: "Advance with the team's verified pseudo-spectral solver, same grid, 2/3 de-aliasing, Nyquist zeroing, integrating-factor RK4.",
     chips: [{ label: "verified restart", color: "#7c3aed" }, { label: "= production solver", color: "#7c3aed" }],
-    why: "It's the scheme everyone already trusts. The restart is proven bit-identical to it (rel diff 0.0 in verify_restart.py), so continuing changes nothing about the numerics." },
-  { n: 4, color: "#e11d48", title: "Switch once, or correct per interval",
+    why: "It's the scheme everyone already trusts. The restart is proven bit-identical to it (rel diff 0.0 in verify_restart.py), so continuing changes nothing about the numerics."
+  },
+  {
+    n: 4, color: "#e11d48", title: "Switch once, or correct per interval",
     what: "rollout() does a one-way hard switch at the first trust trigger; correct() advances a single interval for Module 3's scheduler.",
     detail: "if trust fires: switch once, never hand back",
-    why: "Returning to ML would re-inject ML error. The numerical solver is injected, not hardcoded, so the same verified restart serves both a hard switch and a scheduled-correction policy, backend-agnostic." },
-  { n: 5, color: "#059669", title: "Verify & decompose the error",
+    why: "Returning to ML would re-inject ML error. The numerical solver is injected, not hardcoded, so the same verified restart serves both a hard switch and a scheduled-correction policy, backend-agnostic."
+  },
+  {
+    n: 5, color: "#059669", title: "Verify & decompose the error",
     what: "12 automated tests, plus an oracle restart from the TRUE state to separate the coupling's own error from the inherited ML error.",
     detail: "E_hybrid = E_coupling (~10⁻⁶) + E_inherited",
-    why: "The oracle proves the coupling itself adds almost nothing, all remaining hybrid error is inherited from the ML hand-off state, not produced by the switch." },
+    why: "The oracle proves the coupling itself adds almost nothing, all remaining hybrid error is inherited from the ML hand-off state, not produced by the switch."
+  },
 ];
 
 /* Final-integration baselines, read live from trust_hardswitch_compare.json. */
@@ -79,7 +106,7 @@ const _STAB0 = stab.rows.find((r) => Math.abs(r.t_s - 1.0) < 1e-9) || stab.rows[
 const GLANCE = [
   { v: `${AGG.reduction}%`, label: "Error reduction", cap: `${AGG.fnoTail1}% → ${AGG.hybTail2}% at t_s = 1.0 · ${AGG.nIC} waves`, c: "#059669" },
   { v: `≈ ${AGG.boundary}`, label: "Viability boundary", cap: "latest switch meeting the pre-set rule", c: "#7c3aed" },
-  { v: `~${eToSup(RL_META.oracle)}`, label: "Oracle restart error", cap: "true-state restart adds ~nothing", c: "#4f46e5" },
+  { v: `~${ORACLE_STR}`, label: "Oracle restart error", cap: "true-state restart adds ~nothing", c: "#4f46e5" },
   { v: _STAB0.state_jump.toFixed(1), label: "State jump at switch", cap: "continuous hand-off, by construction", c: "#0d9488" },
   { v: "0.0", label: "Restart verification", cap: "rel diff vs production solver", c: "#d97706" },
 ];
@@ -165,7 +192,7 @@ function OracleBars({ mlTail, hyTail, oracle }) {
           <text x={padL - 8} y={y(i) + bh - 5} textAnchor="end" fontSize="10.5" fill="var(--chart-axis)">{d.label}</text>
           <rect x={padL} y={y(i)} width={Math.max(3, sx(d.v) - padL)} height={bh} rx="4" fill={d.color} opacity="0.9" />
           <text x={Math.max(sx(d.v) + 6, padL + 6)} y={y(i) + bh - 5} fontSize="10.5" fontWeight="700" fill={d.color}>
-            {d.v >= 0.001 ? `${(d.v * 100).toFixed(d.v < 0.1 ? 2 : 1)}%` : `${eToSup(d.v)} ≈ ${(d.v * 100).toFixed(4)}%`}
+            {d.v >= 0.001 ? `${(d.v * 100).toFixed(d.v < 0.1 ? 2 : 1)}%` : `${(d.v * 100).toFixed(4)}%`}
           </text>
         </g>
       ))}
@@ -255,6 +282,7 @@ export default function CouplingPage() {
   }, [playing]);
 
   const sw = RL_SWITCHES[tsIdx];
+  const cm = committedAt(sw.ts);   // committed n=100 aggregate at this hand-off time
   const frame = RL_FRAMES[ph];
   const tNow = frame.t;
   const switched = tNow >= sw.ts;
@@ -288,12 +316,12 @@ export default function CouplingPage() {
   const [err, setErr] = useState(null);
   const wsRef = useRef(null);
 
-  useEffect(() => { getMeta().then(setMeta).catch(() => {}); }, []);
+  useEffect(() => { getMeta().then(setMeta).catch(() => { }); }, []);
   useEffect(() => {
     if (!meta) return;
-    if (model === "PINN") pinnIC(pinnIndex).then((d) => setIc(d.ic)).catch(() => {});
-    else if (source === "real") realTestIC(ridx).then((d) => setIc(d.ic)).catch(() => {});
-    else buildIC(modes, amplitude).then((d) => setIc(d.ic)).catch(() => {});
+    if (model === "PINN") pinnIC(pinnIndex).then((d) => setIc(d.ic)).catch(() => { });
+    else if (source === "real") realTestIC(ridx).then((d) => setIc(d.ic)).catch(() => { });
+    else buildIC(modes, amplitude).then((d) => setIc(d.ic)).catch(() => { });
   }, [meta, model, modes, amplitude, pinnIndex, source, ridx]);
 
   function run() {
@@ -302,8 +330,8 @@ export default function CouplingPage() {
     const payload = model === "PINN"
       ? { model, pinn_index: pinnIndex, switch_mode: switchMode, t_s: lts }
       : source === "real"
-      ? { model, real_ic_index: ridx, switch_mode: switchMode, t_s: lts }
-      : { model, ic, switch_mode: switchMode, t_s: lts };
+        ? { model, real_ic_index: ridx, switch_mode: switchMode, t_s: lts }
+        : { model, ic, switch_mode: switchMode, t_s: lts };
     wsRef.current = runCoupling(payload,
       (f) => { setLf(f); setHist((h) => [...h, f]); },
       (s) => setSummary(s),
@@ -352,75 +380,75 @@ export default function CouplingPage() {
       </div>
 
       {tab === "story" && (<div className="space-y-6">
-        <div className="flex items-center gap-2"><Badge kind="rep" /><span className="text-xs text-slate-400 dark:text-slate-500">one held-out wave, interactive, aggregate numbers are on the Evidence tab</span></div>
-      {/* ===== THE RELAY TIMELINE, the page's centrepiece ===== */}
-      <div className="rounded-2xl border-2 border-indigo-200 dark:border-indigo-500/30 bg-white dark:bg-slate-800 p-5">
-        <div className="flex items-center justify-between mb-3">
-          <div className="text-sm font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-            <GitCommitHorizontal size={16} className="text-indigo-500" />
-            Who carries the wave, drag the handoff t_s = {sw.ts.toFixed(1)}
+        <div className="flex items-center gap-2"><Badge kind="rep" /><span className="text-xs text-slate-400 dark:text-slate-500">the wave shape is one representative held-out wave; the numbers are the n = {AGG.nIC} committed aggregate at each hand-off time</span></div>
+        {/* ===== THE RELAY TIMELINE, the page's centrepiece ===== */}
+        <div className="rounded-2xl border-2 border-indigo-200 dark:border-indigo-500/30 bg-white dark:bg-slate-800 p-5">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-sm font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+              <GitCommitHorizontal size={16} className="text-indigo-500" />
+              Who carries the wave, drag the handoff t_s = {sw.ts.toFixed(1)}
+            </div>
+            <span className={`text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${vChip}`}>
+              {verdict}{verdict === "exceeds 10% error criterion" && ", still improves, but the state was already too degraded"}
+            </span>
           </div>
-          <span className={`text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${vChip}`}>
-            {verdict}{verdict === "exceeds 10% error criterion" && ", still improves, but the state was already too degraded"}
-          </span>
+
+          {/* ownership bar with playhead baton */}
+          <div className="relative h-9 rounded-lg overflow-hidden flex text-[11px] font-bold text-white select-none">
+            <div className="bg-rose-500/90 grid place-items-center transition-all duration-300"
+              style={{ width: `${sw.i0f * 100}%` }}>ML, fast</div>
+            <div className="bg-indigo-600 grid place-items-center flex-1 transition-all duration-300">
+              numerical, verified restart
+            </div>
+            {/* training-horizon + boundary ticks */}
+            <div className="absolute top-0 h-full w-0.5 bg-white/70" style={{ left: "50.2%" }} title="training horizon t=1" />
+            <div className="absolute top-0 h-full w-0.5 bg-amber-300" style={{ left: `${(RL_META.boundary / 2) * 100}%` }} title="viability boundary" />
+            {/* the baton */}
+            <div className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-2 border-white shadow transition-all duration-100"
+              style={{
+                left: `calc(${(tNow / 2) * 100}% - 8px)`,
+                background: switched ? "#4f46e5" : "#e11d48",
+              }} />
+          </div>
+          <div className="flex justify-between text-[10px] text-slate-400 dark:text-slate-500 mt-1">
+            <span>t = 0</span>
+            <span className="text-slate-500 dark:text-slate-300">│ t = 1 training ends</span>
+            <span className="text-amber-500">│ t ≈ {RL_META.boundary} last handoff meeting the joint viability criterion</span>
+            <span>t = 2</span>
+          </div>
+
+          <input type="range" min="0" max={RL_SWITCHES.length - 1} step="1" value={tsIdx}
+            onChange={(e) => setTsIdx(+e.target.value)}
+            className="w-full mt-3 accent-indigo-600" />
+
+          {/* consequences of the chosen handoff, updates instantly */}
+          <div className="grid grid-cols-4 gap-3 mt-3">
+            <div className="rounded-xl bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 px-3 py-2 text-center">
+              <div className="text-[10px] uppercase tracking-wide text-rose-500">pure-ML error · never hand off</div>
+              <div className="text-xl font-extrabold text-rose-600 dark:text-rose-400">{(cm.mlTail * 100).toFixed(1)}%</div>
+            </div>
+            <div className="rounded-xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 px-3 py-2 text-center">
+              <div className="text-[10px] uppercase tracking-wide text-indigo-500">hybrid error · hand off here</div>
+              <div className="text-xl font-extrabold text-indigo-600 dark:text-indigo-400">{(cm.hyTail * 100).toFixed(cm.hyTail < 0.1 ? 2 : 1)}%</div>
+            </div>
+            <div className="rounded-xl bg-slate-50 dark:bg-slate-700/40 border border-slate-100 dark:border-slate-600/40 px-3 py-2 text-center">
+              <div className="text-[10px] uppercase tracking-wide text-slate-400">numerical work · the cost</div>
+              <div className="text-xl font-extrabold text-slate-700 dark:text-slate-200">{(cm.work * 100).toFixed(0)}%</div>
+            </div>
+            <div className="rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 px-3 py-2 text-center">
+              <div className="text-[10px] uppercase tracking-wide text-emerald-600">jump at handoff</div>
+              <div className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400">{sw.jump === 0 ? "0" : eToSup(sw.jump)}</div>
+            </div>
+            <p className="col-span-4 text-[11px] text-slate-500 dark:text-slate-400 mt-2">
+              Later hand-offs are <span className="font-medium">cheaper</span> (less numerical work) but{" "}
+              <span className="font-medium">less accurate</span>, the state handed over is already degraded.
+              The criterion above is about <span className="font-medium">accuracy</span>, not cost: how much that
+              accuracy is worth paying for is Module 3&apos;s decision.
+            </p>
+          </div>
         </div>
 
-        {/* ownership bar with playhead baton */}
-        <div className="relative h-9 rounded-lg overflow-hidden flex text-[11px] font-bold text-white select-none">
-          <div className="bg-rose-500/90 grid place-items-center transition-all duration-300"
-            style={{ width: `${sw.i0f * 100}%` }}>ML, fast</div>
-          <div className="bg-indigo-600 grid place-items-center flex-1 transition-all duration-300">
-            numerical, verified restart
-          </div>
-          {/* training-horizon + boundary ticks */}
-          <div className="absolute top-0 h-full w-0.5 bg-white/70" style={{ left: "50.2%" }} title="training horizon t=1" />
-          <div className="absolute top-0 h-full w-0.5 bg-amber-300" style={{ left: `${(RL_META.boundary / 2) * 100}%` }} title="viability boundary" />
-          {/* the baton */}
-          <div className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-2 border-white shadow transition-all duration-100"
-            style={{
-              left: `calc(${(tNow / 2) * 100}% - 8px)`,
-              background: switched ? "#4f46e5" : "#e11d48",
-            }} />
-        </div>
-        <div className="flex justify-between text-[10px] text-slate-400 dark:text-slate-500 mt-1">
-          <span>t = 0</span>
-          <span className="text-slate-500 dark:text-slate-300">│ t = 1 training ends</span>
-          <span className="text-amber-500">│ t ≈ {RL_META.boundary} last handoff meeting the joint viability criterion</span>
-          <span>t = 2</span>
-        </div>
-
-        <input type="range" min="0" max={RL_SWITCHES.length - 1} step="1" value={tsIdx}
-          onChange={(e) => setTsIdx(+e.target.value)}
-          className="w-full mt-3 accent-indigo-600" />
-
-        {/* consequences of the chosen handoff, updates instantly */}
-        <div className="grid grid-cols-4 gap-3 mt-3">
-          <div className="rounded-xl bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 px-3 py-2 text-center">
-            <div className="text-[10px] uppercase tracking-wide text-rose-500">pure-ML error · never hand off</div>
-            <div className="text-xl font-extrabold text-rose-600 dark:text-rose-400">{(sw.mlTail * 100).toFixed(1)}%</div>
-          </div>
-          <div className="rounded-xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 px-3 py-2 text-center">
-            <div className="text-[10px] uppercase tracking-wide text-indigo-500">hybrid error · hand off here</div>
-            <div className="text-xl font-extrabold text-indigo-600 dark:text-indigo-400">{(sw.hyTail * 100).toFixed(1)}%</div>
-          </div>
-          <div className="rounded-xl bg-slate-50 dark:bg-slate-700/40 border border-slate-100 dark:border-slate-600/40 px-3 py-2 text-center">
-            <div className="text-[10px] uppercase tracking-wide text-slate-400">numerical work · the cost</div>
-            <div className="text-xl font-extrabold text-slate-700 dark:text-slate-200">{(sw.work * 100).toFixed(0)}%</div>
-          </div>
-          <div className="rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 px-3 py-2 text-center">
-            <div className="text-[10px] uppercase tracking-wide text-emerald-600">jump at handoff</div>
-            <div className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400">{sw.jump === 0 ? "0" : eToSup(sw.jump)}</div>
-          </div>
-          <p className="col-span-4 text-[11px] text-slate-500 dark:text-slate-400 mt-2">
-            Later hand-offs are <span className="font-medium">cheaper</span> (less numerical work) but{" "}
-            <span className="font-medium">less accurate</span>, the state handed over is already degraded.
-            The criterion above is about <span className="font-medium">accuracy</span>, not cost: how much that
-            accuracy is worth paying for is Module 3&apos;s decision.
-          </p>
-        </div>
-      </div>
-
-      {/* aggregate headline, pins the real result to the Story tab so it stands alone
+        {/* aggregate headline, pins the real result to the Story tab so it stands alone
       <div className="rounded-2xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50/60 dark:bg-emerald-500/10 px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-1.5">
         <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">Aggregate · n = {AGG.nIC} held-out</span>
         <span className="text-sm text-slate-700 dark:text-slate-200">tail error <b className="text-rose-600 dark:text-rose-400">{AGG.fnoTail1}%</b> → <b className="text-indigo-600 dark:text-indigo-400">{AGG.hybTail2}%</b></span>
@@ -429,194 +457,192 @@ export default function CouplingPage() {
         <span className="text-[11px] text-slate-400 dark:text-slate-500 ml-auto">hand-off tₛ = 1.0 · the animation above is one representative wave</span>
       </div> */}
 
-      {/* wave + error, reacting to the same t_s */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
-          <div className="flex items-center justify-between">
-            <div className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-              t = {tNow.toFixed(2)} · {switched
-                ? <span className="text-indigo-500">numerical carries it</span>
-                : <span className="text-rose-500">ML carries it</span>}
+        {/* wave + error, reacting to the same t_s */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
+            <div className="flex items-center justify-between">
+              <div className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                t = {tNow.toFixed(2)} · {switched
+                  ? <span className="text-indigo-500">numerical carries it</span>
+                  : <span className="text-rose-500">ML carries it</span>}
+              </div>
+              <button onClick={() => setPlaying((p) => !p)}
+                className="text-xs px-2 py-1 rounded border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-300">
+                {playing ? "pause" : "play"}
+              </button>
             </div>
-            <button onClick={() => setPlaying((p) => !p)}
-              className="text-xs px-2 py-1 rounded border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-300">
-              {playing ? "pause" : "play"}
-            </button>
+            <RelayWave frame={frame} hyField={hyField} switched={switched} />
+            <div className="flex gap-4 text-[11px] text-slate-400 dark:text-slate-500">
+              <span>true (dashed)</span>
+              <span className="text-rose-500">pure ML{switched ? " (ghost, what would have happened)" : ""}</span>
+              {switched && <span className="text-indigo-500 font-medium">hybrid</span>}
+            </div>
           </div>
-          <RelayWave frame={frame} hyField={hyField} switched={switched} />
-          <div className="flex gap-4 text-[11px] text-slate-400 dark:text-slate-500">
-            <span>true (dashed)</span>
-            <span className="text-rose-500">pure ML{switched ? " (ghost, what would have happened)" : ""}</span>
-            {switched && <span className="text-indigo-500 font-medium">hybrid</span>}
+          <Card title="The cost of your decision"
+            subtitle="red = never hand off · indigo = your relay, identical until t_s, then pinned">
+            <LineChart
+              series={[
+                { x: RL_T, y: RL_ERR_ML, color: "#e11d48", width: 2 },
+                { x: RL_T, y: hyErrCurve, color: "#4f46e5", width: 2.5 },
+              ]}
+              xr={[0, 2]} yr={[0, Math.max(...RL_ERR_ML) * 1.08]}
+              vline={sw.ts} h={215} xlabel="t" ylabel="relative L2 error" />
+          </Card>
+        </div>
+
+        {/* FRONTIER ENDS, accuracy vs cost, both from the committed sweep */}
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
+          <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Two ends of the same trade-off</div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+            The hand-off time trades accuracy against cost. Switch early = most accurate but most numerical work.
+            Switch near the viability boundary (≈ {AGG.boundary}) = the least work that still meets the 10% error bar.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="rounded-xl border border-emerald-100 dark:border-emerald-500/20 bg-emerald-50 dark:bg-emerald-500/10 p-3">
+              <div className="text-[10px] uppercase tracking-wide text-emerald-600 dark:text-emerald-400">Accuracy end · t_s = 1.0</div>
+              <div className="text-sm mt-1 text-slate-700 dark:text-slate-200"><b>{AGG.hybTail2}%</b> error · <b>{AGG.reduction}%</b> benefit</div>
+              <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{AGG_COST.work10}% of the run solved numerically</div>
+            </div>
+            <div className="rounded-xl border border-indigo-100 dark:border-indigo-500/20 bg-indigo-50 dark:bg-indigo-500/10 p-3">
+              <div className="text-[10px] uppercase tracking-wide text-indigo-600 dark:text-indigo-400">Cost end · t_s = {AGG_COST.ts} (latest viable)</div>
+              <div className="text-sm mt-1 text-slate-700 dark:text-slate-200"><b>{AGG_COST.hyb}%</b> error · <b>{AGG_COST.ben}%</b> benefit</div>
+              <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{AGG_COST.work}% numerical, ~40% less work, still under 10%</div>
+            </div>
           </div>
         </div>
-        <Card title="The cost of your decision"
-          subtitle="red = never hand off · indigo = your relay, identical until t_s, then pinned">
-          <LineChart
-            series={[
-              { x: RL_T, y: RL_ERR_ML, color: "#e11d48", width: 2 },
-              { x: RL_T, y: hyErrCurve, color: "#4f46e5", width: 2.5 },
-            ]}
-            xr={[0, 2]} yr={[0, Math.max(...RL_ERR_ML) * 1.08]}
-            vline={sw.ts} h={215} xlabel="t" ylabel="relative L2 error" />
-        </Card>
-      </div>
 
       </div>)}
       {tab === "evidence" && (<div className="space-y-6">
-      {/* NOVELTY + KEY NUMBERS, the first thing the examiner sees on this tab */}
-      <div className="rounded-2xl border-2 border-indigo-300 dark:border-indigo-500/40 bg-indigo-50/60 dark:bg-indigo-500/10 p-5">
-        <div className="text-xs font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 mb-1">My contribution</div>
-        <p className="text-sm text-slate-800 dark:text-slate-100 font-medium">
-          I made the numerical solver able to <span className="text-indigo-600 dark:text-indigo-400">restart from the ML solver&apos;s state mid-run</span>,
-          proved that restart is <span className="text-indigo-600 dark:text-indigo-400">identical to the original solver</span>, and measured{" "}
-          <span className="text-indigo-600 dark:text-indigo-400">when the hand-off is still worth doing</span>.
-        </p>
-        <div className="flex flex-wrap gap-2 mt-3 text-[11px] font-semibold">
-          {["restart vs original = 0.0", "jump at switch = 0", `${AGG.fnoTail1}% → ${AGG.hybTail2}% (mean)`, `improved on all ${AGG.nIC} held-out ICs`, `last useful switch ≈ ${AGG.boundary}`].map((t) => (
-            <span key={t} className="px-2.5 py-1 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200">{t}</span>
-          ))}
-        </div>
-      </div>
-      {/* AGGREGATE RESULT, the report headline, kept distinct from the single-wave animation */}
-      <div className="rounded-2xl border-2 border-indigo-200 dark:border-indigo-500/30 bg-white dark:bg-slate-800 p-5">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">Primary result, hand-off at t_s = 1.0</span>
-          <Badge kind="agg" /><Badge kind="committed" />
-        </div>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
-          Mean over the full {AGG.nIC}-IC held-out test set (1,000 trajectories total: 800 train / 100 validation / 100 test). The figure above animates one representative wave, so its numbers differ slightly.
-        </p>
-        <div className="grid grid-cols-4 gap-3">
-          <div className="rounded-xl bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 px-3 py-2 text-center">
-            <div className="text-[10px] uppercase tracking-wide text-rose-500">pure ML tail error</div>
-            <div className="text-2xl font-extrabold text-rose-600 dark:text-rose-400">{AGG.fnoTail2}%</div>
-          </div>
-          <div className="rounded-xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 px-3 py-2 text-center">
-            <div className="text-[10px] uppercase tracking-wide text-indigo-500">hybrid tail error</div>
-            <div className="text-2xl font-extrabold text-indigo-600 dark:text-indigo-400">{AGG.hybTail2}%</div>
-          </div>
-          <div className="rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 px-3 py-2 text-center">
-            <div className="text-[10px] uppercase tracking-wide text-emerald-600">error reduction</div>
-            <div className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">{AGG.reduction}%</div>
-          </div>
-          <div className="rounded-xl bg-slate-50 dark:bg-slate-700/40 border border-slate-100 dark:border-slate-600/40 px-3 py-2 text-center">
-            <div className="text-[10px] uppercase tracking-wide text-slate-400">held-out ICs improved</div>
-            <div className="text-2xl font-extrabold text-slate-700 dark:text-slate-200">{AGG.icsImproved} / {AGG.nIC}</div>
+        {/* NOVELTY + KEY NUMBERS, the first thing the examiner sees on this tab */}
+        <div className="rounded-2xl border-2 border-indigo-300 dark:border-indigo-500/40 bg-indigo-50/60 dark:bg-indigo-500/10 p-5">
+          <div className="text-xs font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 mb-1">My contribution</div>
+          <p className="text-sm text-slate-800 dark:text-slate-100 font-medium">
+            I made the numerical solver able to <span className="text-indigo-600 dark:text-indigo-400">restart from the ML solver&apos;s state mid-run</span>,
+            proved that restart is <span className="text-indigo-600 dark:text-indigo-400">identical to the original solver</span>, and measured{" "}
+            <span className="text-indigo-600 dark:text-indigo-400">when the hand-off is still worth doing</span>.
+          </p>
+          <div className="flex flex-wrap gap-2 mt-3 text-[11px] font-semibold">
+            {["restart vs original = 0.0", "jump at switch = 0", `${AGG.fnoTail1}% → ${AGG.hybTail2}% (mean)`, `improved on all ${AGG.nIC} held-out ICs`, `last useful switch ≈ ${AGG.boundary}`].map((t) => (
+              <span key={t} className="px-2.5 py-1 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200">{t}</span>
+            ))}
           </div>
         </div>
-      </div>
+        {/* AGGREGATE RESULT, the report headline, kept distinct from the single-wave animation */}
+        <div className="rounded-2xl border-2 border-indigo-200 dark:border-indigo-500/30 bg-white dark:bg-slate-800 p-5">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">Primary result, hand-off at t_s = 1.0</span>
+            <Badge kind="agg" /><Badge kind="committed" />
+          </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+            Mean over the full {AGG.nIC}-IC held-out test set (1,000 trajectories total: 800 train / 100 validation / 100 test). The figure above animates one representative wave, so its numbers differ slightly.
+          </p>
+          <div className="grid grid-cols-4 gap-3">
+            <div className="rounded-xl bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 px-3 py-2 text-center">
+              <div className="text-[10px] uppercase tracking-wide text-rose-500">pure ML tail error</div>
+              <div className="text-2xl font-extrabold text-rose-600 dark:text-rose-400">{AGG.fnoTail2}%</div>
+            </div>
+            <div className="rounded-xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 px-3 py-2 text-center">
+              <div className="text-[10px] uppercase tracking-wide text-indigo-500">hybrid tail error</div>
+              <div className="text-2xl font-extrabold text-indigo-600 dark:text-indigo-400">{AGG.hybTail2}%</div>
+            </div>
+            <div className="rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 px-3 py-2 text-center">
+              <div className="text-[10px] uppercase tracking-wide text-emerald-600">error reduction</div>
+              <div className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">{AGG.reduction}%</div>
+            </div>
+            <div className="rounded-xl bg-slate-50 dark:bg-slate-700/40 border border-slate-100 dark:border-slate-600/40 px-3 py-2 text-center">
+              <div className="text-[10px] uppercase tracking-wide text-slate-400">held-out ICs improved</div>
+              <div className="text-2xl font-extrabold text-slate-700 dark:text-slate-200">{AGG.icsImproved} / {AGG.nIC}</div>
+            </div>
+          </div>
+        </div>
 
-      {/* FRONTIER ENDS, accuracy vs cost, both from the committed sweep */}
-      <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
-        <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Two ends of the same trade-off</div>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
-          The hand-off time trades accuracy against cost. Switch early = most accurate but most numerical work.
-          Switch near the viability boundary (≈ {AGG.boundary}) = the least work that still meets the 10% error bar.
-        </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="rounded-xl border border-emerald-100 dark:border-emerald-500/20 bg-emerald-50 dark:bg-emerald-500/10 p-3">
-            <div className="text-[10px] uppercase tracking-wide text-emerald-600 dark:text-emerald-400">Accuracy end · t_s = 1.0</div>
-            <div className="text-sm mt-1 text-slate-700 dark:text-slate-200"><b>{AGG.hybTail2}%</b> error · <b>{AGG.reduction}%</b> benefit</div>
-            <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{AGG_COST.work10}% of the run solved numerically</div>
+        {/* THE FINDING, pinned to the committed n=100 aggregate (not the slider) */}
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
+          <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-3 flex items-center gap-2">
+            <Microscope size={14} /> The finding: hybrid error ≈ the ML state error at hand-off
           </div>
-          <div className="rounded-xl border border-indigo-100 dark:border-indigo-500/20 bg-indigo-50 dark:bg-indigo-500/10 p-3">
-            <div className="text-[10px] uppercase tracking-wide text-indigo-600 dark:text-indigo-400">Cost end · t_s = {AGG_COST.ts} (latest viable)</div>
-            <div className="text-sm mt-1 text-slate-700 dark:text-slate-200"><b>{AGG_COST.hyb}%</b> error · <b>{AGG_COST.ben}%</b> benefit</div>
-            <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{AGG_COST.work}% numerical, ~40% less work, still under 10%</div>
+          <div className="flex items-center justify-center gap-6 flex-wrap">
+            <div className="text-center">
+              <div className="text-[11px] text-slate-500 dark:text-slate-400">ML state error at hand-off</div>
+              <div className="text-4xl font-extrabold text-rose-600 dark:text-rose-400">{AGG.stateErr}%</div>
+            </div>
+            <div className="text-4xl font-black text-slate-300 dark:text-slate-600">≈</div>
+            <div className="text-center">
+              <div className="text-[11px] text-slate-500 dark:text-slate-400">mean hybrid tail error over [t_s, 2]</div>
+              <div className="text-4xl font-extrabold text-indigo-600 dark:text-indigo-400">{AGG.hybTail2}%</div>
+            </div>
+            <div className="max-w-sm text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+              Aggregate over {AGG.nIC} held-out waves at the t_s = 1.0 hand-off. Two different metrics, yet they
+              match: the numerical continuation adds only ~{ORACLE_STR} of its own error (oracle control), so the
+              handed-over ML state <span className="font-semibold text-slate-700 dark:text-slate-200">sets the accuracy ceiling</span> and the
+              restart never adds to it. The tail is slightly lower because viscosity damps the inherited error.
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* EMPIRICAL RELATIONSHIP, the equality that names the module's finding */}
-      <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
-        <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-3 flex items-center gap-2">
-          <Microscope size={14} /> Empirical relationship observed on this benchmark, hybrid error ≈ state error at hand-off
+        {/* ORACLE DECOMPOSITION, visualises where the error comes from (was text-only) */}
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
+          <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1 flex items-center gap-2">
+            <Microscope size={14} /> Where the error comes from, oracle decomposition
+          </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
+            Each bar is the error against the true answer, over the tail. Same numerical continuation, different starting states, the ML state vs the true state (log scale).
+          </p>
+          <OracleBars mlTail={_AGG_R0.fno_tail} hyTail={_AGG_R0.hybrid_tail} oracle={_ORACLE} />
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+            Committed n = {AGG.nIC} aggregate at the t_s = 1.0 hand-off. Restarting from the{" "}
+            <span className="font-semibold">true</span> state collapses to ~{ORACLE_STR}, the continuation
+            is near-perfect. So the hybrid&apos;s error is{" "}
+            <span className="font-medium text-slate-700 dark:text-slate-200">inherited from the ML state you hand over, not created
+              by the switch</span>, which is why hybrid error tracks the ML state error at hand-off (the relationship pinned on the Story tab).
+          </p>
         </div>
-        <div className="flex items-center justify-center gap-6 flex-wrap">
-          <div className="text-center">
-            <div className="text-[11px] text-slate-500 dark:text-slate-400">ML state error when you handed off</div>
-            <div className="text-4xl font-extrabold text-rose-600 dark:text-rose-400">{(sw.es * 100).toFixed(1)}%</div>
-          </div>
-          <div className="text-4xl font-black text-slate-300 dark:text-slate-600">≈</div>
-          <div className="text-center">
-            <div className="text-[11px] text-slate-500 dark:text-slate-400">mean hybrid tail error over [t_s, 2]</div>
-            <div className="text-4xl font-extrabold text-indigo-600 dark:text-indigo-400">{(sw.hyTail * 100).toFixed(1)}%</div>
-          </div>
-          <div className="max-w-xs text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-            The continuation adds
-            ~{eToSup(RL_META.oracle)} of its own error (oracle control), so the handoff-state error <span className="font-semibold">dominates</span> the resulting
-            hybrid error. You can only anchor what you hand over, so the hand-off time{" "}
-            <span className="font-medium text-slate-700 dark:text-slate-200">sets the accuracy ceiling for the
-            whole system</span>, and the sweep below is what tells the trust and control layers where that
-            ceiling is.
-          </div>
-        </div>
-      </div>
 
-      {/* ORACLE DECOMPOSITION, visualises where the error comes from (was text-only) */}
-      <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
-        <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1 flex items-center gap-2">
-          <Microscope size={14} /> Where the error comes from, oracle decomposition
-        </div>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
-          Each bar is the error against the true answer, over the tail. Same numerical continuation, different starting states, the ML state vs the true state (log scale).
-        </p>
-        <OracleBars mlTail={sw.mlTail} hyTail={sw.hyTail} oracle={Number(RL_META.oracle)} />
-        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-          Restarting from the <span className="font-semibold">true</span> state collapses to ~{eToSup(RL_META.oracle)}, the continuation
-          is near-perfect. So the hybrid&apos;s error is{" "}
-          <span className="font-medium text-slate-700 dark:text-slate-200">inherited from the ML state you hand over, not created
-          by the switch</span>, which is why hybrid error tracks state error above (drag the slider to watch the top two bars move
-          while the oracle stays put).
-        </p>
-      </div>
-
-      {/* NOVELTY IN CODE, mirrors the Cost page's card, with M2's receipts */}
-      <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
-        {/* <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2 flex items-center gap-2">
+        {/* NOVELTY IN CODE, mirrors the Cost page's card, with M2's receipts */}
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
+          {/* <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2 flex items-center gap-2">
           <Code2 size={14} /> Why this is trustworthy (in code)
         </div> */}
-        <p className="text-sm text-slate-700 dark:text-slate-200">
-          The team&apos;s production spectral solver only ran <span className="font-mono text-[13px]">solve(u0)</span> from t = 0.
-          My part is making it restartable from an arbitrary ML state, and proving that restart is identical to it:
-        </p>
-        <div className="mt-2 rounded-lg bg-slate-50 dark:bg-slate-700/40 px-3 py-2 font-mono text-[13px] text-slate-700 dark:text-slate-200">
-          solve_from(u_ML(tₛ), i_start) → <span className="text-emerald-600 dark:text-emerald-400 font-semibold">identical to the production solver</span> (rel diff &lt; 10⁻¹⁰), state jump 0, both verified by test
+          <p className="text-sm text-slate-700 dark:text-slate-200">
+            The team&apos;s production spectral solver only ran <span className="font-mono text-[13px]">solve(u0)</span> from t = 0.
+            My part is making it restartable from an arbitrary ML state, and proving that restart is identical to it:
+          </p>
+          <div className="mt-2 rounded-lg bg-slate-50 dark:bg-slate-700/40 px-3 py-2 font-mono text-[13px] text-slate-700 dark:text-slate-200">
+            solve_from(u_ML(tₛ), i_start) → <span className="text-emerald-600 dark:text-emerald-400 font-semibold">identical to the production solver</span> (rel diff &lt; 10⁻¹⁰), state jump 0, both verified by test
+          </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+            The spectral scheme is the team&apos;s; the restartable wrapper <span className="font-mono">solve_from</span> and its
+            verification are my contribution. The exact adapter this page calls is the one Module 3&apos;s runtime executes.
+          </p>
         </div>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
-          The spectral scheme is the team&apos;s; the restartable wrapper <span className="font-mono">solve_from</span> and its
-          verification are my contribution. The exact adapter this page calls is the one Module 3&apos;s runtime executes.
-        </p>
-      </div>
 
-      {/* RESTART-SAFETY BOUNDARY, visualises the stress-test claim (was text-only) */}
-      <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
-        <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1 flex items-center gap-2">
-          <Microscope size={14} /> Why the restart is verified, it holds where a shortcut breaks
+        {/* RESTART-SAFETY BOUNDARY, visualises the stress-test claim (was text-only) */}
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
+          <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1 flex items-center gap-2">
+            <Microscope size={14} /> Why the restart is verified, it holds where a shortcut breaks
+          </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
+            Push to sharper waves (higher cell Reynolds number). The verified restart stays accurate (~10<sup>−11</sup>); a shortcut restart that
+            drops the de-aliasing climbs past the target and finally goes unstable.
+          </p>
+          <SafetyChart data={SAFETY} cross={SAFETY_CROSS} />
+          <div className="flex gap-4 flex-wrap text-[11px] text-slate-400 dark:text-slate-500 mt-1">
+            <span className="text-emerald-600 dark:text-emerald-400">verified restart, error ≈ 0 (stays ~10<sup>−11</sup>)</span>
+            <span className="text-rose-500">shortcut restart (no de-aliasing)</span>
+            <span className="text-amber-500">-- 1% target · shortcut crosses at Re≈3.2</span>
+          </div>
         </div>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
-          Push to sharper waves (higher cell Reynolds number). The verified restart stays accurate (~10<sup>−11</sup>); a shortcut restart that
-          drops the de-aliasing climbs past the target and finally goes unstable.
-        </p>
-        <SafetyChart data={SAFETY} cross={SAFETY_CROSS} />
-        <div className="flex gap-4 flex-wrap text-[11px] text-slate-400 dark:text-slate-500 mt-1">
-          <span className="text-emerald-600 dark:text-emerald-400">verified restart, error ≈ 0 (stays ~10<sup>−11</sup>)</span>
-          <span className="text-rose-500">shortcut restart (no de-aliasing)</span>
-          <span className="text-amber-500">-- 1% target · shortcut crosses at Re≈3.2</span>
-        </div>
-      </div>
 
-      {/* CONCLUSION, mirrors the Trust and Cost pages' closing verdict */}
-      <div className="rounded-2xl p-5 bg-gradient-to-r from-emerald-50 via-white to-white dark:from-emerald-500/10 dark:via-slate-800 dark:to-slate-800 border border-emerald-200 dark:border-emerald-500/30">
-        <div className="text-sm font-semibold text-emerald-800 dark:text-emerald-300 flex items-center gap-2"><CheckCircle2 size={16} /> Conclusion</div>
-        <p className="text-sm text-slate-700 dark:text-slate-200 mt-1">
-          The verified hand-off cuts tail error <b>{AGG.fnoTail1}% → {AGG.hybTail2}%</b> and improves <b>every one of the {AGG.nIC} held-out waves</b>. The restart
-          matches the production solver exactly (rel diff 0.0) and the state jump is <b>zero by construction</b>, so the hand-off adds no error
-          of its own, what remains is inherited from the ML state. This holds only while the hand-off is still viable (up to <b>t_s ≈ {RL_META.boundary}</b>);
-          switch too late and even a perfect restart cannot recover. <span className="font-semibold">The module verifies and times the hand-off, it does not fix a bad ML stream.</span>
-        </p>
-      </div>
+        {/* CONCLUSION, mirrors the Trust and Cost pages' closing verdict */}
+        <div className="rounded-2xl p-5 bg-gradient-to-r from-emerald-50 via-white to-white dark:from-emerald-500/10 dark:via-slate-800 dark:to-slate-800 border border-emerald-200 dark:border-emerald-500/30">
+          <div className="text-sm font-semibold text-emerald-800 dark:text-emerald-300 flex items-center gap-2"><CheckCircle2 size={16} /> Conclusion</div>
+          <p className="text-sm text-slate-700 dark:text-slate-200 mt-1">
+            The verified hand-off cuts tail error <b>{AGG.fnoTail1}% → {AGG.hybTail2}%</b> and improves <b>every one of the {AGG.nIC} held-out waves</b>. The restart
+            matches the production solver exactly (rel diff 0.0) and the state jump is <b>zero by construction</b>, so the hand-off adds no error
+            of its own, what remains is inherited from the ML state. This holds only while the hand-off is still viable (up to <b>t_s ≈ {RL_META.boundary}</b>);
+            switch too late and even a perfect restart cannot recover. <span className="font-semibold">The module verifies and times the hand-off, it does not fix a bad ML stream.</span>
+          </p>
+        </div>
 
       </div>)}
       {tab === "built" && (<div className="space-y-6">
@@ -793,142 +819,142 @@ export default function CouplingPage() {
       </div>)}
       {tab === "live" && (<div className="space-y-6">
         <div className="flex items-center gap-2"><Badge kind="live" /><span className="text-xs text-slate-400 dark:text-slate-500">runs the real M2Coupling adapter with the verified pseudo-spectral restart</span></div>
-      {/* RUN IT YOURSELF, real backend */}
-      <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
-        <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1 flex items-center gap-2">
-          <Play size={14} /> Run it yourself, your wave, the real M2Coupling
-        </div>
-        <p className={`text-xs ${muted} mb-4`}>
-          Everything above is precomputed from committed results on one held-out wave. Here the backend runs the real
-          adapter live: any model, any wave, manual switch or Module 1&apos;s trust signal.
-        </p>
-        {err && <div className="mb-3 text-sm text-rose-600 dark:text-rose-300 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 rounded-lg px-3 py-2">{err}</div>}
-        <div className="grid grid-cols-[300px_1fr] gap-5">
-          <div className="space-y-3">
-            <div className="flex gap-2">
-              {MODELS.map((m) => (
-                <button key={m} onClick={() => setModel(m)}
-                  className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium border ${model === m
-                    ? "bg-indigo-600 text-white border-indigo-600" : inactiveBtn}`}>{m}</button>
-              ))}
-            </div>
-            {model === "PINN" ? (
-              <select value={pinnIndex} onChange={(e) => setPinnIndex(+e.target.value)}
-                className="w-full bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm">
-                {Array.from({ length: meta?.n_pinn_ics || 0 }, (_, k) => (
-                  <option key={k} value={k}>trained wave #{k}</option>
+        {/* RUN IT YOURSELF, real backend */}
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
+          <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1 flex items-center gap-2">
+            <Play size={14} /> Run it yourself, your wave, the real M2Coupling
+          </div>
+          <p className={`text-xs ${muted} mb-4`}>
+            Everything above is precomputed from committed results on one held-out wave. Here the backend runs the real
+            adapter live: any model, any wave, manual switch or Module 1&apos;s trust signal.
+          </p>
+          {err && <div className="mb-3 text-sm text-rose-600 dark:text-rose-300 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 rounded-lg px-3 py-2">{err}</div>}
+          <div className="grid grid-cols-[300px_1fr] gap-5">
+            <div className="space-y-3">
+              <div className="flex gap-2">
+                {MODELS.map((m) => (
+                  <button key={m} onClick={() => setModel(m)}
+                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium border ${model === m
+                      ? "bg-indigo-600 text-white border-indigo-600" : inactiveBtn}`}>{m}</button>
                 ))}
-              </select>
-            ) : (
-              <div className="space-y-3 text-sm">
-                <div className="flex gap-2">
-                  {[["real", "Held-out test IC"], ["synthetic", "Random shape"]].map(([v, label]) => (
-                    <button key={v} onClick={() => setSource(v)}
-                      className={`flex-1 px-2 py-1.5 rounded-lg text-xs font-bold border transition ${source === v
-                        ? "bg-indigo-600 text-white border-indigo-600" : inactiveBtn}`}>{label}</button>
+              </div>
+              {model === "PINN" ? (
+                <select value={pinnIndex} onChange={(e) => setPinnIndex(+e.target.value)}
+                  className="w-full bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm">
+                  {Array.from({ length: meta?.n_pinn_ics || 0 }, (_, k) => (
+                    <option key={k} value={k}>trained wave #{k}</option>
                   ))}
-                </div>
-                {source === "real" ? (
-                  <>
-                    <select value={ridx} onChange={(e) => setRidx(+e.target.value)}
-                      className="w-full bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm">
-                      {Array.from({ length: meta?.n_real_test_ics || 10 }, (_, k) => (
-                        <option key={k} value={k}>Test IC #{900 + k}</option>
-                      ))}
-                    </select>
-                    <div className={`text-[11px] ${muted}`}>
-                      one of the {meta?.n_real_test_ics || 10} held-out waves the aggregate hand-off
-                      numbers (n = {AGG.nIC}) were measured on, not a random draw
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <label className={`block ${muted}`}>
-                      modes: {modes}
-                      <input type="range" min="1" max="4" value={modes} onChange={(e) => setModes(+e.target.value)} className="w-full" />
-                    </label>
-                    <label className={`block ${muted}`}>
-                      amplitude: {amplitude.toFixed(2)}
-                      <input type="range" min="0.2" max="1.5" step="0.05" value={amplitude} onChange={(e) => setAmplitude(+e.target.value)} className="w-full" />
-                    </label>
-                    <div className={`text-[11px] ${muted}`}>
-                      a fresh random shape, useful for exploring, but not one of the evaluated waves
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-            <div className="flex gap-2">
-              {[["manual", "Manual t_s"], ["trust", "Trust-fired"]].map(([v, label]) => (
-                <button key={v} onClick={() => setSwitchMode(v)}
-                  className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium border ${switchMode === v
-                    ? "bg-indigo-600 text-white border-indigo-600" : inactiveBtn}`}>{label}</button>
-              ))}
-            </div>
-            {switchMode === "manual" && (
-              <label className={`block text-sm ${muted}`}>
-                switch time t_s = {lts.toFixed(2)}
-                <input type="range" min="0.5" max="1.9" step="0.05" value={lts} onChange={(e) => setLts(+e.target.value)} className="w-full" />
-              </label>
-            )}
-            <button onClick={run} disabled={running || !ic}
-              className="w-full px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-medium text-sm transition">
-              {running ? "Running…" : "Run the relay"}
-            </button>
-            {summary && (
-              <div className="space-y-2">
-                <div className="grid grid-cols-2 gap-2">
-                  <Stat label="pure-ML error [1,2]" value={`${(summary.ml_tail_1_2 * 100).toFixed(1)}%`} tone="red" />
-                  <Stat label="hybrid error [1,2]" value={`${(summary.hybrid_tail_1_2 * 100).toFixed(1)}%`} tone="green" />
-                  <Stat label="benefit" value={summary.benefit != null ? `${(summary.benefit * 100).toFixed(0)}%` : "-"} tone="indigo" />
-                  <Stat label="numerical work" value={`${(summary.numerical_fraction * 100).toFixed(0)}%`} />
-                </div>
-                <Banner ok={summary.handoff_jump === 0}
-                  text={`handoff jump = ${summary.handoff_jump}, continuous by construction`} />
-                <div className="rounded-lg border border-indigo-100 dark:border-indigo-500/25 bg-indigo-50/60 dark:bg-indigo-500/10 px-3 py-2">
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
-                    This wave vs. the full held-out set
+                </select>
+              ) : (
+                <div className="space-y-3 text-sm">
+                  <div className="flex gap-2">
+                    {[["real", "Held-out test IC"], ["synthetic", "Random shape"]].map(([v, label]) => (
+                      <button key={v} onClick={() => setSource(v)}
+                        className={`flex-1 px-2 py-1.5 rounded-lg text-xs font-bold border transition ${source === v
+                          ? "bg-indigo-600 text-white border-indigo-600" : inactiveBtn}`}>{label}</button>
+                    ))}
                   </div>
-                  <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
-                    {source === "real"
-                      ? <>This is held-out <b>Test IC #{900 + ridx}</b>, one of the {AGG.nIC} evaluated waves. </>
-                      : <>This is a synthetic shape, not one of the evaluated waves. </>}
-                    Across all <b>{AGG.nIC}</b> held-out waves at the <b>t_s = 1.0</b> hand-off, tail error falls{" "}
-                    <b>{AGG.fnoTail1}% → {AGG.hybTail2}%</b> (mean), improving <b>all {AGG.icsImproved}/{AGG.nIC}</b>.
-                    {switchMode === "manual" && Math.abs(lts - 1.0) > 1e-6 &&
-                      <> Your hand-off is at t_s = {lts.toFixed(2)}, so this run won&apos;t match the t_s = 1.0 mean exactly.</>}
-                  </p>
+                  {source === "real" ? (
+                    <>
+                      <select value={ridx} onChange={(e) => setRidx(+e.target.value)}
+                        className="w-full bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm">
+                        {Array.from({ length: meta?.n_real_test_ics || 10 }, (_, k) => (
+                          <option key={k} value={k}>Test IC #{900 + k}</option>
+                        ))}
+                      </select>
+                      <div className={`text-[11px] ${muted}`}>
+                        one of the {meta?.n_real_test_ics || 10} held-out waves the aggregate hand-off
+                        numbers (n = {AGG.nIC}) were measured on, not a random draw
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <label className={`block ${muted}`}>
+                        modes: {modes}
+                        <input type="range" min="1" max="4" value={modes} onChange={(e) => setModes(+e.target.value)} className="w-full" />
+                      </label>
+                      <label className={`block ${muted}`}>
+                        amplitude: {amplitude.toFixed(2)}
+                        <input type="range" min="0.2" max="1.5" step="0.05" value={amplitude} onChange={(e) => setAmplitude(+e.target.value)} className="w-full" />
+                      </label>
+                      <div className={`text-[11px] ${muted}`}>
+                        a fresh random shape, useful for exploring, but not one of the evaluated waves
+                      </div>
+                    </>
+                  )}
                 </div>
+              )}
+              <div className="flex gap-2">
+                {[["manual", "Manual t_s"], ["trust", "Trust-fired"]].map(([v, label]) => (
+                  <button key={v} onClick={() => setSwitchMode(v)}
+                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium border ${switchMode === v
+                      ? "bg-indigo-600 text-white border-indigo-600" : inactiveBtn}`}>{label}</button>
+                ))}
               </div>
-            )}
-          </div>
-          <div className="space-y-3">
-            <Card title={lf ? `t = ${lf.t.toFixed(2)}${lf.switched ? ", numerical carries it" : ", ML carries it"}` : "run to start"}>
-              <LineChart
-                series={[
-                  { x, y: lf ? lf.true : [], color: "#94a3b8", dashed: true },
-                  { x, y: lf ? lf.ml : [], color: "#e11d48" },
-                  { x, y: lf ? lf.hybrid : [], color: "#4f46e5", width: 2.5 },
-                ]}
-                xr={[-1, 1]} yr={lyr} h={185} xlabel="x" ylabel="u(x, t)" />
-            </Card>
-            <Card title="error over time (live run)">
-              <LineChart
-                series={[
-                  { x: hist.map((f) => f.t), y: hist.map((f) => f.ml_err), color: "#e11d48" },
-                  { x: hist.map((f) => f.t), y: hist.map((f) => f.hybrid_err), color: "#4f46e5", width: 2.5 },
-                ]}
-                xr={[0, 2]} yr={[0, Math.max(0.3, ...hist.map((f) => f.ml_err))]}
-                vline={lf?.switch_t ?? null} h={150} xlabel="t" />
-            </Card>
+              {switchMode === "manual" && (
+                <label className={`block text-sm ${muted}`}>
+                  switch time t_s = {lts.toFixed(2)}
+                  <input type="range" min="0.5" max="1.9" step="0.05" value={lts} onChange={(e) => setLts(+e.target.value)} className="w-full" />
+                </label>
+              )}
+              <button onClick={run} disabled={running || !ic}
+                className="w-full px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-medium text-sm transition">
+                {running ? "Running…" : "Run the relay"}
+              </button>
+              {summary && (
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <Stat label="pure-ML error [1,2]" value={`${(summary.ml_tail_1_2 * 100).toFixed(1)}%`} tone="red" />
+                    <Stat label="hybrid error [1,2]" value={`${(summary.hybrid_tail_1_2 * 100).toFixed(1)}%`} tone="green" />
+                    <Stat label="benefit" value={summary.benefit != null ? `${(summary.benefit * 100).toFixed(0)}%` : "-"} tone="indigo" />
+                    <Stat label="numerical work" value={`${(summary.numerical_fraction * 100).toFixed(0)}%`} />
+                  </div>
+                  <Banner ok={summary.handoff_jump === 0}
+                    text={`handoff jump = ${summary.handoff_jump}, continuous by construction`} />
+                  <div className="rounded-lg border border-indigo-100 dark:border-indigo-500/25 bg-indigo-50/60 dark:bg-indigo-500/10 px-3 py-2">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+                      This wave vs. the full held-out set
+                    </div>
+                    <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
+                      {source === "real"
+                        ? <>This is held-out <b>Test IC #{900 + ridx}</b>, one of the {AGG.nIC} evaluated waves. </>
+                        : <>This is a synthetic shape, not one of the evaluated waves. </>}
+                      Across all <b>{AGG.nIC}</b> held-out waves at the <b>t_s = 1.0</b> hand-off, tail error falls{" "}
+                      <b>{AGG.fnoTail1}% → {AGG.hybTail2}%</b> (mean), improving <b>all {AGG.icsImproved}/{AGG.nIC}</b>.
+                      {switchMode === "manual" && Math.abs(lts - 1.0) > 1e-6 &&
+                        <> Your hand-off is at t_s = {lts.toFixed(2)}, so this run won&apos;t match the t_s = 1.0 mean exactly.</>}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="space-y-3">
+              <Card title={lf ? `t = ${lf.t.toFixed(2)}${lf.switched ? ", numerical carries it" : ", ML carries it"}` : "run to start"}>
+                <LineChart
+                  series={[
+                    { x, y: lf ? lf.true : [], color: "#94a3b8", dashed: true },
+                    { x, y: lf ? lf.ml : [], color: "#e11d48" },
+                    { x, y: lf ? lf.hybrid : [], color: "#4f46e5", width: 2.5 },
+                  ]}
+                  xr={[-1, 1]} yr={lyr} h={185} xlabel="x" ylabel="u(x, t)" />
+              </Card>
+              <Card title="error over time (live run)">
+                <LineChart
+                  series={[
+                    { x: hist.map((f) => f.t), y: hist.map((f) => f.ml_err), color: "#e11d48" },
+                    { x: hist.map((f) => f.t), y: hist.map((f) => f.hybrid_err), color: "#4f46e5", width: 2.5 },
+                  ]}
+                  xr={[0, 2]} yr={[0, Math.max(0.3, ...hist.map((f) => f.ml_err))]}
+                  vline={lf?.switch_t ?? null} h={150} xlabel="t" />
+              </Card>
+            </div>
           </div>
         </div>
-      </div>
 
-      <p className="text-xs text-slate-400 dark:text-slate-500">
-        This page dissects the handoff, you control the switch and may deliberately hand off outside the viability criterion.
-        The Hybrid engine page is the opposite: you set an accuracy target and the trust + control layer decides for you.
-      </p>
+        <p className="text-xs text-slate-400 dark:text-slate-500">
+          This page dissects the handoff, you control the switch and may deliberately hand off outside the viability criterion.
+          The Hybrid engine page is the opposite: you set an accuracy target and the trust + control layer decides for you.
+        </p>
       </div>)}
     </div>
   );

@@ -194,9 +194,10 @@ export default function ResearchContribution({ go }) {
             Existing work addresses pieces of this in isolation. Some methods estimate uncertainty but never hand off to a numerical
             solver. Some combine a learned model with a numerical one, but fix that combination in advance rather than deciding it
             while the system is running. Some react to a failure signal, but give the user no way to request a specific accuracy or
-            to see what meeting it actually costs. No prior approach brings a live, reference-free trust signal, a verified hand-off
-            that preserves the solution's continuity, and a controller driven by a user-requested accuracy target together into one
-            system &mdash; and evaluates the whole thing end to end against both a pure machine-learning approach and a pure numerical one.
+            to see what meeting it actually costs. We did not find, in the work we reviewed, an approach that brings a live,
+            reference-free trust signal, a verified hand-off that preserves the solution's continuity, and a controller driven by a
+            user-requested accuracy target together into one system, evaluated end to end against both a pure machine-learning
+            approach and a pure numerical one.
           </p>
         </div>
       </Reveal>
@@ -251,11 +252,11 @@ export default function ResearchContribution({ go }) {
             learned="Learned how to judge a numerical method by stability, convergence and conservation rather than by appearance, how the three surrogate families behave inside and outside their training range, and &mdash; above all &mdash; how to estimate and calibrate trust in a model without a reference answer." />
           <PersonCard i={1} icon={Link2} tone="bg-violet-600" name="Dharmapala R.D." id="214050V" module="Module 2 &middot; Coupling"
             scope="Led the coupling mechanism that transfers a predicted state from the machine-learning model to the numerical solver for continued evolution, and built the reference solver used to generate the project's ground truth."
-            gap="Selective numerical correction with return of control had not been analysed for restart fidelity, and no prior work characterised when a mid-trajectory hand-off is actually worth taking."
-            novelty="A verified, continuity-preserving re-anchoring mechanism that lets a live prediction hand over to a numerical solver with no discontinuity in the trajectory."
-            contribution="Implemented and verified the restart-capable coupling adapter, and ran the systematic experiments — switch-time sweeps, restart-fidelity stress tests — that establish when a hand-off actually helps."
-            itDomain="A general pattern for safe state hand-off between heterogeneous system components — e.g. failing over from a fast, approximate service to a slow, exact one without breaking the continuity of an in-flight operation."
-            limitations="The switch-time and restart-fidelity studies were evaluated on 20 of the 100 held-out test initial conditions at a single spatial resolution (extensible to the full 100 with no retraining), so the exact point where a hand-off stops being worth it should be read as a property of this benchmark, not yet shown to hold on other equations."
+            gap="In the hybrid methods we reviewed, the ML-to-numerical hand-off is generally assumed rather than numerically analysed; its restart fidelity, and when a mid-trajectory hand-off is actually worth taking, were not characterised."
+            novelty="Treating the hand-off as a numerical operation to be verified: a continuity-preserving re-anchor, bit-identical to the production scheme, that lets a live prediction hand over with no discontinuity in the trajectory."
+            contribution="Implemented and verified the restart-capable coupling adapter, and ran the systematic experiments (switch-time sweeps, restart-fidelity stress tests, and an oracle decomposition) that establish when a hand-off helps and locate the remaining error in the ML hand-off state."
+            itDomain="A general pattern for safe state hand-off between heterogeneous system components, e.g. failing over from a fast, approximate service to a slow, exact one without breaking the continuity of an in-flight operation."
+            limitations="The switch-time and restart-fidelity studies use a single spatial resolution on the 1-D Burgers benchmark, so the exact point where a hand-off stops being worth taking should be read as a property of this benchmark and configuration, not yet shown to hold on other equations or grids."
             learned="Learned that the apparent simplicity of a hand-off conceals a real verification problem &mdash; a solver restarted mid-trajectory must be shown, not assumed, to behave like the trusted production scheme &mdash; and gained experience separating a numerical solver's own error from error inherited from the state it was handed." />
           <PersonCard i={2} icon={SlidersHorizontal} tone="bg-fuchsia-600" name="Mendis B.N.D." id="214133E" module="Module 3 &middot; Cost-Aware Control &amp; Deployment"
             scope="Led the cost-aware controller and deployment layer, and implemented the numerical scheme used as both the team's verifier and the hybrid's corrector."
