@@ -6,6 +6,11 @@ import { Trophy, Check, X, Play } from "lucide-react";
 
 const COLOR = { FNO: "#059669", DeepONet: "#e11d48", PINN: "#d97706" };
 
+// source-file reference, same pattern as Coupling page's per-figure script captions
+function Src({ children }) {
+  return <div className="text-[10px] font-mono text-slate-400 dark:text-slate-500 mt-1.5">{children}</div>;
+}
+
 function thresholds(t) {
   return [Math.min(0.58, Math.max(0.12, 0.62 - 1.4 * t)), null];
 }
@@ -386,6 +391,7 @@ function ResultsTab({ ach, cm, icRep, cmp }) {
             <Stat label="numerical-only" value={`${F.pure_numerical.cost.toFixed(2)} s`} tone="slate" />
             <Stat label="savings" value={pct(1 - headline.cost / F.pure_numerical.cost)} tone="indigo" />
           </div>
+          <Src>hybrid_pde/control_214133E/_run_full.py</Src>
         </Card>
       )}
 
@@ -428,6 +434,7 @@ function ResultsTab({ ach, cm, icRep, cmp }) {
           the hybrid (green) never leaves the shaded region — cheaper than running the numerical solver alone, and more accurate than
           running the ML surrogate alone — across every target from loose to tight; error bars are real run-to-run spread, not estimated.
         </p>
+        <Src>hybrid_pde/control_214133E/_run_full.py</Src>
       </Card>
 
       {cm && cm.pearson_r != null && (
@@ -437,6 +444,7 @@ function ResultsTab({ ach, cm, icRep, cmp }) {
             <Stat label="MAPE" value={pct(cm.mape)} tone="indigo" />
             <Stat label="slope (measured / predicted)" value={cm.slope_measured_vs_predicted.toFixed(3)} tone="slate" />
           </div>
+          <Src>experiments/m3_cost_model.py</Src>
         </Card>
       )}
 
@@ -459,6 +467,7 @@ function ResultsTab({ ach, cm, icRep, cmp }) {
             hit-rate stays at 100% down to target 0.05, then drops once the target passes a real ~3% accuracy floor — the controller
             can't correct its way past what the surrogate and coarse monitor are able to resolve.
           </p>
+          <Src>experiments/m3_achievability.py</Src>
         </Card>
       )}
 
@@ -469,6 +478,7 @@ function ResultsTab({ ach, cm, icRep, cmp }) {
           <PlotCard title="Accuracy-saturation reference (0.029)" src={`${STATIC}/threshold_calibration/saturation_point.png`} />
           <PlotCard title="Trust signal's observed operating range" src={`${STATIC}/threshold_calibration/trust_range.png`} />
         </div>
+        <Src>experiments/derive_ceiling.py · derive_floor.py · derive_lower_clamp.py · calibrate_thresholds.py · verify_thresholds_for_target.py</Src>
       </Card>
 
       <Card title="Why the latch policy" subtitle="four switching designs, same held-out test conditions, every target">
@@ -477,6 +487,7 @@ function ResultsTab({ ach, cm, icRep, cmp }) {
           fixed interval (grey) ignores the trust signal entirely and pays for it in error; the latch (green) is the only policy that
           keeps tracking the requested target down to the tightest ones, not just matching the alternatives at one operating point.
         </p>
+        <Src>hybrid_pde/control_214133E/_ablation_switching.py</Src>
       </Card>
 
       {icRep?.representativeness && icRep?.bias_check && (
@@ -485,6 +496,7 @@ function ResultsTab({ ach, cm, icRep, cmp }) {
             <PlotCard title="Held-out test conditions vs. the full dataset" src={`${STATIC}/ic_representativeness/ic_representativeness.png`} />
             <PlotCard title="Does the skew correlate with error?" src={`${STATIC}/ic_representativeness/ic_bias_check.png`} />
           </div>
+          <Src>experiments/check_ic_representativeness.py · experiments/check_ic_bias.py</Src>
         </Card>
       )}
     </div>
