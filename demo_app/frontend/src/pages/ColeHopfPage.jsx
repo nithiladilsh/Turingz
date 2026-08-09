@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { CH_XS, CH_FRAMES, CH_STATS as S } from "../colehopfData.js";
+import { eToSup } from "../components/ui.jsx";
 import {
   Wand2, Thermometer, Undo2, ShieldCheck, Scale, Timer, Target,
-  HelpCircle, ArrowRight,
+  HelpCircle, ArrowRight,CheckCircle2
 } from "lucide-react";
 
 /* ---- auto-looping exact solution steepening into the viscous shock ---- */
@@ -179,7 +180,7 @@ export default function ColeHopfPage() {
           <Metric icon={Timer} tone="indigo" tag="Exactness" value="0"
             label="time-stepping error — the heat kernel gives the whole trajectory in one shot" />
           <Metric icon={ShieldCheck} tone="emerald" tag="Cross-check" value={`${S.agreePct}%`}
-            label={`agreement with the independent spectral solver (max gap ${S.maxDis.toExponential(0)})`} />
+            label={`agreement with the independent spectral solver (max gap ${eToSup(S.maxDis)})`} />
           <Metric icon={Scale} tone="indigo" tag="Vs FDM" value={`${S.timesWorse}×`}
             label={`FDM is ${S.fdmVsExact}% off this reference — a cheap baseline, not a truth source`} />
           <Metric icon={Target} tone="indigo" tag="Role" value="Reference"
@@ -189,11 +190,9 @@ export default function ColeHopfPage() {
 
       {/* VERDICT */}
       <div className="rounded-2xl p-5 bg-gradient-to-r from-emerald-50 via-white to-white dark:from-emerald-500/10 dark:via-slate-800 dark:to-slate-800 border border-emerald-200 dark:border-emerald-500/30">
-        <div className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">Answer</div>
-        <p className="text-sm text-slate-700 dark:text-slate-200 mt-1">
-          Yes — Cole–Hopf gives an answer that is <span className="font-medium">exact in time and cross-verified
-          by an independent method</span>. It is the ground truth of the whole project: if this reference were
-          wrong, every result downstream would be. <span className="font-semibold">Empirical agreement with an independent method is what justifies trusting this implementation.</span>
+        <div className="text-sm font-semibold text-emerald-800 dark:text-emerald-300 flex items-center gap-2"><CheckCircle2 size={16} /> Answer</div>
+          <p className="text-sm text-slate-700 dark:text-slate-200 mt-1">
+          Cole–Hopf is the <span className="font-medium">the ground truth reference</span>. It provides the trusted solution used to measure the error of the ML, numerical and hybrid methods. Its implementation was cross-checked against the spectral solver for consistency.
         </p>
       </div>
     </div>
