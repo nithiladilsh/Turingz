@@ -23,6 +23,24 @@ export function Stat({ label, value, tone = "slate" }) {
   );
 }
 
+/* --- scientific-notation display helpers ---
+   Render values like 1e-6 as "10" with a real superscript exponent, using
+   Unicode superscript glyphs so they work in both HTML and SVG <text>. */
+const _SUP = { "-": "⁻", 0: "⁰", 1: "¹", 2: "²", 3: "³", 4: "⁴", 5: "⁵", 6: "⁶", 7: "⁷", 8: "⁸", 9: "⁹" };
+export const supStr = (n) => String(n).split("").map((c) => _SUP[c] ?? c).join("");
+// integer exponent -> "10⁻⁶" etc. (for log-axis tick labels)
+export const sci10 = (exp) => `10${supStr(exp)}`;
+// a number or JS scientific string -> "m×10ⁿ" superscript, dropping a leading ×1
+export function eToSup(v) {
+  if (v === 0 || v === "0") return "0";
+  const s = typeof v === "number" ? v.toExponential(0) : String(v);
+  const m = s.match(/^(-?\d+(?:\.\d+)?)[eE]([+-]?\d+)$/);
+  if (!m) return s;
+  const mant = m[1];
+  const base = `10${supStr(parseInt(m[2], 10))}`;
+  return mant === "1" || mant === "1.0" ? base : `${mant}×${base}`;
+}
+
 export function Banner({ ok, text }) {
   return (
     <div className={`rounded-xl px-4 py-3 text-sm font-medium border ${ok

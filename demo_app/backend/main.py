@@ -106,6 +106,7 @@ async def ws_coupling(ws: WebSocket):
             pinn_index=req.get("pinn_index", 0),
             switch_mode=req.get("switch_mode", "manual"),
             t_s=req.get("t_s", 1.0),
+            real_ic_index=req.get("real_ic_index"),
         )
         for frame in gen:
             await ws.send_text(json.dumps(frame))

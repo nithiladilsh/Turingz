@@ -266,9 +266,14 @@ def _tail(a, b, i0):
     return float(np.trapezoid(c, T[i0:]) / (T[-1] - T[i0] + 1e-12))
 
 
-def stream_coupling(model, ic=None, pinn_index=0, switch_mode="manual", t_s=1.0):
-    """Precompute the full hybrid rollout with the real M2Coupling, then stream."""
-    ic0, pred, true = get_prediction(model, ic, pinn_index)
+def stream_coupling(model, ic=None, pinn_index=0, switch_mode="manual", t_s=1.0,
+                    real_ic_index=None):
+    """Precompute the full hybrid rollout with the real M2Coupling, then stream.
+    If real_ic_index is given, the run uses one of the official held-out test ICs
+    (#900+index) and its stored reference trajectory -- the exact waves the
+    aggregate hand-off numbers (n=100) were measured on -- instead of a fresh
+    synthetic shape."""
+    ic0, pred, true = get_prediction(model, ic, pinn_index, real_ic_index)
 
     trust_curve = None
     if switch_mode == "trust":

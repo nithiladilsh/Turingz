@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { Card, Stat, Banner } from "../components/ui.jsx";
+import { Card, Stat, Banner, sci10, eToSup } from "../components/ui.jsx";
 import { LineChart } from "../components/Charts.jsx";
-import { getMeta, buildIC, pinnIC, runCoupling } from "../api.js";
+import { getMeta, buildIC, pinnIC, realTestIC, runCoupling } from "../api.js";
 import {
   RL_XS, RL_T, RL_FRAMES, RL_ERR_ML, RL_SWITCHES, RL_META,
 } from "../couplingData.js";
@@ -16,7 +16,7 @@ import transfer from "../../../../results/module2/figures/transfer_models_result
 import stab from "../../../../results/module2/figures/handoff_stability_diagnostic.json";
 
 /* =====================================================================
-   Module 2 · THE BATON PASS — a relay between two solvers.
+   Module 2 · THE BATON PASS, a relay between two solvers.
    The page is built around one interaction: YOU drag the handoff point.
    ===================================================================== */
 
@@ -24,7 +24,7 @@ const MODELS = ["FNO", "DeepONet", "PINN"];
 const inactiveBtn = "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700";
 
 /* Headline numbers computed live from the committed handoff_sweep_results.json
-   (make_figures.py, full 100-IC held-out set) — nothing here is hand-typed. */
+   (make_figures.py, full 100-IC held-out set), nothing here is hand-typed. */
 const _AGG_R0 = sweep.results.find((r) => Math.abs(r.t_s - 1.0) < 1e-9) || sweep.results[0];
 const AGG = {
   fnoTail1: (_AGG_R0.fno_tail * 100).toFixed(1),                  // 13.4
@@ -36,33 +36,33 @@ const AGG = {
   boundary: Number(sweep.viability_rule.boundary_t_s).toFixed(2), // 1.49
 };
 
-/* "How it's built" — the hand-off mechanism, each step with the design reason (grounded in the code). */
+/* "How it's built", the hand-off mechanism, each step with the design reason (grounded in the code). */
 const COUPLING_BUILD = [
   { n: 1, color: "#4f46e5", title: "Run the ML solver",
     what: "Roll out the fast ML surrogate (FNO / PINN / DeepONet) across the whole window.",
     chips: [{ label: "ML prediction stream", color: "#4f46e5" }],
-    why: "The ML is cheap, so we let it carry the wave while it can be trusted — we only replace it once, at the switch." },
+    why: "The ML is cheap, so we let it carry the wave while it can be trusted, we only replace it once, at the switch." },
   { n: 2, color: "#0d9488", title: "Re-anchor at the switch",
-    what: "Seed the production numerical solver with the EXACT ML state at t_s and start there.",
-    detail: "solve_from(u_ML(t_s)) · tau[0] = 0  →  out[t_s] = u_ML(t_s)",
-    why: "This makes the hand-off jump zero BY CONSTRUCTION — no blending, no interpolation. The first numerical frame IS the handed-over state, so the seam is continuous." },
+    what: "Seed the team's pseudo-spectral solver with the EXACT ML state at the switch time t_s, and start there.",
+    detail: "solve_from(u_ML(t_s)):  first numerical frame = u_ML(t_s)  →  jump = 0",
+    why: "This makes the hand-off jump zero BY CONSTRUCTION, no blending, no interpolation. The first numerical frame IS the handed-over state, so the seam is continuous." },
   { n: 3, color: "#7c3aed", title: "Continue under the production scheme",
-    what: "Advance with the team's verified pseudo-spectral solver — same grid, 2/3 de-aliasing, Nyquist zeroing, integrating-factor RK4.",
+    what: "Advance with the team's verified pseudo-spectral solver, same grid, 2/3 de-aliasing, Nyquist zeroing, integrating-factor RK4.",
     chips: [{ label: "verified restart", color: "#7c3aed" }, { label: "= production solver", color: "#7c3aed" }],
     why: "It's the scheme everyone already trusts. The restart is proven bit-identical to it (rel diff 0.0 in verify_restart.py), so continuing changes nothing about the numerics." },
   { n: 4, color: "#e11d48", title: "Switch once, or correct per interval",
     what: "rollout() does a one-way hard switch at the first trust trigger; correct() advances a single interval for Module 3's scheduler.",
     detail: "if trust fires: switch once, never hand back",
-    why: "Returning to ML would re-inject ML error. The numerical solver is injected, not hardcoded, so the same verified restart serves both a hard switch and a scheduled-correction policy — backend-agnostic." },
+    why: "Returning to ML would re-inject ML error. The numerical solver is injected, not hardcoded, so the same verified restart serves both a hard switch and a scheduled-correction policy, backend-agnostic." },
   { n: 5, color: "#059669", title: "Verify & decompose the error",
     what: "12 automated tests, plus an oracle restart from the TRUE state to separate the coupling's own error from the inherited ML error.",
-    detail: "E_hybrid = E_coupling (~1e-6) + E_inherited",
-    why: "The oracle proves the coupling itself adds almost nothing — all remaining hybrid error is inherited from the ML hand-off state, not produced by the switch." },
+    detail: "E_hybrid = E_coupling (~10⁻⁶) + E_inherited",
+    why: "The oracle proves the coupling itself adds almost nothing, all remaining hybrid error is inherited from the ML hand-off state, not produced by the switch." },
 ];
 
 /* Final-integration baselines, read live from trust_hardswitch_compare.json. */
 const BASELINES = [
-  { m: "Pure FNO — no hand-off", err: (cmp.means.pure_fno * 100).toFixed(1) + "%", work: "0%", c: "#e11d48" },
+  { m: "Pure FNO, no hand-off", err: (cmp.means.pure_fno * 100).toFixed(1) + "%", work: "0%", c: "#e11d48" },
   { m: "Fixed switch @ t = 1.4", err: (cmp.means.fixed_1p4 * 100).toFixed(1) + "%", work: (cmp.fixed_workload * 100).toFixed(0) + "%", c: "#d97706" },
   { m: "Trust-triggered (real M1)", err: (cmp.means.trust * 100).toFixed(1) + "%", work: (cmp.trust_workload * 100).toFixed(0) + "%", c: "#059669" },
   { m: "Pure numerical (reference)", err: "~0.1%", work: "100%", c: "#64748b" },
@@ -74,15 +74,26 @@ const MODEL_ROWS = ["FNO", "PINN", "DeepONet"].map((m) => {
   return { m, es: (r.state_err * 100).toFixed(1), pml: (r.pureML_tail * 100).toFixed(1), hyb: (r.hybrid_tail * 100).toFixed(1), ben: (r.benefit * 100).toFixed(0) };
 });
 
-/* "Evaluation at a glance" — the five strongest numbers, each from a committed file. */
+/* "Evaluation at a glance", the five strongest numbers, each from a committed file. */
 const _STAB0 = stab.rows.find((r) => Math.abs(r.t_s - 1.0) < 1e-9) || stab.rows[0];
 const GLANCE = [
   { v: `${AGG.reduction}%`, label: "Error reduction", cap: `${AGG.fnoTail1}% → ${AGG.hybTail2}% at t_s = 1.0 · ${AGG.nIC} waves`, c: "#059669" },
   { v: `≈ ${AGG.boundary}`, label: "Viability boundary", cap: "latest switch meeting the pre-set rule", c: "#7c3aed" },
-  { v: `~${RL_META.oracle}`, label: "Oracle restart error", cap: "true-state restart adds ~nothing", c: "#4f46e5" },
-  { v: _STAB0.state_jump.toFixed(2), label: "State jump at switch", cap: "continuous hand-off, by construction", c: "#0d9488" },
+  { v: `~${eToSup(RL_META.oracle)}`, label: "Oracle restart error", cap: "true-state restart adds ~nothing", c: "#4f46e5" },
+  { v: _STAB0.state_jump.toFixed(1), label: "State jump at switch", cap: "continuous hand-off, by construction", c: "#0d9488" },
   { v: "0.0", label: "Restart verification", cap: "rel diff vs production solver", c: "#d97706" },
 ];
+
+/* Cost end of the frontier, the latest viable measured switch (near the boundary ≈1.49). */
+const _R14 = sweep.results.find((r) => Math.abs(r.t_s - 1.4) < 1e-9) || sweep.results[2];
+const _R10n = (sweep.results.find((r) => Math.abs(r.t_s - 1.0) < 1e-9) || sweep.results[0]).numerical_fraction;
+const AGG_COST = {
+  ts: "1.4",
+  hyb: (_R14.hybrid_tail * 100).toFixed(1),   // 6.8
+  ben: (_R14.benefit * 100).toFixed(0),       // 66
+  work: (_R14.numerical_fraction * 100).toFixed(0), // 31
+  work10: (_R10n * 100).toFixed(0),           // 50
+};
 
 /* ---- the wave, carried by whoever owns it at the playhead ---- */
 function RelayWave({ frame, hyField, switched }) {
@@ -127,13 +138,13 @@ const SAFETY = [
 ];
 const SAFETY_CROSS = 3.16;   // careless restart crosses the 1% target here
 
-/* oracle decomposition — same continuation, restarted from ML state vs the true state (log bars) */
+/* oracle decomposition, same continuation, restarted from ML state vs the true state (log bars) */
 function OracleBars({ mlTail, hyTail, oracle }) {
   const W = 640, H = 156, padL = 176, padR = 60, padT = 14, padB = 26;
   const rows = [
-    { label: "Pure ML — no hand-off", v: mlTail, color: "#e11d48" },
-    { label: "Hybrid — restart from ML state", v: hyTail, color: "#4f46e5" },
-    { label: "Oracle — restart from TRUE state", v: oracle, color: "#059669" },
+    { label: "Pure ML, no hand-off", v: mlTail, color: "#e11d48" },
+    { label: "Hybrid, restart from ML state", v: hyTail, color: "#4f46e5" },
+    { label: "Oracle, restart from TRUE state", v: oracle, color: "#059669" },
   ];
   const L = Math.log10;
   const x0 = L(Math.max(oracle, 1e-7)) - 0.3, x1 = L(Math.max(mlTail, 1e-2)) + 0.3;
@@ -146,7 +157,7 @@ function OracleBars({ mlTail, hyTail, oracle }) {
       {dec.map((k) => (
         <g key={k}>
           <line x1={sx(10 ** k)} x2={sx(10 ** k)} y1={padT} y2={H - padB} stroke="var(--chart-grid)" strokeDasharray="2 4" />
-          <text x={sx(10 ** k)} y={H - padB + 14} textAnchor="middle" fontSize="9" fill="var(--chart-axis)">{`1e${k}`}</text>
+          <text x={sx(10 ** k)} y={H - padB + 14} textAnchor="middle" fontSize="9" fill="var(--chart-axis)">{sci10(k)}</text>
         </g>
       ))}
       {rows.map((d, i) => (
@@ -154,7 +165,7 @@ function OracleBars({ mlTail, hyTail, oracle }) {
           <text x={padL - 8} y={y(i) + bh - 5} textAnchor="end" fontSize="10.5" fill="var(--chart-axis)">{d.label}</text>
           <rect x={padL} y={y(i)} width={Math.max(3, sx(d.v) - padL)} height={bh} rx="4" fill={d.color} opacity="0.9" />
           <text x={Math.max(sx(d.v) + 6, padL + 6)} y={y(i) + bh - 5} fontSize="10.5" fontWeight="700" fill={d.color}>
-            {d.v >= 0.001 ? `${(d.v * 100).toFixed(d.v < 0.1 ? 2 : 1)}%` : `${d.v.toExponential(0)} ≈ ${(d.v * 100).toFixed(4)}%`}
+            {d.v >= 0.001 ? `${(d.v * 100).toFixed(d.v < 0.1 ? 2 : 1)}%` : `${eToSup(d.v)} ≈ ${(d.v * 100).toFixed(4)}%`}
           </text>
         </g>
       ))}
@@ -162,7 +173,7 @@ function OracleBars({ mlTail, hyTail, oracle }) {
   );
 }
 
-/* restart-safety boundary — verified vs shortcut restart tail error vs cell Reynolds number (log-log) */
+/* restart-safety boundary, verified vs shortcut restart tail error vs cell Reynolds number (log-log) */
 function SafetyChart({ data, cross }) {
   const W = 640, H = 236, padL = 54, padR = 20, padT = 16, padB = 40;
   const L = Math.log10;
@@ -182,7 +193,7 @@ function SafetyChart({ data, cross }) {
       {ydec.map((k) => (
         <g key={"y" + k}>
           <line x1={padL} x2={W - padR} y1={sy(10 ** k)} y2={sy(10 ** k)} stroke="var(--chart-grid)" strokeDasharray="2 4" />
-          <text x={padL - 6} y={sy(10 ** k) + 3} textAnchor="end" fontSize="9" fill="var(--chart-axis)">{`1e${k}`}</text>
+          <text x={padL - 6} y={sy(10 ** k) + 3} textAnchor="end" fontSize="9" fill="var(--chart-axis)">{sci10(k)}</text>
         </g>
       ))}
       {xdec.map((k) => (
@@ -215,23 +226,18 @@ function FigCard({ src, title, note, script }) {
 }
 
 const EVAL_CORE = [
-  { src: "/module2_figures/fig1_error_over_time.png", title: "Error over time — FNO vs numerical vs hybrid", note: "Hand-off at t = 1, mean ± std over 100 held-out ICs. After the switch the hybrid tracks the numerical solution instead of drifting with the ML.", script: "make_figures.py" },
+  { src: "/module2_figures/fig1_error_over_time.png", title: "Error over time, FNO vs numerical vs hybrid", note: "Hand-off at t = 1, mean ± std over 100 held-out ICs. After the switch the hybrid tracks the numerical solution instead of drifting with the ML.", script: "make_figures.py" },
   { src: "/module2_figures/fig2_switch_time_vs_benefit.png", title: "Hand-off benefit vs when we switch", note: "Benefit = 1 − hybrid/FNO across switch times; the 10% viability threshold is pre-registered (frozen before results).", script: "make_figures.py" },
-  { src: "/module2_figures/fig4_hybrid_vs_upper_bound.png", title: "Oracle decomposition — the coupling adds almost nothing", note: "Restarting from the TRUE state (upper bound) is negligibly better than from the FNO state (~1e-6). All remaining hybrid error is inherited from the ML hand-off state.", script: "make_figures.py" },
+  { src: "/module2_figures/fig4_hybrid_vs_upper_bound.png", title: "Oracle decomposition, the coupling adds almost nothing", note: "Restarting from the TRUE state (upper bound) is negligibly better than from the FNO state (~10⁻⁶). All remaining hybrid error is inherited from the ML hand-off state.", script: "make_figures.py" },
   { src: "/module2_figures/fig5_accuracy_vs_cost.png", title: "Accuracy vs cost", note: "Earlier hand-off = more numerical work, lower error. The cost proxy is the fraction of steps solved numerically (machine-independent).", script: "make_figures.py" },
-  { src: "/module2_figures/fig3_handoff_error_vs_benefit.png", title: "The state-quality law", note: "One point per IC per switch time: the worse the handed-over FNO state, the smaller the benefit.", script: "make_figures.py" },
-  { src: "/module2_figures/fig6_spectral_distance_vs_benefit.png", title: "Shape drift predicts benefit", note: "Spectral (shape) distance of the FNO wave at hand-off also tracks the benefit — the same signal behind the reference-free diagnostic.", script: "make_figures.py" },
 ];
 
 const EVAL_ROBUST = [
-  { src: "/module2_figures/fig7_transfer_benefit_vs_stateerror.png", title: "Model-agnostic — FNO, PINN, DeepONet", note: "The identical coupling call is run for all three models (only the ML array changes). Benefit falls as the handed-over wave degrades, for every model.", script: "transfer_models.py" },
-  { src: "/module2_figures/fig8_ood_error_over_time.png", title: "Out-of-distribution wave", note: "A higher-frequency wave sin(6πx), beyond the trained band (modes 1–4). The hybrid still recovers after the hand-off.", script: "ood_experiment.py" },
-  { src: "/module2_figures/handoff_viability_gate.png", title: "Hand-off Viability Gate (prototype)", note: "A reference-free gate that predicts whether re-anchoring now is salvageable — no ground truth, no expensive continuation. Leave-one-wave-out validated.", script: "handoff_viability_gate.py" },
+  { src: "/module2_figures/fig8_ood_error_over_time.png", title: "Out-of-distribution wave", note: "A higher-frequency wave sin(6πx), beyond the trained band (modes 1–4). The hybrid still limits the damage after the hand-off, but cannot recover a state the ML has already lost.", script: "ood_experiment.py" },
 ];
 
 const EVAL_FIDELITY = [
   { src: "/module2_figures/handoff_stability_diagnostic.png", title: "Continuity across the switch", note: "State jump ≈ 0 and the Burgers PDE residual stays stable across the hand-off, vs a deliberately careless-restart negative control.", script: "handoff_stability_diagnostic.py" },
-  { src: "/module2_figures/viscosity_reanchor_stress.png", title: "Low-viscosity fidelity stress test", note: "At sharper shocks (lower viscosity) the verified re-anchor stays accurate where a careless restart (no de-aliasing / Nyquist zeroing) degrades.", script: "viscosity_reanchor_stress.py" },
   { src: "/module2_figures/restart_safety_boundary.png", title: "Restart-safety boundary (Re_cell ≈ 3.2)", note: "The careless restart fails past cell Reynolds number Re_cell ≈ 3.2. Includes a grid-refinement control (N = 1024/2048) and a reference-free high-k diagnostic.", script: "restart_safety_boundary.py" },
 ];
 
@@ -265,6 +271,13 @@ export default function CouplingPage() {
   const [modes, setModes] = useState(2);
   const [amplitude, setAmplitude] = useState(1.0);
   const [pinnIndex, setPinnIndex] = useState(0);
+  // "real" = one of the 10 official held-out test ICs the aggregate numbers were
+  // measured on (default, so the live run is grounded in the evaluated data, like
+  // the Cost Control demo). "synthetic" = a fresh random shape for exploration.
+  const [source, setSource] = useState("real");
+  // Test IC #904: its pure-ML tail (~14%) matches FNO's published mean extrapolation
+  // error, so it's the representative default rather than the easiest wave.
+  const [ridx, setRidx] = useState(4);
   const [switchMode, setSwitchMode] = useState("manual");
   const [lts, setLts] = useState(1.0);
   const [ic, setIc] = useState(null);
@@ -279,14 +292,17 @@ export default function CouplingPage() {
   useEffect(() => {
     if (!meta) return;
     if (model === "PINN") pinnIC(pinnIndex).then((d) => setIc(d.ic)).catch(() => {});
+    else if (source === "real") realTestIC(ridx).then((d) => setIc(d.ic)).catch(() => {});
     else buildIC(modes, amplitude).then((d) => setIc(d.ic)).catch(() => {});
-  }, [meta, model, modes, amplitude, pinnIndex]);
+  }, [meta, model, modes, amplitude, pinnIndex, source, ridx]);
 
   function run() {
     if (wsRef.current) wsRef.current.close();
     setHist([]); setLf(null); setSummary(null); setErr(null); setRunning(true);
     const payload = model === "PINN"
       ? { model, pinn_index: pinnIndex, switch_mode: switchMode, t_s: lts }
+      : source === "real"
+      ? { model, real_ic_index: ridx, switch_mode: switchMode, t_s: lts }
       : { model, ic, switch_mode: switchMode, t_s: lts };
     wsRef.current = runCoupling(payload,
       (f) => { setLf(f); setHist((h) => [...h, f]); },
@@ -306,26 +322,26 @@ export default function CouplingPage() {
 
   return (
     <div className="space-y-6">
-      {/* HEADER — its own identity: the relay */}
+      {/* HEADER, its own identity: the relay */}
       <div className="rounded-2xl p-6 bg-gradient-to-r from-rose-50 via-white to-indigo-50 dark:from-rose-500/10 dark:via-slate-800 dark:to-indigo-500/10 border border-slate-200 dark:border-slate-700">
         <span className="text-xs font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
           Hybrid components · Module 2
         </span>
         <h1 className="text-3xl font-extrabold mt-1">
           <span className="text-rose-600 dark:text-rose-400">Coupling</span>
-          <span className="text-slate-400 dark:text-slate-500 mx-2">—</span>
+          <span className="text-slate-400 dark:text-slate-500 mx-2">·</span>
           <span className="text-slate-800 dark:text-slate-100">the baton pass</span>
         </h1>
         <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm">
           One trajectory, two runners. The <span className="font-semibold text-rose-600 dark:text-rose-400">fast ML model</span> carries
-          the wave while it can be trusted; my verified handoff passes it — mid-flight, zero jump — to the{" "}
-          <span className="font-semibold text-indigo-600 dark:text-indigo-400">numerical solver</span> that carries it home.{" "}
+          the wave while it can be trusted; my verified handoff passes it, mid-flight, zero jump, to the{" "}
+          <span className="font-semibold text-indigo-600 dark:text-indigo-400">numerical solver</span> that carries it the rest of the way.{" "}
         </p>
       </div>
 
       {/* TABS */}
       <div className="flex gap-2">
-        {[["story", "Story"], ["built", "How it's built"], ["evidence", "Evidence"], ["eval", "Evaluation"], ["live", "Try it live"]].map(([v, label]) => (
+        {[["story", "Story"], ["evidence", "Evidence"], ["built", "How it's built"], ["eval", "Evaluation"], ["live", "Try it live"]].map(([v, label]) => (
           <button key={v} onClick={() => setTab(v)}
             className={`px-4 py-2 rounded-xl text-sm font-medium border transition ${tab === v
               ? "bg-indigo-600 text-white border-indigo-600"
@@ -336,25 +352,25 @@ export default function CouplingPage() {
       </div>
 
       {tab === "story" && (<div className="space-y-6">
-        <div className="flex items-center gap-2"><Badge kind="rep" /><span className="text-xs text-slate-400 dark:text-slate-500">one held-out wave, interactive — aggregate numbers are on the Evidence tab</span></div>
-      {/* ===== THE RELAY TIMELINE — the page's centrepiece ===== */}
+        <div className="flex items-center gap-2"><Badge kind="rep" /><span className="text-xs text-slate-400 dark:text-slate-500">one held-out wave, interactive, aggregate numbers are on the Evidence tab</span></div>
+      {/* ===== THE RELAY TIMELINE, the page's centrepiece ===== */}
       <div className="rounded-2xl border-2 border-indigo-200 dark:border-indigo-500/30 bg-white dark:bg-slate-800 p-5">
         <div className="flex items-center justify-between mb-3">
           <div className="text-sm font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
             <GitCommitHorizontal size={16} className="text-indigo-500" />
-            Who carries the wave — drag the handoff t_s = {sw.ts.toFixed(1)}
+            Who carries the wave, drag the handoff t_s = {sw.ts.toFixed(1)}
           </div>
           <span className={`text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${vChip}`}>
-            {verdict}{verdict === "exceeds 10% error criterion" && " — still improves, but the state was already too degraded"}
+            {verdict}{verdict === "exceeds 10% error criterion" && ", still improves, but the state was already too degraded"}
           </span>
         </div>
 
         {/* ownership bar with playhead baton */}
         <div className="relative h-9 rounded-lg overflow-hidden flex text-[11px] font-bold text-white select-none">
           <div className="bg-rose-500/90 grid place-items-center transition-all duration-300"
-            style={{ width: `${sw.i0f * 100}%` }}>ML — fast</div>
+            style={{ width: `${sw.i0f * 100}%` }}>ML, fast</div>
           <div className="bg-indigo-600 grid place-items-center flex-1 transition-all duration-300">
-            numerical — verified restart
+            numerical, verified restart
           </div>
           {/* training-horizon + boundary ticks */}
           <div className="absolute top-0 h-full w-0.5 bg-white/70" style={{ left: "50.2%" }} title="training horizon t=1" />
@@ -377,7 +393,7 @@ export default function CouplingPage() {
           onChange={(e) => setTsIdx(+e.target.value)}
           className="w-full mt-3 accent-indigo-600" />
 
-        {/* consequences of the chosen handoff — updates instantly */}
+        {/* consequences of the chosen handoff, updates instantly */}
         <div className="grid grid-cols-4 gap-3 mt-3">
           <div className="rounded-xl bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 px-3 py-2 text-center">
             <div className="text-[10px] uppercase tracking-wide text-rose-500">pure-ML error · never hand off</div>
@@ -393,16 +409,25 @@ export default function CouplingPage() {
           </div>
           <div className="rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 px-3 py-2 text-center">
             <div className="text-[10px] uppercase tracking-wide text-emerald-600">jump at handoff</div>
-            <div className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400">{sw.jump === 0 ? "0" : sw.jump.toExponential(0)}</div>
+            <div className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400">{sw.jump === 0 ? "0" : eToSup(sw.jump)}</div>
           </div>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2">
+          <p className="col-span-4 text-[11px] text-slate-500 dark:text-slate-400 mt-2">
             Later hand-offs are <span className="font-medium">cheaper</span> (less numerical work) but{" "}
-            <span className="font-medium">less accurate</span> — the state handed over is already degraded.
+            <span className="font-medium">less accurate</span>, the state handed over is already degraded.
             The criterion above is about <span className="font-medium">accuracy</span>, not cost: how much that
             accuracy is worth paying for is Module 3&apos;s decision.
           </p>
         </div>
       </div>
+
+      {/* aggregate headline, pins the real result to the Story tab so it stands alone
+      <div className="rounded-2xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50/60 dark:bg-emerald-500/10 px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-1.5">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">Aggregate · n = {AGG.nIC} held-out</span>
+        <span className="text-sm text-slate-700 dark:text-slate-200">tail error <b className="text-rose-600 dark:text-rose-400">{AGG.fnoTail1}%</b> → <b className="text-indigo-600 dark:text-indigo-400">{AGG.hybTail2}%</b></span>
+        <span className="text-sm text-slate-700 dark:text-slate-200"><b className="text-emerald-600 dark:text-emerald-400">{AGG.reduction}%</b> reduction</span>
+        <span className="text-sm text-slate-700 dark:text-slate-200"><b>{AGG.icsImproved}/{AGG.nIC}</b> waves improved</span>
+        <span className="text-[11px] text-slate-400 dark:text-slate-500 ml-auto">hand-off tₛ = 1.0 · the animation above is one representative wave</span>
+      </div> */}
 
       {/* wave + error, reacting to the same t_s */}
       <div className="grid grid-cols-2 gap-4">
@@ -420,13 +445,13 @@ export default function CouplingPage() {
           </div>
           <RelayWave frame={frame} hyField={hyField} switched={switched} />
           <div className="flex gap-4 text-[11px] text-slate-400 dark:text-slate-500">
-            <span>— true (dashed)</span>
-            <span className="text-rose-500">— pure ML{switched ? " (ghost — what would have happened)" : ""}</span>
-            {switched && <span className="text-indigo-500 font-medium">— hybrid</span>}
+            <span>true (dashed)</span>
+            <span className="text-rose-500">pure ML{switched ? " (ghost, what would have happened)" : ""}</span>
+            {switched && <span className="text-indigo-500 font-medium">hybrid</span>}
           </div>
         </div>
         <Card title="The cost of your decision"
-          subtitle="red = never hand off · indigo = your relay — identical until t_s, then pinned">
+          subtitle="red = never hand off · indigo = your relay, identical until t_s, then pinned">
           <LineChart
             series={[
               { x: RL_T, y: RL_ERR_ML, color: "#e11d48", width: 2 },
@@ -439,11 +464,11 @@ export default function CouplingPage() {
 
       </div>)}
       {tab === "evidence" && (<div className="space-y-6">
-      {/* NOVELTY + KEY NUMBERS — the first thing the examiner sees on this tab */}
+      {/* NOVELTY + KEY NUMBERS, the first thing the examiner sees on this tab */}
       <div className="rounded-2xl border-2 border-indigo-300 dark:border-indigo-500/40 bg-indigo-50/60 dark:bg-indigo-500/10 p-5">
         <div className="text-xs font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 mb-1">My contribution</div>
         <p className="text-sm text-slate-800 dark:text-slate-100 font-medium">
-          I made the numerical solver able to <span className="text-indigo-600 dark:text-indigo-400">restart from the AI&apos;s state mid-run</span>,
+          I made the numerical solver able to <span className="text-indigo-600 dark:text-indigo-400">restart from the ML solver&apos;s state mid-run</span>,
           proved that restart is <span className="text-indigo-600 dark:text-indigo-400">identical to the original solver</span>, and measured{" "}
           <span className="text-indigo-600 dark:text-indigo-400">when the hand-off is still worth doing</span>.
         </p>
@@ -453,10 +478,10 @@ export default function CouplingPage() {
           ))}
         </div>
       </div>
-      {/* AGGREGATE RESULT — the report headline, kept distinct from the single-wave animation */}
+      {/* AGGREGATE RESULT, the report headline, kept distinct from the single-wave animation */}
       <div className="rounded-2xl border-2 border-indigo-200 dark:border-indigo-500/30 bg-white dark:bg-slate-800 p-5">
         <div className="flex items-center gap-2 mb-1">
-          <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">Primary result — hand-off at t_s = 1.0</span>
+          <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">Primary result, hand-off at t_s = 1.0</span>
           <Badge kind="agg" /><Badge kind="committed" />
         </div>
         <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
@@ -482,10 +507,31 @@ export default function CouplingPage() {
         </div>
       </div>
 
-      {/* EMPIRICAL RELATIONSHIP — the equality that names the module's finding */}
+      {/* FRONTIER ENDS, accuracy vs cost, both from the committed sweep */}
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
+        <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Two ends of the same trade-off</div>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+          The hand-off time trades accuracy against cost. Switch early = most accurate but most numerical work.
+          Switch near the viability boundary (≈ {AGG.boundary}) = the least work that still meets the 10% error bar.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="rounded-xl border border-emerald-100 dark:border-emerald-500/20 bg-emerald-50 dark:bg-emerald-500/10 p-3">
+            <div className="text-[10px] uppercase tracking-wide text-emerald-600 dark:text-emerald-400">Accuracy end · t_s = 1.0</div>
+            <div className="text-sm mt-1 text-slate-700 dark:text-slate-200"><b>{AGG.hybTail2}%</b> error · <b>{AGG.reduction}%</b> benefit</div>
+            <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{AGG_COST.work10}% of the run solved numerically</div>
+          </div>
+          <div className="rounded-xl border border-indigo-100 dark:border-indigo-500/20 bg-indigo-50 dark:bg-indigo-500/10 p-3">
+            <div className="text-[10px] uppercase tracking-wide text-indigo-600 dark:text-indigo-400">Cost end · t_s = {AGG_COST.ts} (latest viable)</div>
+            <div className="text-sm mt-1 text-slate-700 dark:text-slate-200"><b>{AGG_COST.hyb}%</b> error · <b>{AGG_COST.ben}%</b> benefit</div>
+            <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{AGG_COST.work}% numerical, ~40% less work, still under 10%</div>
+          </div>
+        </div>
+      </div>
+
+      {/* EMPIRICAL RELATIONSHIP, the equality that names the module's finding */}
       <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
         <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-3 flex items-center gap-2">
-          <Microscope size={14} /> Empirical relationship observed on this benchmark — hybrid error ≈ state error at hand-off
+          <Microscope size={14} /> Empirical relationship observed on this benchmark, hybrid error ≈ state error at hand-off
         </div>
         <div className="flex items-center justify-center gap-6 flex-wrap">
           <div className="text-center">
@@ -498,9 +544,9 @@ export default function CouplingPage() {
             <div className="text-4xl font-extrabold text-indigo-600 dark:text-indigo-400">{(sw.hyTail * 100).toFixed(1)}%</div>
           </div>
           <div className="max-w-xs text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-            Drag the slider — the two numbers move <span className="font-semibold">together</span>. The continuation adds
-            ~{RL_META.oracle} of its own error (oracle control), so the handoff-state error <span className="font-semibold">dominates</span> the resulting
-            hybrid error. You can only anchor what you hand over — so the hand-off time{" "}
+            The continuation adds
+            ~{eToSup(RL_META.oracle)} of its own error (oracle control), so the handoff-state error <span className="font-semibold">dominates</span> the resulting
+            hybrid error. You can only anchor what you hand over, so the hand-off time{" "}
             <span className="font-medium text-slate-700 dark:text-slate-200">sets the accuracy ceiling for the
             whole system</span>, and the sweep below is what tells the trust and control layers where that
             ceiling is.
@@ -508,46 +554,46 @@ export default function CouplingPage() {
         </div>
       </div>
 
-      {/* ORACLE DECOMPOSITION — visualises where the error comes from (was text-only) */}
+      {/* ORACLE DECOMPOSITION, visualises where the error comes from (was text-only) */}
       <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
         <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1 flex items-center gap-2">
-          <Microscope size={14} /> Where the error comes from — oracle decomposition
+          <Microscope size={14} /> Where the error comes from, oracle decomposition
         </div>
         <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
-          Each bar is the error against the true answer, over the tail. Same numerical continuation, different starting states — the ML state vs the true state (log scale).
+          Each bar is the error against the true answer, over the tail. Same numerical continuation, different starting states, the ML state vs the true state (log scale).
         </p>
         <OracleBars mlTail={sw.mlTail} hyTail={sw.hyTail} oracle={Number(RL_META.oracle)} />
         <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-          Restarting from the <span className="font-semibold">true</span> state collapses to ~{RL_META.oracle} — the continuation
+          Restarting from the <span className="font-semibold">true</span> state collapses to ~{eToSup(RL_META.oracle)}, the continuation
           is near-perfect. So the hybrid&apos;s error is{" "}
           <span className="font-medium text-slate-700 dark:text-slate-200">inherited from the ML state you hand over, not created
-          by the switch</span> — which is why hybrid error tracks state error above (drag the slider to watch the top two bars move
+          by the switch</span>, which is why hybrid error tracks state error above (drag the slider to watch the top two bars move
           while the oracle stays put).
         </p>
       </div>
 
-      {/* NOVELTY IN CODE — mirrors the Cost page's card, with M2's receipts */}
+      {/* NOVELTY IN CODE, mirrors the Cost page's card, with M2's receipts */}
       <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
-        <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2 flex items-center gap-2">
+        {/* <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2 flex items-center gap-2">
           <Code2 size={14} /> Why this is trustworthy (in code)
-        </div>
+        </div> */}
         <p className="text-sm text-slate-700 dark:text-slate-200">
-          The production solver only knew <span className="font-mono text-[13px]">solve(u0)</span> from t = 0. I made it restartable:
+          The team&apos;s production spectral solver only ran <span className="font-mono text-[13px]">solve(u0)</span> from t = 0.
+          My part is making it restartable from an arbitrary ML state, and proving that restart is identical to it:
         </p>
         <div className="mt-2 rounded-lg bg-slate-50 dark:bg-slate-700/40 px-3 py-2 font-mono text-[13px] text-slate-700 dark:text-slate-200">
-          solve_from(u_ML(t_s), i_start) → <span className="text-emerald-600 dark:text-emerald-400 font-semibold">matched the production solver</span>, with relative difference 0.0 in the evaluated restart-equivalence tests
+          solve_from(u_ML(tₛ), i_start) → <span className="text-emerald-600 dark:text-emerald-400 font-semibold">identical to the production solver</span> (rel diff &lt; 10⁻¹⁰), state jump 0, both verified by test
         </div>
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
-          Guarded by 12 automated tests — including a regression check against an oracle-contaminated alternative — and a stress test showing that a
-          restart omitting the production scheme&apos;s de-aliasing treatment loses fidelity and eventually becomes unstable in the evaluated stress test, whereas the verified restart retains the production treatment.
-          The exact adapter this page calls is the one Module 3&apos;s runtime executes.
+          The spectral scheme is the team&apos;s; the restartable wrapper <span className="font-mono">solve_from</span> and its
+          verification are my contribution. The exact adapter this page calls is the one Module 3&apos;s runtime executes.
         </p>
       </div>
 
-      {/* RESTART-SAFETY BOUNDARY — visualises the stress-test claim (was text-only) */}
+      {/* RESTART-SAFETY BOUNDARY, visualises the stress-test claim (was text-only) */}
       <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
         <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1 flex items-center gap-2">
-          <Microscope size={14} /> Why the restart is verified — it holds where a shortcut breaks
+          <Microscope size={14} /> Why the restart is verified, it holds where a shortcut breaks
         </div>
         <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
           Push to sharper waves (higher cell Reynolds number). The verified restart stays accurate (~10<sup>−11</sup>); a shortcut restart that
@@ -555,20 +601,20 @@ export default function CouplingPage() {
         </p>
         <SafetyChart data={SAFETY} cross={SAFETY_CROSS} />
         <div className="flex gap-4 flex-wrap text-[11px] text-slate-400 dark:text-slate-500 mt-1">
-          <span className="text-emerald-600 dark:text-emerald-400">— verified restart — error ≈ 0 (stays ~10<sup>−11</sup>)</span>
-          <span className="text-rose-500">— shortcut restart (no de-aliasing)</span>
+          <span className="text-emerald-600 dark:text-emerald-400">verified restart, error ≈ 0 (stays ~10<sup>−11</sup>)</span>
+          <span className="text-rose-500">shortcut restart (no de-aliasing)</span>
           <span className="text-amber-500">-- 1% target · shortcut crosses at Re≈3.2</span>
         </div>
       </div>
 
-      {/* CONCLUSION — mirrors the Trust and Cost pages' closing verdict */}
+      {/* CONCLUSION, mirrors the Trust and Cost pages' closing verdict */}
       <div className="rounded-2xl p-5 bg-gradient-to-r from-emerald-50 via-white to-white dark:from-emerald-500/10 dark:via-slate-800 dark:to-slate-800 border border-emerald-200 dark:border-emerald-500/30">
         <div className="text-sm font-semibold text-emerald-800 dark:text-emerald-300 flex items-center gap-2"><CheckCircle2 size={16} /> Conclusion</div>
         <p className="text-sm text-slate-700 dark:text-slate-200 mt-1">
           The verified hand-off cuts tail error <b>{AGG.fnoTail1}% → {AGG.hybTail2}%</b> and improves <b>every one of the {AGG.nIC} held-out waves</b>. The restart
           matches the production solver exactly (rel diff 0.0) and the state jump is <b>zero by construction</b>, so the hand-off adds no error
-          of its own — what remains is inherited from the ML state. This holds only while the hand-off is still viable (up to <b>t_s ≈ {RL_META.boundary}</b>);
-          switch too late and even a perfect restart cannot recover. <span className="font-semibold">The module verifies and times the hand-off — it does not fix a bad ML stream.</span>
+          of its own, what remains is inherited from the ML state. This holds only while the hand-off is still viable (up to <b>t_s ≈ {RL_META.boundary}</b>);
+          switch too late and even a perfect restart cannot recover. <span className="font-semibold">The module verifies and times the hand-off, it does not fix a bad ML stream.</span>
         </p>
       </div>
 
@@ -580,7 +626,7 @@ export default function CouplingPage() {
           <p className="text-sm text-slate-600 dark:text-slate-300 mt-2 leading-relaxed">
             The ML solver runs while it&apos;s trusted; at the switch, the production numerical solver is re-seeded with the exact
             ML state and continues to the end. The restart is proven identical to the trusted solver, and the hand-off adds no
-            discontinuity — every step below is a control or a check, not a convenience.
+            discontinuity, every step below is a control or a check, not a convenience.
           </p>
         </div>
 
@@ -629,15 +675,15 @@ export default function CouplingPage() {
           <div className="rounded-2xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 p-5">
             <div className="text-sm font-bold text-emerald-800 dark:text-emerald-300">Verified, not assumed</div>
             <p className="text-sm text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
-              The restart isn&apos;t &ldquo;close&rdquo; to the production solver — it&apos;s proven bit-identical (rel diff 0.0), and
+              The restart isn&apos;t &ldquo;close&rdquo; to the production solver, it&apos;s proven bit-identical (rel diff 0.0), and
               the zero-jump property is a test, not a claim. Every headline number has a passing test behind it.
             </p>
           </div>
           <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30 p-5">
-            <div className="text-sm font-bold text-slate-700 dark:text-slate-200">It times the hand-off — it doesn&apos;t fix the ML</div>
+            <div className="text-sm font-bold text-slate-700 dark:text-slate-200">It times the hand-off, it doesn&apos;t fix the ML</div>
             <p className="text-sm text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
-              The oracle decomposition shows the coupling adds ~1e-6; the rest is inherited from the ML state. So the module
-              guarantees a faithful, well-timed hand-off — it can&apos;t repair a bad ML prediction, and it doesn&apos;t claim to.
+              The oracle decomposition shows the coupling adds ~10⁻⁶; the rest is inherited from the ML state. So the module
+              guarantees a faithful, well-timed hand-off, it can&apos;t repair a bad ML prediction, and it doesn&apos;t claim to.
             </p>
           </div>
         </div>
@@ -649,7 +695,7 @@ export default function CouplingPage() {
           <h2 className="text-2xl font-bold mt-1 text-slate-800 dark:text-slate-100">The actual figures behind the results</h2>
           <p className="text-sm text-slate-600 dark:text-slate-300 mt-2 leading-relaxed">
             Every figure is generated by my own scripts from committed held-out data, scored against the exact
-            Cole–Hopf answer <b>offline only</b> — the coupling itself never uses the true answer at runtime.
+            Cole–Hopf answer <b>offline only</b>, the coupling itself never uses the true answer at runtime.
             The source script is named under each figure.
           </p>
         </div>
@@ -665,7 +711,7 @@ export default function CouplingPage() {
         </div>
 
         <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
-          <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Final integration — the hand-off vs baselines</div>
+          <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Final integration, the hand-off vs baselines</div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
             Error over the extrapolation window [1, 2] on the {cmp.n} held-out waves, with the fraction of steps solved numerically.
             Source: <span className="font-mono text-[11px]">trust_hardswitch_compare.json</span>.
@@ -680,9 +726,10 @@ export default function CouplingPage() {
             ))}
           </div>
           <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-3 leading-relaxed">
-            The real trust trigger fires early (mean ≈ {Number(cmp.mean_trigger).toFixed(2)}), so the trust-triggered hybrid reaches{" "}
-            {(cmp.means.trust * 100).toFixed(1)}% error but at ~{(cmp.trust_workload * 100).toFixed(0)}% numerical work. Tuning that
-            accuracy/cost trade-off is Module 3&apos;s job — Module 2&apos;s guarantee is that the hand-off stays faithful wherever it happens.
+            This baseline feeds the raw trust flag straight in; it fires early (mean ≈ {Number(cmp.mean_trigger).toFixed(2)}), so it
+            reaches {(cmp.means.trust * 100).toFixed(1)}% error but does ~{(cmp.trust_workload * 100).toFixed(0)}% of the work numerically.
+            In the full system Module 3 turns a requested accuracy into the switch point, so the cost is a deliberate choice. Module 2&apos;s
+            job is only to keep the hand-off faithful wherever it happens.
           </p>
         </div>
 
@@ -696,11 +743,11 @@ export default function CouplingPage() {
 
         <div>
           <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Robustness &amp; transfer</div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Better handed-over state → better hybrid, for every architecture — and the hand-off still helps out-of-distribution.</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Better handed-over state → better hybrid, for every architecture, and the hand-off still helps out-of-distribution.</p>
           <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
-            <div className="text-sm font-semibold text-slate-800 dark:text-slate-100">Model-agnostic &amp; solver-agnostic — demonstrated, not assumed</div>
+            <div className="text-sm font-semibold text-slate-800 dark:text-slate-100">Model-agnostic &amp; solver-agnostic, demonstrated, not assumed</div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 mb-3">
-              The identical <span className="font-mono text-[11px]">solve_from()</span> hand-off runs for FNO, PINN and DeepONet — only the ML
+              The identical <span className="font-mono text-[11px]">solve_from()</span> hand-off runs for FNO, PINN and DeepONet, only the ML
               array changes, the coupling code does not. Hand-off at t_s = 1.0, mean over {transfer.n_waves} held-out waves.
               Source: <span className="font-mono text-[11px]">transfer_models.py → transfer_models_results.json</span>.
             </p>
@@ -727,7 +774,7 @@ export default function CouplingPage() {
               </table>
             </div>
             <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-3">
-              Same pattern for all three: the worse the handed-over state, the smaller the benefit — a property of the coupling,
+              Same pattern for all three: the worse the handed-over state, the smaller the benefit, a property of the coupling,
               not of any one model.
             </p>
           </div>
@@ -738,7 +785,7 @@ export default function CouplingPage() {
 
         <div>
           <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Continuity, fidelity &amp; safety</div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">The switch is continuous and physically stable — the Burgers residual falls after the hand-off — and the verified restart holds where an approximate one fails.</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">The switch is continuous and physically stable, the Burgers residual falls after the hand-off, and the verified restart holds where an approximate one fails.</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {EVAL_FIDELITY.map((f) => <FigCard key={f.src} {...f} />)}
           </div>
@@ -746,10 +793,10 @@ export default function CouplingPage() {
       </div>)}
       {tab === "live" && (<div className="space-y-6">
         <div className="flex items-center gap-2"><Badge kind="live" /><span className="text-xs text-slate-400 dark:text-slate-500">runs the real M2Coupling adapter with the verified pseudo-spectral restart</span></div>
-      {/* RUN IT YOURSELF — real backend */}
+      {/* RUN IT YOURSELF, real backend */}
       <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
         <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1 flex items-center gap-2">
-          <Play size={14} /> Run it yourself — your wave, the real M2Coupling
+          <Play size={14} /> Run it yourself, your wave, the real M2Coupling
         </div>
         <p className={`text-xs ${muted} mb-4`}>
           Everything above is precomputed from committed results on one held-out wave. Here the backend runs the real
@@ -774,14 +821,41 @@ export default function CouplingPage() {
               </select>
             ) : (
               <div className="space-y-3 text-sm">
-                <label className={`block ${muted}`}>
-                  modes: {modes}
-                  <input type="range" min="1" max="4" value={modes} onChange={(e) => setModes(+e.target.value)} className="w-full" />
-                </label>
-                <label className={`block ${muted}`}>
-                  amplitude: {amplitude.toFixed(2)}
-                  <input type="range" min="0.2" max="1.5" step="0.05" value={amplitude} onChange={(e) => setAmplitude(+e.target.value)} className="w-full" />
-                </label>
+                <div className="flex gap-2">
+                  {[["real", "Held-out test IC"], ["synthetic", "Random shape"]].map(([v, label]) => (
+                    <button key={v} onClick={() => setSource(v)}
+                      className={`flex-1 px-2 py-1.5 rounded-lg text-xs font-bold border transition ${source === v
+                        ? "bg-indigo-600 text-white border-indigo-600" : inactiveBtn}`}>{label}</button>
+                  ))}
+                </div>
+                {source === "real" ? (
+                  <>
+                    <select value={ridx} onChange={(e) => setRidx(+e.target.value)}
+                      className="w-full bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm">
+                      {Array.from({ length: meta?.n_real_test_ics || 10 }, (_, k) => (
+                        <option key={k} value={k}>Test IC #{900 + k}</option>
+                      ))}
+                    </select>
+                    <div className={`text-[11px] ${muted}`}>
+                      one of the {meta?.n_real_test_ics || 10} held-out waves the aggregate hand-off
+                      numbers (n = {AGG.nIC}) were measured on, not a random draw
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <label className={`block ${muted}`}>
+                      modes: {modes}
+                      <input type="range" min="1" max="4" value={modes} onChange={(e) => setModes(+e.target.value)} className="w-full" />
+                    </label>
+                    <label className={`block ${muted}`}>
+                      amplitude: {amplitude.toFixed(2)}
+                      <input type="range" min="0.2" max="1.5" step="0.05" value={amplitude} onChange={(e) => setAmplitude(+e.target.value)} className="w-full" />
+                    </label>
+                    <div className={`text-[11px] ${muted}`}>
+                      a fresh random shape, useful for exploring, but not one of the evaluated waves
+                    </div>
+                  </>
+                )}
               </div>
             )}
             <div className="flex gap-2">
@@ -806,16 +880,30 @@ export default function CouplingPage() {
                 <div className="grid grid-cols-2 gap-2">
                   <Stat label="pure-ML error [1,2]" value={`${(summary.ml_tail_1_2 * 100).toFixed(1)}%`} tone="red" />
                   <Stat label="hybrid error [1,2]" value={`${(summary.hybrid_tail_1_2 * 100).toFixed(1)}%`} tone="green" />
-                  <Stat label="benefit" value={summary.benefit != null ? `${(summary.benefit * 100).toFixed(0)}%` : "—"} tone="indigo" />
+                  <Stat label="benefit" value={summary.benefit != null ? `${(summary.benefit * 100).toFixed(0)}%` : "-"} tone="indigo" />
                   <Stat label="numerical work" value={`${(summary.numerical_fraction * 100).toFixed(0)}%`} />
                 </div>
                 <Banner ok={summary.handoff_jump === 0}
-                  text={`handoff jump = ${summary.handoff_jump} — continuous by construction`} />
+                  text={`handoff jump = ${summary.handoff_jump}, continuous by construction`} />
+                <div className="rounded-lg border border-indigo-100 dark:border-indigo-500/25 bg-indigo-50/60 dark:bg-indigo-500/10 px-3 py-2">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+                    This wave vs. the full held-out set
+                  </div>
+                  <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
+                    {source === "real"
+                      ? <>This is held-out <b>Test IC #{900 + ridx}</b>, one of the {AGG.nIC} evaluated waves. </>
+                      : <>This is a synthetic shape, not one of the evaluated waves. </>}
+                    Across all <b>{AGG.nIC}</b> held-out waves at the <b>t_s = 1.0</b> hand-off, tail error falls{" "}
+                    <b>{AGG.fnoTail1}% → {AGG.hybTail2}%</b> (mean), improving <b>all {AGG.icsImproved}/{AGG.nIC}</b>.
+                    {switchMode === "manual" && Math.abs(lts - 1.0) > 1e-6 &&
+                      <> Your hand-off is at t_s = {lts.toFixed(2)}, so this run won&apos;t match the t_s = 1.0 mean exactly.</>}
+                  </p>
+                </div>
               </div>
             )}
           </div>
           <div className="space-y-3">
-            <Card title={lf ? `t = ${lf.t.toFixed(2)}${lf.switched ? " — numerical carries it" : " — ML carries it"}` : "run to start"}>
+            <Card title={lf ? `t = ${lf.t.toFixed(2)}${lf.switched ? ", numerical carries it" : ", ML carries it"}` : "run to start"}>
               <LineChart
                 series={[
                   { x, y: lf ? lf.true : [], color: "#94a3b8", dashed: true },
@@ -838,7 +926,7 @@ export default function CouplingPage() {
       </div>
 
       <p className="text-xs text-slate-400 dark:text-slate-500">
-        This page dissects the handoff — you control the switch and may deliberately hand off outside the viability criterion.
+        This page dissects the handoff, you control the switch and may deliberately hand off outside the viability criterion.
         The Hybrid engine page is the opposite: you set an accuracy target and the trust + control layer decides for you.
       </p>
       </div>)}
