@@ -82,7 +82,7 @@ const COUPLING_BUILD = [
   {
     n: 5, color: "#059669", title: "Verify & decompose the error",
     what: "12 automated tests, plus an oracle restart from the TRUE state to separate the coupling's own error from the inherited ML error.",
-    detail: "E_hybrid = E_coupling (~10⁻⁶) + E_inherited",
+    detail: "E_coupling ≈ 10⁻⁶  ≪  E_inherited  (dominates)",
     why: "The oracle proves the coupling itself adds almost nothing, all remaining hybrid error is inherited from the ML hand-off state, not produced by the switch."
   },
 ];
@@ -92,7 +92,7 @@ const BASELINES = [
   { m: "Pure FNO, no hand-off", err: (cmp.means.pure_fno * 100).toFixed(1) + "%", work: "0%", c: "#e11d48" },
   { m: "Fixed switch @ t = 1.4", err: (cmp.means.fixed_1p4 * 100).toFixed(1) + "%", work: (cmp.fixed_workload * 100).toFixed(0) + "%", c: "#d97706" },
   { m: "Trust-triggered (real M1)", err: (cmp.means.trust * 100).toFixed(1) + "%", work: (cmp.trust_workload * 100).toFixed(0) + "%", c: "#059669" },
-  { m: "Pure numerical (reference)", err: "~0.1%", work: "100%", c: "#64748b" },
+  { m: "Pure numerical (reference)", err: "reference", work: "100%", c: "#64748b" },
 ];
 
 /* Model-agnostic table (hand-off at t_s = 1.0), read live from transfer_models_results.json. */
@@ -575,7 +575,7 @@ export default function CouplingPage() {
               Aggregate over {AGG.nIC} held-out waves at the t_s = 1.0 hand-off. Two different metrics, yet they
               match: the numerical continuation adds only ~{ORACLE_STR} of its own error (oracle control), so the
               handed-over ML state <span className="font-semibold text-slate-700 dark:text-slate-200">sets the accuracy ceiling</span> and the
-              restart never adds to it. The tail is slightly lower because viscosity damps the inherited error.
+              restart adds negligible additional error on this benchmark. The tail is slightly lower because viscosity damps the inherited error.
             </div>
           </div>
         </div>
@@ -605,11 +605,14 @@ export default function CouplingPage() {
         </div> */}
           <p className="text-sm text-slate-700 dark:text-slate-200">
             The team&apos;s production spectral solver only ran <span className="font-mono text-[13px]">solve(u0)</span> from t = 0.
-            My part is making it restartable from an arbitrary ML state, and proving that restart is identical to it:
+            My part is making it restartable from an arbitrary ML state, and verifying it two ways:
           </p>
           <div className="mt-2 rounded-lg bg-slate-50 dark:bg-slate-700/40 px-3 py-2 font-mono text-[13px] text-slate-700 dark:text-slate-200">
-            solve_from(u_ML(tₛ), i_start) → <span className="text-emerald-600 dark:text-emerald-400 font-semibold">identical to the production solver</span> (rel diff &lt; 10⁻¹⁰), state jump 0, both verified by test
+            solve_from(u_ML(tₛ), i_start)
           </div>
+          <p className="text-xs text-slate-600 dark:text-slate-300 mt-2">
+            Run from t = 0, the restart <span className="font-semibold text-emerald-600 dark:text-emerald-400">reproduces the production scheme</span> (relative difference &lt; 10⁻¹⁰); a separate seam test confirms it preserves the handed state exactly, so the <span className="font-semibold">jump is 0</span>.
+          </p>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
             The spectral scheme is the team&apos;s; the restartable wrapper <span className="font-mono">solve_from</span> and its
             verification are my contribution. The exact adapter this page calls is the one Module 3&apos;s runtime executes.
@@ -737,6 +740,40 @@ export default function CouplingPage() {
         </div>
 
         <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
+          <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Hand-off sweep, the numbers behind the curves</div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+            Mean over the {AGG.nIC} held-out waves at each switch time. Source: <span className="font-mono text-[11px]">handoff_sweep_results.json</span>.
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500 text-left">
+                <th className="py-1.5 pr-3">t_s</th>
+                <th className="py-1.5 px-3 text-right">pure-ML tail</th>
+                <th className="py-1.5 px-3 text-right">hybrid tail</th>
+                <th className="py-1.5 px-3 text-right">benefit</th>
+                <th className="py-1.5 px-3 text-right">numerical work</th>
+                <th className="py-1.5 pl-3 text-center">viable?</th>
+              </tr></thead>
+              <tbody>
+                {sweep.results.map((r) => (
+                  <tr key={r.t_s} className="border-t border-slate-100 dark:border-slate-700">
+                    <td className="py-2 pr-3 font-semibold text-slate-700 dark:text-slate-200">{r.t_s.toFixed(1)}</td>
+                    <td className="py-2 px-3 text-right text-rose-600 dark:text-rose-400">{(r.fno_tail * 100).toFixed(1)}%</td>
+                    <td className="py-2 px-3 text-right font-bold text-indigo-600 dark:text-indigo-400">{(r.hybrid_tail * 100).toFixed(r.hybrid_tail < 0.1 ? 2 : 1)}%</td>
+                    <td className="py-2 px-3 text-right text-emerald-600 dark:text-emerald-400">{(r.benefit * 100).toFixed(1)}%</td>
+                    <td className="py-2 px-3 text-right text-slate-500 dark:text-slate-400">{(r.numerical_fraction * 100).toFixed(0)}%</td>
+                    <td className={`py-2 pl-3 text-center font-bold ${r.viable ? "text-emerald-600 dark:text-emerald-400" : "text-rose-500"}`}>{r.viable ? "✓" : "✗"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-3">
+            Earlier hand-off gives more accuracy but more numerical work. Every measured switch still beats pure ML, but after t_s = 1.4 the hybrid tail error crosses the 10% acceptance bar. <span className="font-medium text-slate-700 dark:text-slate-200">Measured latest viable point = 1.4; interpolated boundary ≈ {AGG.boundary}.</span>
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
           <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Final integration, the hand-off vs baselines</div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
             Error over the extrapolation window [1, 2] on the {cmp.n} held-out waves, with the fraction of steps solved numerically.
@@ -769,9 +806,9 @@ export default function CouplingPage() {
 
         <div>
           <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Robustness &amp; transfer</div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Better handed-over state → better hybrid, for every architecture, and the hand-off still helps out-of-distribution.</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Better handed-over state → better hybrid, for every architecture tested; in the OOD stress cases the continuation reduces subsequent error but cannot recover a severely corrupted hand-off state.</p>
           <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
-            <div className="text-sm font-semibold text-slate-800 dark:text-slate-100">Model-agnostic &amp; solver-agnostic, demonstrated, not assumed</div>
+            <div className="text-sm font-semibold text-slate-800 dark:text-slate-100">Model-agnostic demonstrated; numerical backend decoupled by interface design</div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 mb-3">
               The identical <span className="font-mono text-[11px]">solve_from()</span> hand-off runs for FNO, PINN and DeepONet, only the ML
               array changes, the coupling code does not. Hand-off at t_s = 1.0, mean over {transfer.n_waves} held-out waves.
