@@ -405,7 +405,8 @@ export default function CostAnalysis() {
     return { m, e, cost: M[m].deploy_s ?? 0, ok: e <= tolPct };
   }).sort((p_, q_) => p_.cost - q_.cost);
   const win = rows.find((x) => x.ok);
-  const cheapGap = !win || NUMERICAL.includes(win.m);
+  const bestML = rows.find((x) => x.ok && ML.includes(x.m));
+  const cheapGap = !bestML;
 
   // live-feel polish: count the headline cost smoothly toward the new winner instead of
   // snapping, and briefly pulse the winning row/number the moment the cheapest qualifying
