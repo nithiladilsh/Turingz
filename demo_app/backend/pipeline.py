@@ -229,6 +229,11 @@ async def _run_costcontrol(ws, req):
     # spurious "target missed" results here even on the exact validated ICs.
     sq_diff_sum = 0.0
     sq_true_sum = 0.0
+    # parallel running error for "what if it had run pure ML the whole time" --
+    # same whole-trajectory formula and same sq_true_sum denominator as cum_err,
+    # just accumulated against pred[n] (raw ML) instead of state (actual output).
+    # Purely additive: does not change cum_err, cost, trust, or any existing field.
+    sq_diff_sum_ml = 0.0
 
     for n in range(nt):
         o = mon.update(state, float(T[n]))
@@ -248,11 +253,19 @@ async def _run_costcontrol(ws, req):
         prev_t = float(T[n])
         sq_diff_sum += float(((state - true[n]) ** 2).sum())
         sq_true_sum += float((true[n] ** 2).sum())
+        sq_diff_sum_ml += float(((pred[n] - true[n]) ** 2).sum())
         # running trajectory-so-far error -- same formula as the final "hit" check,
         # so this converges to exactly the summary number by the last frame instead
         # of showing an unrelated (and usually larger) instantaneous snapshot error
         # side by side with a "target met" banner that used a different metric.
         cum_err = float(np.sqrt(sq_diff_sum) / (np.sqrt(sq_true_sum) + 1e-12))
+        cum_err_ml = float(np.sqrt(sq_diff_sum_ml) / (np.sqrt(sq_true_sum) + 1e-12))
+        # cost-so-far for the two "ran it alone the whole time" baselines. Both are
+        # deterministic given the measured per-step rates -- no extra solver calls,
+        # so this adds no latency to the run (unlike an accuracy baseline, which
+        # would require actually rolling out the numerical solver in full).
+        cost_ml_only = ml_per * (n + 1)
+        cost_num_only = num_per * (n + 1)
         await ws.send_text(json.dumps({
             "t": float(T[n]),
             "u": np.round(state, 4).tolist(),
@@ -263,6 +276,9 @@ async def _run_costcontrol(ws, req):
             "corr_steps": corr_steps,
             "cost_s": round(cost, 4),
             "error": round(cum_err, 4),
+            "pure_ml_error_running": round(cum_err_ml, 4),
+            "cost_ml_only": round(cost_ml_only, 4),
+            "cost_num_only": round(cost_num_only, 4),
             "switch_t": switch_t,
         }))
         await asyncio.sleep(0.02)

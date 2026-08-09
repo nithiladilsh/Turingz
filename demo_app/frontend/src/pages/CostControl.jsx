@@ -200,6 +200,65 @@ function TrustTrace({ hist, lo }) {
   );
 }
 
+function EndLabel({ x, y, text, color, above }) {
+  return (
+    <text x={x - 5} y={above ? y - 5 : y + 11} textAnchor="end" fontSize="9.5" fontWeight="700" fill={color}>
+      {text}
+    </text>
+  );
+}
+
+function ErrorCompareTrace({ hist, target }) {
+  const W = 620, H = 150, padL = 34, padR = 14, padT = 12, padB = 24;
+  const vals = hist.flatMap((f) => [f.error, f.pure_ml_error_running]).filter((v) => v != null);
+  const maxErr = Math.max(target || 0, 0.05, ...vals, 1e-6) * 1.15;
+  const sx = (t) => padL + (t / 2) * (W - padL - padR);
+  const sy = (v) => H - padB - (Math.min(v, maxErr) / maxErr) * (H - padT - padB);
+  const pts = (key) => hist.filter((f) => f[key] != null);
+  const line = (key) => pts(key).map((f, i) => `${i ? "L" : "M"}${sx(f.t).toFixed(1)} ${sy(f[key]).toFixed(1)}`).join(" ");
+  const lastOf = (key) => { const a = pts(key); return a.length ? a[a.length - 1] : null; };
+  const lastErr = lastOf("error"), lastMl = lastOf("pure_ml_error_running");
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
+      {target != null && (
+        <>
+          <line x1={padL} x2={W - padR} y1={sy(target)} y2={sy(target)} stroke="#d97706" strokeDasharray="4 3" />
+          <text x={padL + 4} y={sy(target) - 4} fontSize="8.5" fill="#d97706" fontWeight="700">target {target}</text>
+        </>
+      )}
+      <path d={line("pure_ml_error_running")} fill="none" stroke="#e11d48" strokeWidth="1.6" strokeDasharray="3 2" />
+      <path d={line("error")} fill="none" stroke="#059669" strokeWidth="2" />
+      {lastMl && <EndLabel x={sx(lastMl.t)} y={sy(lastMl.pure_ml_error_running)} text={pct(lastMl.pure_ml_error_running)} color="#e11d48" above />}
+      {lastErr && <EndLabel x={sx(lastErr.t)} y={sy(lastErr.error)} text={pct(lastErr.error)} color="#059669" />}
+      <text x={W - padR} y={H - 6} textAnchor="end" fontSize="9" fill="var(--chart-axis)">time t →</text>
+    </svg>
+  );
+}
+
+function CostCompareTrace({ hist }) {
+  const W = 620, H = 150, padL = 34, padR = 14, padT = 12, padB = 24;
+  const vals = hist.flatMap((f) => [f.cost_s, f.cost_ml_only, f.cost_num_only]).filter((v) => v != null);
+  const maxCost = Math.max(0.05, ...vals, 1e-6) * 1.1;
+  const sx = (t) => padL + (t / 2) * (W - padL - padR);
+  const sy = (v) => H - padB - (Math.min(v, maxCost) / maxCost) * (H - padT - padB);
+  const pts = (key) => hist.filter((f) => f[key] != null);
+  const line = (key) => pts(key).map((f, i) => `${i ? "L" : "M"}${sx(f.t).toFixed(1)} ${sy(f[key]).toFixed(1)}`).join(" ");
+  const lastOf = (key) => { const a = pts(key); return a.length ? a[a.length - 1] : null; };
+  const lastCost = lastOf("cost_s"), lastMl = lastOf("cost_ml_only"), lastNum = lastOf("cost_num_only");
+  const fmt = (v) => `${v.toFixed(2)}s`;
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
+      <path d={line("cost_num_only")} fill="none" stroke="#94a3b8" strokeWidth="1.6" strokeDasharray="2 3" />
+      <path d={line("cost_ml_only")} fill="none" stroke="#e11d48" strokeWidth="1.6" strokeDasharray="3 2" />
+      <path d={line("cost_s")} fill="none" stroke="#059669" strokeWidth="2" />
+      {lastNum && <EndLabel x={sx(lastNum.t)} y={sy(lastNum.cost_num_only)} text={fmt(lastNum.cost_num_only)} color="#64748b" above />}
+      {lastMl && <EndLabel x={sx(lastMl.t)} y={sy(lastMl.cost_ml_only)} text={fmt(lastMl.cost_ml_only)} color="#e11d48" above />}
+      {lastCost && <EndLabel x={sx(lastCost.t)} y={sy(lastCost.cost_s)} text={fmt(lastCost.cost_s)} color="#059669" />}
+      <text x={W - padR} y={H - 6} textAnchor="end" fontSize="9" fill="var(--chart-axis)">time t →</text>
+    </svg>
+  );
+}
+
 /* ---------------- how it's built ---------------- */
 const BUILD_STEPS = [
   { n: 1, color: "#4f46e5", title: "Read the request",
@@ -748,8 +807,14 @@ export default function CostControl() {
               <Card title="Solution" subtitle="green = running ML · red = numerical correction · grey dashed = truth">
                 <WaveChart x={meta?.x || []} frame={frame} />
               </Card>
-              <Card title="Trust vs the deadband" subtitle="red bands = steps where it paid for numerical">
+              <Card title="Trust vs the deadband" subtitle="red bands = steps where it paid for numerical · tracks whichever signal is actually running, ML then the corrected output">
                 <TrustTrace hist={hist} lo={lo} />
+              </Card>
+              <Card title="Error so far: corrected vs. pure ML" subtitle="green = the actual (corrected) trajectory · red dashed = what pure ML alone would show, same problem">
+                <ErrorCompareTrace hist={hist} target={sel?.target} />
+              </Card>
+              <Card title="Cost so far: hybrid vs. running it alone" subtitle="green = actual spend · red dashed = pure ML the whole way · grey dotted = pure numerical the whole way">
+                <CostCompareTrace hist={hist} />
               </Card>
             </div>
           </div>
