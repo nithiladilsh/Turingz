@@ -380,7 +380,7 @@ function ResultsTab({ ach, cm, icRep, cmp }) {
   return (
     <div className="space-y-6">
       {headline && F.pure_numerical && (
-        <Card title="What the hybrid actually delivers" subtitle="real wall-clock time, target 0.1 · numerical-only cost as baseline">
+        <Card title="What the hybrid actually delivers" subtitle="real wall-clock time, target 0.1 · numerical-only cost as baseline · averaged across the held-out test set, not a single run">
           <div className="grid grid-cols-3 gap-3">
             <Stat label="hybrid" value={`${headline.cost.toFixed(2)} s`} tone="green" />
             <Stat label="numerical-only" value={`${F.pure_numerical.cost.toFixed(2)} s`} tone="slate" />
