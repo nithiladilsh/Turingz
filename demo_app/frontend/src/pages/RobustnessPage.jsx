@@ -3,13 +3,19 @@ import { Card, Stat, Banner } from "../components/ui.jsx";
 import { LineChart } from "../components/Charts.jsx";
 import { getMeta, buildIC, runRobustness } from "../api.js";
 import { ROB_XS, ROB_FRAMES, ROB_STATS as S } from "../robustnessData.js";
+// committed reliability numbers (one source of truth for the in-window errors)
+import rel from "../../../../results/eval/reliability_summary.json";
 import {
   Waves, Clock, Activity, TrendingUp, ShieldAlert, Scale,
   HelpCircle, ArrowRight, Play,
 } from "lucide-react";
 
-/* ---- auto-looping FNO vs exact with the error shaded (real committed
-   predictions, held-out wave — no exaggeration, the gap is the real error) ---- */
+// in-window errors computed live from the committed reliability_summary.json
+const REL_INW = {
+  PINN: (rel.reliability_unseen.PINN.in_window * 100).toFixed(1),      // 1.5
+  DeepONet: (rel.reliability_unseen.DeepONet.in_window * 100).toFixed(0), // 29
+};
+
 function DriftChart({ frame }) {
   const W = 580, H = 300, padX = 18, padT = 18, padB = 28;
   const sx = (x) => padX + ((x + 1) / 2) * (W - 2 * padX);
@@ -138,11 +144,11 @@ export default function RobustnessPage() {
       {/* HEADER */}
       <div>
         <span className="text-xs font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">ML model analysis</span>
-        <h1 className="text-3xl font-extrabold text-slate-800 dark:text-slate-100 mt-1">Robustness — where the models break</h1>
-        <p className="text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">
-          The ML solvers are fast — but{" "}
-          <span className="font-medium text-slate-700 dark:text-slate-200">can they survive the future, and the unfamiliar?</span>{" "}
-          Here is the stress test, the failure, and the signal that tracks it.
+        <h1 className="text-3xl font-extrabold text-slate-800 dark:text-slate-100 mt-1">Robustness Analysis</h1>
+        <p className="text-slate-500 dark:text-slate-400 mt-1">
+          Each surrogate is trained only up to <b>t = 1</b>. We push it two ways it never saw —{" "}
+          <span className="font-medium text-slate-700 dark:text-slate-200">unseen future times (extrapolation) and unseen wave shapes (out-of-distribution)</span>{" "}
+          — and track the signal that catches the failure.
         </p>
       </div>
 
@@ -165,8 +171,8 @@ export default function RobustnessPage() {
       <div className="grid grid-cols-3 gap-4">
         {[
           { m: "FNO", color: "#059669", badge: ["most robust", "emerald"], inW: `${S.inWindow}%`, extrap: `${S.extrap}%`, ood: `>${S.oodHighFreq}%` },
-          { m: "PINN", color: "#d97706", badge: ["fails early", "amber"], inW: "2%", extrap: `${S.pinnExtrap}%`, ood: "per-IC" },
-          { m: "DeepONet", color: "#e11d48", badge: ["worst", "rose"], inW: "29%", extrap: `${S.deeponetExtrap}%`, ood: `>${S.deeponetOOD}%` },
+          { m: "PINN", color: "#d97706", badge: ["fails early", "amber"], inW: `${REL_INW.PINN}%`, extrap: `${S.pinnExtrap}%`, ood: "per-IC" },
+          { m: "DeepONet", color: "#e11d48", badge: ["worst", "rose"], inW: `${REL_INW.DeepONet}%`, extrap: `${S.deeponetExtrap}%`, ood: `>${S.deeponetOOD}%` },
         ].map((d) => {
           const bt = {
             emerald: "text-emerald-700 bg-emerald-100 dark:bg-emerald-500/20 dark:text-emerald-300",
@@ -184,7 +190,7 @@ export default function RobustnessPage() {
               </div>
               <div className="grid grid-cols-3 gap-2 mt-3">
                 <div>
-                  <div className="text-[10px] text-slate-400 dark:text-slate-500">in-window</div>
+                  <div className="text-[10px] text-slate-400 dark:text-slate-500">in-window · held-out</div>
                   <div className="text-lg font-bold text-slate-700 dark:text-slate-200">{d.inW}</div>
                 </div>
                 <div>
@@ -209,7 +215,7 @@ export default function RobustnessPage() {
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-sm font-semibold text-slate-800 dark:text-slate-100">Even the most robust model drifts — FNO past t = 1</div>
-                <div className="mt-1 flex gap-1.5"><span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">COMMITTED RESULT</span><span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300">EVALUATION-ONLY TRUTH</span></div>
+                <div className="mt-1 flex gap-1.5"><span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">REAL MODEL OUTPUT</span><span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300">TRUTH USED ONLY TO SCORE</span></div>
               </div>
               <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full ${extrap
                 ? "bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400 animate-pulse"
@@ -260,31 +266,31 @@ export default function RobustnessPage() {
 
       {/* PROGRESSIVE CURVES */}
       <div className="grid grid-cols-2 gap-4">
-        <Card title="Error vs time" subtitle="drawn live with the animation — the red vertical line is the training horizon">
+        <Card title="Error vs time" subtitle="The FNO drifts past the training horizon, and the error is measured">
           <LineChart
             series={[{ x: upto.map((f) => f.t), y: upto.map((f) => f.err), color: "#e11d48", width: 2.5 }]}
             xr={[0, 2]} yr={[0, Math.max(0.35, ...ROB_FRAMES.map((f) => f.err)) * 1.05]}
             vline={1.0} hline={0.1} h={175} xlabel="t" ylabel="relative L2 error" />
-          <p className={`text-[11px] mt-1 ${muted}`}>dotted = 10% failure band · FNO crosses it at t ≈ {S.horizon}</p>
+          <p className={`text-[11px] mt-1 ${muted}`}>dotted line = the 10% error mark · FNO crosses it at t ≈ {S.horizon}</p>
         </Card>
-        <Card title="Spectral distance vs time" subtitle="the frequency-space view of the same failure">
+        <Card title="Spectral distance vs time" subtitle="The same drift, seen in frequency space">
           <LineChart
             series={[{ x: upto.map((f) => f.t), y: upto.map((f) => f.sd), color: "#2563eb", width: 2.5 }]}
             xr={[0, 2]} yr={[0, Math.max(0.35, ...ROB_FRAMES.map((f) => f.sd)) * 1.05]}
             vline={1.0} h={175} xlabel="t" ylabel="spectral distance" />
-          <p className={`text-[11px] mt-1 ${muted}`}>a related high-wavenumber state feature was evaluated offline as a candidate reference-free diagnostic; it is not currently enforced at runtime (Coupling page)</p>
+          <p className={`text-[11px] mt-1 ${muted}`}>we tried this in analysis — could the ML output&apos;s own sharpness warn of failure without the true answer? It looked promising, but it&apos;s not part of the live switch yet (Coupling page)</p>
         </Card>
       </div>
 
       {/* VERDICT */}
       <div className="rounded-2xl p-5 bg-gradient-to-r from-rose-50 via-white to-white dark:from-rose-500/10 dark:via-slate-800 dark:to-slate-800 border border-rose-200 dark:border-rose-500/30">
-        <div className="text-sm font-semibold text-rose-800 dark:text-rose-300">Answer</div>
+        <div className="text-sm font-semibold text-rose-800 dark:text-rose-300">Conclusion</div>
         <p className="text-sm text-slate-700 dark:text-slate-200 mt-1">
-          The ML solvers are <span className="font-medium">fast but not robust</span> — they fail beyond the
+          The ML solvers are <span className="font-medium">fast but not robust</span>, they fail beyond the
           training horizon and on unfamiliar inputs, and the failure is <span className="font-medium">measured, not assumed</span>.
           This is exactly the failure the <span className="font-semibold">trust module detects</span> and my{" "}
-          <span className="font-semibold">coupling module corrects</span>. A related high-wavenumber state feature was
-          evaluated offline as a candidate reference-free diagnostic; it is not currently enforced at runtime.
+          <span className="font-semibold">coupling module corrects</span>. We also tried this in analysis, whether the ML&apos;s own
+          sharpness could warn of failure without the true answer. It looked promising, but it&apos;s not part of the live switch yet.
         </p>
       </div>
       </>)}

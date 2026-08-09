@@ -1,11 +1,8 @@
-import { useEffect, useRef, useState } from "react";
-import { Card, Stat, Banner } from "../components/ui.jsx";
-import { LineChart } from "../components/Charts.jsx";
-import { getMeta, buildIC, runColeHopf } from "../api.js";
+import { useEffect, useState } from "react";
 import { CH_XS, CH_FRAMES, CH_STATS as S } from "../colehopfData.js";
 import {
   Wand2, Thermometer, Undo2, ShieldCheck, Scale, Timer, Target,
-  HelpCircle, ArrowRight, Play,
+  HelpCircle, ArrowRight,
 } from "lucide-react";
 
 /* ---- auto-looping exact solution steepening into the viscous shock ---- */
@@ -74,47 +71,13 @@ function Step({ n, icon: Icon, tone, title, sub }) {
 }
 
 export default function ColeHopfPage() {
-  /* ---- auto-loop ---- */
   const [i, setI] = useState(0);
   useEffect(() => {
     const id = setInterval(() => setI((k) => (k + 1) % CH_FRAMES.length), 120);
     return () => clearInterval(id);
   }, []);
   const frame = CH_FRAMES[i];
-  const upto = CH_FRAMES.slice(0, i + 1);
   const shockPct = Math.min(100, Math.round((frame.sharp / S.sharpMax) * 100));
-
-  /* ---- live run state ---- */
-  const [meta, setMeta] = useState(null);
-  const [modes, setModes] = useState(4);
-  const [amplitude, setAmplitude] = useState(1.0);
-  const [ic, setIc] = useState(null);
-  const [lf, setLf] = useState(null);
-  const [hist, setHist] = useState([]);
-  const [summary, setSummary] = useState(null);
-  const [running, setRunning] = useState(false);
-  const [err, setErr] = useState(null);
-  const wsRef = useRef(null);
-
-  useEffect(() => { getMeta().then(setMeta).catch(() => {}); }, []);
-  useEffect(() => {
-    if (!meta) return;
-    buildIC(modes, amplitude).then((d) => setIc(d.ic)).catch(() => {});
-  }, [meta, modes, amplitude]);
-
-  function run() {
-    if (wsRef.current) wsRef.current.close();
-    setHist([]); setLf(null); setSummary(null); setErr(null); setRunning(true);
-    wsRef.current = runColeHopf({ ic },
-      (f) => { setLf(f); setHist((h) => [...h, f]); },
-      (s) => setSummary(s),
-      () => setRunning(false),
-      (e) => { setErr(e); setRunning(false); });
-  }
-
-  const x = meta?.x || [];
-  const muted = "text-slate-500 dark:text-slate-400";
-  const lyr = lf ? [Math.min(...lf.ch, -1.1), Math.max(...lf.ch, 1.1)] : [-1.1, 1.1];
 
   return (
     <div className="space-y-7">
@@ -125,17 +88,17 @@ export default function ColeHopfPage() {
         <span className="inline-block mt-2 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300">
           Evaluation reference — not the runtime corrector
         </span>
-        <p className="text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">
-          Every number in this project is scored against one solution. So we asked —{" "}
+        <p className="text-slate-500 dark:text-slate-400 mt-1">
+          Every number in this project is measured against one reference solution. So we asked —{" "}
           <span className="font-medium text-slate-700 dark:text-slate-200">can we build one answer we fully trust, and show why we can trust it?</span>{" "}
-          Here is the trick, the solution, and the check.
+          Here is the method, the test, and the answer.
         </p>
       </div>
 
       {/* HOW IT WORKS */}
       <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
         <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-4">
-          The Cole–Hopf trick — three steps
+          How Cole–Hopf works — three steps
         </div>
         <div className="flex items-stretch gap-2 flex-wrap">
           <Step n="1" icon={Wand2} tone="indigo" title="Transform" sub="the nonlinear Burgers equation becomes the linear heat equation" />
@@ -166,7 +129,7 @@ export default function ColeHopfPage() {
         </div>
       </div>
 
-      {/* HERO ANIMATION */}
+      {/* COMPARISON (auto-loop) */}
       <div className="grid grid-cols-[1fr_230px] gap-5 items-stretch">
         <div className="relative rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 overflow-hidden">
           <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full bg-indigo-100/50 dark:bg-indigo-500/10 blur-2xl" />
@@ -175,7 +138,7 @@ export default function ColeHopfPage() {
               <div>
                 <div className="text-sm font-semibold text-slate-800 dark:text-slate-100">The exact solution steepening into the viscous shock</div>
                 <div className="text-xs text-slate-500 dark:text-slate-400">
-                  a real held-out wave — this is the trajectory every model trains on and is graded against
+                  a real held-out wave — the trajectory every model trains on and is measured against
                 </div>
               </div>
               <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full ${shockPct > 60
@@ -187,7 +150,7 @@ export default function ColeHopfPage() {
             <ShockChart frame={frame} />
             <div className="flex items-center justify-center gap-5 text-[11px] text-slate-400 dark:text-slate-500">
               <span className="flex items-center gap-1"><span className="w-3 h-1 rounded-full bg-indigo-500" /> Cole–Hopf (exact)</span>
-              <span>independent spectral check runs underneath — disagreement shown right</span>
+              <span>the reference every solver is measured against</span>
             </div>
           </div>
         </div>
@@ -197,44 +160,30 @@ export default function ColeHopfPage() {
             <div className="text-xs text-slate-500 dark:text-slate-400">time</div>
             <div className="text-2xl font-bold text-slate-800 dark:text-slate-100">t = {frame.t.toFixed(2)}</div>
           </div>
-          <div className="rounded-2xl border border-indigo-200 dark:border-indigo-500/30 bg-indigo-50 dark:bg-indigo-500/10 p-4 text-center">
-            <div className="text-xs text-indigo-500 dark:text-indigo-400">shock sharpness max|uₓ|</div>
-            <div className="text-4xl font-extrabold text-indigo-600 dark:text-indigo-400 mt-1">{frame.sharp}</div>
-            <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">the layer ML models struggle with</div>
-          </div>
           <div className="flex-1 rounded-2xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 p-4 text-center grid place-items-center">
             <div>
-              <div className="text-xs text-emerald-600 dark:text-emerald-400">two independent solvers disagree by</div>
-              <div className="text-3xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">{frame.dis.toExponential(0)}</div>
-              <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">effectively zero — independently corroborated, not assumed</div>
+              <div className="text-xs text-emerald-600 dark:text-emerald-400">time-stepping error</div>
+              <div className="text-5xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">0</div>
+              <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">exact in time — one-shot heat kernel, nothing accumulates</div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* PROGRESSIVE DISAGREEMENT CURVE */}
-      <Card title="Cross-verification, drawn live"
-        subtitle="Cole–Hopf vs the independent pseudo-spectral solver — the disagreement stays at the discretisation floor for the whole trajectory">
-        <LineChart
-          series={[{ x: upto.map((f) => f.t), y: upto.map((f) => f.dis), color: "#059669", width: 2.5 }]}
-          xr={[0, 2]} yr={[0, Math.max(...CH_FRAMES.map((f) => f.dis)) * 1.2]}
-          h={170} xlabel="t" ylabel="relative L2 disagreement" />
-      </Card>
-
-      {/* FINDINGS */}
+      {/* THE EVIDENCE */}
       <div>
         <h2 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-3 flex items-center gap-2">
-          <HelpCircle size={15} /> The proof · why this is the source of truth
+          <HelpCircle size={15} /> The evidence · why this is the source of truth
         </h2>
         <div className="grid grid-cols-4 gap-4">
-          <Metric icon={Timer} tone="indigo" tag="exactness" value="0"
-            label="time-stepping error — the heat kernel gives the solution in one shot" />
-          <Metric icon={ShieldCheck} tone="emerald" tag="cross-check" value={`${S.agreePct}%`}
-            label={`agreement with the independent spectral solver (max disagreement ${S.maxDis.toExponential(0)})`} />
-          <Metric icon={Scale} tone="rose" tag="vs FDM" value={`${S.timesWorse}×`}
-            label={`FDM is ${S.fdmVsExact}% off this reference — cheap baseline, not a truth source`} />
-          <Metric icon={Target} tone="indigo" tag="role" value="1 ref"
-            label="generates the reference dataset and scores every model; the runtime hand-off itself continues with the pseudo-spectral solver" />
+          <Metric icon={Timer} tone="indigo" tag="Exactness" value="0"
+            label="time-stepping error — the heat kernel gives the whole trajectory in one shot" />
+          <Metric icon={ShieldCheck} tone="emerald" tag="Cross-check" value={`${S.agreePct}%`}
+            label={`agreement with the independent spectral solver (max gap ${S.maxDis.toExponential(0)})`} />
+          <Metric icon={Scale} tone="indigo" tag="Vs FDM" value={`${S.timesWorse}×`}
+            label={`FDM is ${S.fdmVsExact}% off this reference — a cheap baseline, not a truth source`} />
+          <Metric icon={Target} tone="indigo" tag="Role" value="Reference"
+            label="generates the reference dataset and scores every model; the runtime hand-off continues with the pseudo-spectral solver" />
         </div>
       </div>
 
@@ -246,63 +195,6 @@ export default function ColeHopfPage() {
           by an independent method</span>. It is the ground truth of the whole project: if this reference were
           wrong, every result downstream would be. <span className="font-semibold">Empirical agreement with an independent method is what justifies trusting this implementation.</span>
         </p>
-      </div>
-
-      {/* RUN IT YOURSELF */}
-      <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
-        <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1 flex items-center gap-2">
-          <Play size={14} /> Run it yourself — live <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300">LIVE BACKEND</span>
-        </div>
-        <p className={`text-xs ${muted} mb-4`}>
-          Build any wave the generator supports; the backend solves it and cross-checks it against the spectral solver on the spot.
-        </p>
-        {err && <div className="mb-3 text-sm text-rose-600 dark:text-rose-300 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 rounded-lg px-3 py-2">{err}</div>}
-        <div className="grid grid-cols-[300px_1fr] gap-5">
-          <div className="space-y-3">
-            <div className="space-y-3 text-sm">
-              <label className={`block ${muted}`}>
-                modes: {modes}
-                <input type="range" min="1" max="8" value={modes} onChange={(e) => setModes(+e.target.value)} className="w-full" />
-              </label>
-              <label className={`block ${muted}`}>
-                amplitude: {amplitude.toFixed(2)}
-                <input type="range" min="0.2" max="1.5" step="0.05" value={amplitude} onChange={(e) => setAmplitude(+e.target.value)} className="w-full" />
-              </label>
-            </div>
-            <button onClick={run} disabled={running || !ic}
-              className="w-full px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-medium text-sm transition">
-              {running ? "Solving…" : "Solve exactly + cross-verify"}
-            </button>
-            {summary && (
-              <div className="space-y-2">
-                <Stat label="mean disagreement" value={summary.mean_disagreement.toExponential(1)} tone="green" />
-                <Stat label="max disagreement" value={summary.max_disagreement.toExponential(1)} tone="indigo" />
-                <Banner ok={summary.max_disagreement < 1e-3}
-                  text="Two independent methods agree — trustworthy for this wave too." />
-              </div>
-            )}
-          </div>
-          <div className="space-y-3">
-            <Card title={lf ? `t = ${lf.t.toFixed(2)}` : "run to start"}>
-              <LineChart
-                series={[
-                  { x, y: lf ? lf.ch : [], color: "#4f46e5", width: 2.5 },
-                  { x, y: lf ? lf.sp : [], color: "#e11d48", dashed: true },
-                ]}
-                xr={[-1, 1]} yr={lyr} h={190} xlabel="x" ylabel="u(x, t)" />
-              <div className="flex gap-4 mt-1 text-xs">
-                <span className="text-indigo-500 font-medium">— Cole–Hopf (exact)</span>
-                <span className="text-rose-500">— pseudo-spectral (independent, dashed)</span>
-              </div>
-            </Card>
-            <Card title="disagreement over time (this wave)">
-              <LineChart
-                series={[{ x: hist.map((f) => f.t), y: hist.map((f) => f.disagreement), color: "#059669", width: 2 }]}
-                xr={[0, 2]} yr={[0, Math.max(1e-4, ...hist.map((f) => f.disagreement)) * 1.2]}
-                h={150} xlabel="t" />
-            </Card>
-          </div>
-        </div>
       </div>
     </div>
   );

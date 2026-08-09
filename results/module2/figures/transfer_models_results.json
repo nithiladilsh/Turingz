@@ -1,0 +1,82 @@
+{
+  "note": "same coupling, three ML models (predictions.npz) - model/solver-agnostic",
+  "n_waves": 10,
+  "switch_times": [
+    1.0,
+    1.4,
+    1.8
+  ],
+  "reference": "Cole-Hopf (u_true_eval)",
+  "metric": "time-integrated relative L2 over [t_s, 2]",
+  "models": {
+    "FNO": [
+      {
+        "t_s": 1.0,
+        "state_err": 0.014317060914333398,
+        "pureML_tail": 0.14085382211689784,
+        "hybrid_tail": 0.010884612397932421,
+        "benefit": 0.9227240536659221
+      },
+      {
+        "t_s": 1.4,
+        "state_err": 0.07646562629400933,
+        "pureML_tail": 0.20869198304884212,
+        "hybrid_tail": 0.07449394936285433,
+        "benefit": 0.643043550235167
+      },
+      {
+        "t_s": 1.8,
+        "state_err": 0.2527865229810166,
+        "pureML_tail": 0.3010409119960723,
+        "hybrid_tail": 0.2496243758555548,
+        "benefit": 0.1707958423306183
+      }
+    ],
+    "DeepONet": [
+      {
+        "t_s": 1.0,
+        "state_err": 0.36257109104502416,
+        "pureML_tail": 0.6112439896587818,
+        "hybrid_tail": 0.27111747365962496,
+        "benefit": 0.5564496694494635
+      },
+      {
+        "t_s": 1.4,
+        "state_err": 0.5668582735032155,
+        "pureML_tail": 0.7181542154442228,
+        "hybrid_tail": 0.47378326971454376,
+        "benefit": 0.3402764204039103
+      },
+      {
+        "t_s": 1.8,
+        "state_err": 0.7613824081134414,
+        "pureML_tail": 0.7931407503775821,
+        "hybrid_tail": 0.7252502082393836,
+        "benefit": 0.08559709245274945
+      }
+    ],
+    "PINN": [
+      {
+        "t_s": 1.0,
+        "state_err": 0.046383901320261635,
+        "pureML_tail": 0.3571408108954342,
+        "hybrid_tail": 0.05042425249260103,
+        "benefit": 0.8588112840785834
+      },
+      {
+        "t_s": 1.4,
+        "state_err": 0.21891626654747182,
+        "pureML_tail": 0.5243493061530149,
+        "hybrid_tail": 0.24155258591901835,
+        "benefit": 0.5393288727856768
+      },
+      {
+        "t_s": 1.8,
+        "state_err": 0.627675058215948,
+        "pureML_tail": 0.7361720826737957,
+        "hybrid_tail": 0.6717166104574199,
+        "benefit": 0.0875548988249926
+      }
+    ]
+  }
+}

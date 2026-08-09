@@ -4,5 +4,6 @@ import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  server: { port: 5173 },
+  // allow importing committed result JSON from the repo's results/ folder (one source of truth)
+  server: { port: 5173, fs: { allow: ["../../"] } },
 });

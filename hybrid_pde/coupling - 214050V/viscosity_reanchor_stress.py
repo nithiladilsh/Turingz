@@ -1,65 +1,3 @@
-"""
-Low-Viscosity Spectral Re-anchor Stress Test (Module 2 ablation).
-Author: Dharmapala R.D. (214050V)
-
-PURPOSE
-    Stress-test ablation of the VERIFIED spectral re-anchor (production scheme:
-    2/3 de-alias mask + Nyquist zeroing) against a deliberately CARELESS restart
-    (no mask, no Nyquist zeroing) across decreasing viscosity, i.e. sharpening
-    shocks.  At the operating viscosity nu = 1/(100 pi) the two restarts look
-    similar (handoff_stability_diagnostic.py; the integrating factor damps
-    high-k content).  This experiment asks the follow-up question an examiner
-    will ask: IS THE CAREFUL RE-ANCHOR EVER NECESSARY?  It answers by finding
-    the regime where the careless restart degrades or destabilises while the
-    verified re-anchor stays accurate and stable.
-
-    THIS IS NOT A NEW METHOD.  The main M2 coupling (verified restartable
-    re-anchor, hard one-way switch) is unchanged.  This is a negative-control
-    ablation that measures when the spectral safety steps stop being cosmetic.
-
-DESIGN
-    - Same Burgers PDE family, same 512-point periodic grid, same output grid
-      (TGRID, 200 samples on [0,2]) and same integrating-factor RK4 stepper as
-      hybrid_pde/solvers/numerical/spectral.py / restart_spectral.py.
-      restart_spectral.solve_from() hard-asserts the dataset viscosity, so this
-      script carries a LOCAL copy of the identical stepper with nu as an
-      argument.  At nu = 1/(100 pi) the local stepper is cross-checked against
-      restart_spectral.solve_from() (rel diff reported in the JSON; must be 0).
-    - Viscosities: nu = 1/(100 pi) (operating), then 1/(200 pi), 1/(400 pi),
-      1/(800 pi), 1/(1600 pi) (progressively sharper shocks on a fixed grid).
-    - Reference ("truth"): the production (careful) scheme run from t = 0 at a
-      4x finer internal step (dt = 2.5e-5), with a dt-convergence self-check
-      (vs dt = 5e-5) reported per viscosity.  Cole-Hopf is not used here: its
-      exp(-integral(u)/2 nu) transform overflows float64 at the lowest
-      viscosities.  Same-grid dt-refined reference isolates the restart
-      mechanics, which is the object under test.
-    - Handoff states at t_s = 1.0 (production switch index):
-        clean : the true state at t_s               (best-case handoff)
-        rough : true state + band-limited high-k perturbation, normalised to
-                5% relative L2 (seeded, deterministic) -- a synthetic stand-in
-                for ML-state artefacts, same idea as the OOD/rough controls.
-    - Methods: verified re-anchor (careful) vs careless restart, both at the
-      production internal step dt = 1e-4, both re-anchored at the SAME state.
-
-METRICS (per nu x state x method)
-    tail_rel_l2        time-integrated relative L2 error over [t_s, 2] vs truth
-    res_before/after   Burgers residual RMS one step before / after the handoff
-    res_spike_ratio    residual_after / residual_before
-    energy_growth      max_t E(t) / E(t_s)  (physical solution must not grow)
-    unstable           True if any non-finite value or max|u| > 10
-    handoff_jump       ||traj[i0] - state|| / ||state||   (0 by construction)
-    meets_1pct/5pct    whether tail error meets the 1% / 5% accuracy target
-
-OUTPUTS
-    results/module2/figures/viscosity_reanchor_stress.json
-    results/module2/figures/viscosity_reanchor_stress.png
-
-HONESTY RULES (pre-registered)
-    If the careless restart fails at low viscosity -> report as evidence the
-    verified re-anchor is necessary in shock-dominated regimes.
-    If it does not fail -> report that the restart is robust across the tested
-    viscosities and the state-quality law generalises; no failure is claimed.
-"""
 import os
 import sys
 import json
@@ -90,7 +28,7 @@ NUS = [("1/(100pi)", 1.0 / (100 * np.pi)),
        ("1/(1600pi)", 1.0 / (1600 * np.pi))]
 
 
-# ---------- local copy of the production stepper, nu as an argument ----------
+# local copy of the production stepper
 # Identical maths to restart_spectral._step / solve_from (cross-checked below).
 def _rhs(uh, careless):
     if careless:
@@ -147,7 +85,7 @@ def solve(u0, i_start, nu, dt_target, careless=False):
     return out if batched else out[0]
 
 
-# ---------- metrics (same definitions as handoff_stability_diagnostic.py) ----------
+# metrics (same definitions as handoff_stability_diagnostic)
 def d1(u):
     return np.fft.irfft(1j * K * np.fft.rfft(u, axis=-1), n=NX, axis=-1)
 

@@ -13,12 +13,12 @@ K = 2 * np.pi * np.arange(NX // 2 + 1) / L
 MASK = np.arange(NX // 2 + 1) <= NX // 3 
 DT_TARGET = 1e-4
 
-
+# Calculate the nonlinear change
 def _rhs(uh):
     u = np.fft.irfft(uh * MASK, n=NX, axis=-1)
     return -0.5j * K * np.fft.rfft(u * u, axis=-1)
 
-
+#time step
 def _step(uh, E, E2, h):
     k1 = _rhs(uh)
     k2 = _rhs(E2 * uh + 0.5 * h * E2 * k1)
@@ -53,11 +53,11 @@ def solve_from(u0, i_start, nu=NU):
 def solve_full(u0, nu=NU):
     return solve_from(u0, 0, nu=nu)
 
-
+#Find the index of the nearest time in array to a given time
 def nearest_index(t_s):
     return int(np.argmin(np.abs(TGRID - t_s)))
 
-
+#ML state cleaning
 def lowpass(u, frac):
     u = np.asarray(u, dtype=np.float64)
     if frac >= 1.0:

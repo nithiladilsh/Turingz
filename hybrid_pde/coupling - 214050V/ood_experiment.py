@@ -1,23 +1,3 @@
-"""
-Out-of-distribution (OOD) handoff experiment (Module 2, Coupling).
-
-RUN ON YOUR MACHINE (needs torch + neuralop):
-    python "hybrid_pde/coupling - 214050V/ood_experiment.py"
-
-Tests the hybrid on starting waves the FNO was NOT trained on:
-  * high_freq : sin(6 pi x)  - a single mode beyond the trained band (modes 1-4)
-  * gaussian  : a localized bump - a shape unlike the training sinusoids
-For each OOD wave we compare pure FNO, the hybrid (FNO state handed to the
-numerical continuation), and the Cole-Hopf reference, over the switch times.
-
-A self-check first reproduces the committed FNO prediction for an in-distribution
-test wave (900), asserting it matches results/eval/predictions.npz; only then are
-the OOD results trusted.
-
-Outputs:
-  results/module2/figures/fig8_ood_error_over_time.png
-  results/module2/figures/ood_results.json
-"""
 import os, json
 import numpy as np
 import torch
@@ -38,7 +18,7 @@ x = np.linspace(-1, 1, nx, endpoint=False); dx = L / nx
 t = TGRID
 SWITCH = [1.0, 1.2, 1.4, 1.6, 1.8]; EPS = 1e-12
 
-# ---- Cole-Hopf reference (analytic; matches colehopf.py) ----
+# ---- Cole-Hopf reference ----
 x_ext = np.concatenate([x - L, x, x + L]); diff = x[:, None] - x_ext
 def cole_hopf(ic):
     ICs = ic[None, :]
@@ -49,7 +29,7 @@ def cole_hopf(ic):
         K = np.exp(-diff**2/(4*nu*t[j])); U[:, j] = (pe @ (diff*K).T)/(pe @ K.T)/t[j]
     return U[0]
 
-# ---- FNO (same load + query as extend_predictions.py) ----
+# ---- FNO ----
 cfg = torch.load(FNO_CFG, map_location="cpu", weights_only=False)
 model = FNO(n_modes=(cfg["n_modes"],), hidden_channels=cfg["hidden_channels"],
             in_channels=cfg.get("in_channels", 3), out_channels=1)

@@ -1,13 +1,3 @@
-"""
-Figure generation for the ML->numerical handoff study (Module 2, Coupling).
-Recomputes hybrid/upper-bound/pure trajectories from results/eval/predictions.npz
-using the restart wrapper, then renders the five core figures.
-
-Stages:  python make_figures.py compute   # heavy: restarts, caches arrays
-         python make_figures.py plot      # fast: renders PNGs from cache
-         python make_figures.py all       # both
-Outputs: results/module2/figures/*.png
-"""
 import os, sys, json
 import numpy as np
 from restart_spectral import solve_from, nearest_index, TGRID

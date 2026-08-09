@@ -1,34 +1,3 @@
-"""
-Evidence-hardening extension for the low-viscosity re-anchor stress test (E11).
-Author: Dharmapala R.D. (214050V)
-
-Two additions requested at evaluator-review, NO new mechanism, main M2 method
-unchanged:
-
-  A) Multi-IC robustness: the stress test repeated over 10 random truncated
-     Fourier ICs (modes 1-4, unit amplitude, seed 42 -- same family as the
-     dataset generator), at nu = 1/(100pi), 1/(800pi), 1/(1600pi).
-     CLEAN handoff states only (the true state at t_s): the clean-state result
-     is immune to the "your rough state is synthetic" objection.
-
-  B) Safety-step ablation: which spectral safety step matters?
-       verified    : 2/3 de-alias mask + Nyquist zeroing   (production)
-       no_dealias  : mask OFF, Nyquist zeroing ON
-       no_nyquist  : mask ON,  Nyquist zeroing OFF
-       careless    : both OFF
-
-  C) From-t0 scheme-fidelity control: the same 4 variants integrated from
-     t = 0 (canonical sin(pi x)).  Pre-registered honest framing: if the
-     careless scheme also fails from t=0, the failure is a SCHEME-FIDELITY
-     issue, not a restart-index issue -- which is precisely why the Module 2
-     restart is verified bit-for-bit against the production solver.
-
-Truth for the multi-IC runs uses dt = 5e-5; dt-convergence vs 2.5e-5 was
-established at ~1e-12 in the base experiment (per-nu numbers in the JSON).
-
-Updates results/module2/figures/viscosity_reanchor_stress.json (new keys
-"ext_config", "multi_ic", "from_t0") and rebuilds the PNG (2x3 panels).
-"""
 import os, sys, json, time
 import numpy as np
 
