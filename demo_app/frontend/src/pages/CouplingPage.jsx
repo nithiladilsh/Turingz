@@ -104,11 +104,11 @@ const MODEL_ROWS = ["FNO", "PINN", "DeepONet"].map((m) => {
 /* "Evaluation at a glance", the five strongest numbers, each from a committed file. */
 const _STAB0 = stab.rows.find((r) => Math.abs(r.t_s - 1.0) < 1e-9) || stab.rows[0];
 const GLANCE = [
-  { v: `${AGG.reduction}%`, label: "Error reduction", cap: `${AGG.fnoTail1}% → ${AGG.hybTail2}% at t_s = 1.0 · ${AGG.nIC} waves`, c: "#059669" },
-  { v: `≈ ${AGG.boundary}`, label: "Viability boundary", cap: "latest switch meeting the pre-set rule", c: "#7c3aed" },
-  { v: `~${ORACLE_STR}`, label: "Oracle restart error", cap: "true-state restart adds ~nothing", c: "#4f46e5" },
-  { v: _STAB0.state_jump.toFixed(1), label: "State jump at switch", cap: "continuous hand-off, by construction", c: "#0d9488" },
-  { v: "0.0", label: "Restart verification", cap: "rel diff vs production solver", c: "#d97706" },
+  { v: `${AGG.reduction}%`, label: "Error reduction", cap: `${AGG.fnoTail1}% → ${AGG.hybTail2}% at t_s = 1.0 · ${AGG.nIC} waves`, metric: "relative L2 tail error", c: "#059669" },
+  { v: `≈ ${AGG.boundary}`, label: "Viability boundary", cap: "latest switch meeting the pre-set rule", metric: "interpolated switch time t_s", c: "#7c3aed" },
+  { v: `~${ORACLE_STR}`, label: "Oracle restart error", cap: "true-state restart adds ~nothing", metric: "relative L2 tail error, true-state restart", c: "#4f46e5" },
+  { v: _STAB0.state_jump.toFixed(1), label: "State jump at switch", cap: "continuous hand-off, by construction", metric: "L2 norm of state discontinuity", c: "#0d9488" },
+  { v: "0.0", label: "Restart verification", cap: "rel diff vs production solver", metric: "max relative diff vs full production trajectory", c: "#d97706" },
 ];
 
 /* Cost end of the frontier, the latest viable measured switch (near the boundary ≈1.49). */
@@ -238,7 +238,7 @@ function SafetyChart({ data, cross }) {
   );
 }
 
-function FigCard({ src, title, note, deduction, script }) {
+function FigCard({ src, title, note, metric, deduction, script }) {
   return (
     <figure className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
       <img src={src} alt={title} loading="lazy"
@@ -246,6 +246,11 @@ function FigCard({ src, title, note, deduction, script }) {
       <figcaption className="mt-3">
         <div className="text-sm font-semibold text-slate-800 dark:text-slate-100">{title}</div>
         <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-snug">{note}</div>
+        {metric && (
+          <div className="mt-2 text-[11px] leading-snug text-teal-700 dark:text-teal-300 bg-teal-50/60 dark:bg-teal-500/10 border border-teal-100 dark:border-teal-500/20 rounded-lg px-2.5 py-1.5">
+            <span className="font-bold">Metric: </span>{metric}
+          </div>
+        )}
         {deduction && (
           <div className="mt-2 text-[11px] leading-snug text-indigo-700 dark:text-indigo-300 bg-indigo-50/60 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 rounded-lg px-2.5 py-1.5">
             <span className="font-bold">→ Deduction: </span>{deduction}
@@ -258,18 +263,18 @@ function FigCard({ src, title, note, deduction, script }) {
 }
 
 const EVAL_CORE = [
-  { src: "/module2_figures/fig1_error_over_time.png", title: "Error over time, FNO vs numerical vs hybrid", note: "Hand-off at t = 1, mean ± std over 100 held-out ICs. After the switch the hybrid tracks the numerical solution instead of drifting with the ML.", deduction: "Switching to the numerical solver halts the ML's continued extrapolation drift. It prevents further error growth, it does not undo error already present at the switch.", script: "make_figures.py" },
-  { src: "/module2_figures/fig4_hybrid_vs_upper_bound.png", title: "Oracle decomposition, the coupling adds almost nothing", note: "Restarting from the TRUE state (upper bound) is negligibly better than from the FNO state (~10⁻⁶). All remaining hybrid error is inherited from the ML hand-off state.", deduction: "Given the true state, the same solver's error is ~10⁻⁶, so the continuation itself adds almost nothing. The remaining hybrid error is inherited from the handed-over ML state, which sets the accuracy ceiling.", script: "make_figures.py" },
-  { src: "/module2_figures/fig5_accuracy_vs_cost.png", title: "Accuracy vs cost", note: "Earlier hand-off = more numerical work, lower error. The cost proxy is the fraction of steps solved numerically (machine-independent).", deduction: "Earlier switch = more numerical work but lower error; later = cheaper but less accurate. This is the trade-off curve Module 3 chooses a point on; Module 2 measures it.", script: "make_figures.py" },
+  { src: "/module2_figures/fig1_error_over_time.png", title: "Error over time, FNO vs numerical vs hybrid", note: "Hand-off at t = 1, mean ± std over 100 held-out ICs. After the switch the hybrid tracks the numerical solution instead of drifting with the ML.", metric: "Relative L2 error at each time t, mean ± std over 100 held-out waves, the full curve over time, not just the tail scalar.", deduction: "Switching to the numerical solver halts the ML's continued extrapolation drift. It prevents further error growth, it does not undo error already present at the switch.", script: "make_figures.py" },
+  { src: "/module2_figures/fig4_hybrid_vs_upper_bound.png", title: "Oracle decomposition, the coupling adds almost nothing", note: "Restarting from the TRUE state (upper bound) is negligibly better than from the FNO state (~10⁻⁶). All remaining hybrid error is inherited from the ML hand-off state.", metric: "Relative L2 tail error over [t_s, 2], comparing a restart from the ML state against a restart from the true state.", deduction: "Given the true state, the same solver's error is ~10⁻⁶, so the continuation itself adds almost nothing. The remaining hybrid error is inherited from the handed-over ML state, which sets the accuracy ceiling.", script: "make_figures.py" },
+  { src: "/module2_figures/fig5_accuracy_vs_cost.png", title: "Accuracy vs cost", note: "Earlier hand-off = more numerical work, lower error. The cost proxy is the fraction of steps solved numerically (machine-independent).", metric: "Relative L2 tail error vs numerical work (fraction of steps solved numerically).", deduction: "Earlier switch = more numerical work but lower error; later = cheaper but less accurate. This is the trade-off curve Module 3 chooses a point on; Module 2 measures it.", script: "make_figures.py" },
 ];
 
 const EVAL_ROBUST = [
-  { src: "/module2_figures/fig8_ood_error_over_time.png", title: "Out-of-distribution wave", note: "A higher-frequency wave sin(6πx), beyond the trained band (modes 1–4). The hybrid still limits the damage after the hand-off, but cannot recover a state the ML has already lost.", deduction: "The coupling is corrective, not reconstructive: it faithfully continues the state it receives, but cannot rebuild information the ML has already lost. This is exactly why switching early matters.", script: "ood_experiment.py" },
+  { src: "/module2_figures/fig8_ood_error_over_time.png", title: "Out-of-distribution wave", note: "A higher-frequency wave sin(6πx), beyond the trained band (modes 1–4). The hybrid still limits the damage after the hand-off, but cannot recover a state the ML has already lost.", metric: "Relative L2 error against the true Cole–Hopf solution, on an out-of-distribution input.", deduction: "The coupling is corrective, not reconstructive: it faithfully continues the state it receives, but cannot rebuild information the ML has already lost. This is exactly why switching early matters.", script: "ood_experiment.py" },
 ];
 
 const EVAL_FIDELITY = [
-  { src: "/module2_figures/handoff_stability_diagnostic.png", title: "Continuity across the switch", note: "State jump ≈ 0 and the Burgers PDE residual stays stable across the hand-off, vs a deliberately careless-restart negative control.", deduction: "The hand-off adds no discontinuity (jump = 0) and the continuation is more PDE-consistent than the ML (the residual drops, no spike). The seam is physically clean, not just numerically continuous.", script: "handoff_stability_diagnostic.py" },
-  { src: "/module2_figures/restart_safety_boundary.png", title: "Restart-safety boundary (Re_cell ≈ 3.2)", note: "The careless restart fails past cell Reynolds number Re_cell ≈ 3.2. Includes a grid-refinement control (N = 1024/2048) and a reference-free high-k diagnostic.", deduction: "A restartable solver must keep the production scheme's safeguards: drop the 2/3 de-aliasing and it fails past Re_cell ≈ 3.2; the verified restart preserves them and stays ~10⁻¹¹. This proves the restart is faithful, not that it beats spectral methods.", script: "restart_safety_boundary.py" },
+  { src: "/module2_figures/handoff_stability_diagnostic.png", title: "Continuity across the switch", note: "State jump ≈ 0 and the Burgers PDE residual stays stable across the hand-off, vs a deliberately careless-restart negative control.", metric: "State jump = L2 norm of the discontinuity at switch. Residual = r = u_t + u·u_x − ν·u_xx, a physical-consistency check, not an error-vs-truth metric.", deduction: "The hand-off adds no discontinuity (jump = 0) and the continuation is more PDE-consistent than the ML (the residual drops, no spike). The seam is physically clean, not just numerically continuous.", script: "handoff_stability_diagnostic.py" },
+  { src: "/module2_figures/restart_safety_boundary.png", title: "Restart-safety boundary (Re_cell ≈ 3.2)", note: "The careless restart fails past cell Reynolds number Re_cell ≈ 3.2. Includes a grid-refinement control (N = 1024/2048) and a reference-free high-k diagnostic.", metric: "Tail error vs cell Reynolds number Re_cell (a grid-resolution diagnostic), against a 1% error threshold.", deduction: "A restartable solver must keep the production scheme's safeguards: drop the 2/3 de-aliasing and it fails past Re_cell ≈ 3.2; the verified restart preserves them and stays ~10⁻¹¹. This proves the restart is faithful, not that it beats spectral methods.", script: "restart_safety_boundary.py" },
 ];
 
 export default function CouplingPage() {
@@ -740,6 +745,7 @@ export default function CouplingPage() {
               <div className="text-2xl font-extrabold" style={{ color: g.c }}>{g.v}</div>
               <div className="text-xs font-semibold text-slate-700 dark:text-slate-200 mt-1">{g.label}</div>
               <div className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 leading-snug">{g.cap}</div>
+              <div className="text-[10px] text-teal-600 dark:text-teal-400 mt-1 font-medium">Metric: {g.metric}</div>
             </div>
           ))}
         </div>
@@ -750,6 +756,7 @@ export default function CouplingPage() {
           <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
             Mean over the {AGG.nIC} held-out waves at each switch time. Viable = benefit ≥ 10% <b>and</b> hybrid tail &lt; 10% (frozen a priori). The <b>vs 10% bar</b> column is the hybrid tail&apos;s headroom under that 10% bar, in percentage points; it goes negative exactly when the hand-off stops being viable. Source: <span className="font-mono text-[11px]">handoff_sweep_results.json</span>.
           </p>
+          <p className="text-[11px] text-teal-600 dark:text-teal-400 font-medium mb-3">Metric: tail columns are relative L2 error over [t_s, 2]; benefit = 1 − hybrid/pure-ML tail; numerical work = fraction of steps solved numerically.</p>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead><tr className="text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500 text-left">
@@ -780,7 +787,7 @@ export default function CouplingPage() {
             Earlier hand-off gives more accuracy but more numerical work. Every measured switch still beats pure ML, but after t_s = 1.4 the hybrid tail error crosses the 10% acceptance bar. <span className="font-medium text-slate-700 dark:text-slate-200">Measured latest viable point = 1.4; interpolated boundary ≈ {AGG.boundary}.</span>
           </p>
         </div>
-        <FigCard src="/module2_figures/fig2_switch_time_vs_benefit.png" title="Hand-off benefit vs when we switch" note="Benefit = 1 − hybrid/FNO across switch times, versus the pre-registered 10% benefit threshold (met across the whole swept range). The binding viability condition is the hybrid tail < 10%, the table's 'vs 10% bar' column." deduction="The later you wait, the more damaged the handed-over state, so benefit falls monotonically (93% at t_s = 1.0 down to 20% at 1.8). Switch early for the biggest gain." script="make_figures.py" />
+        <FigCard src="/module2_figures/fig2_switch_time_vs_benefit.png" title="Hand-off benefit vs when we switch" note="Benefit = 1 − hybrid/FNO across switch times, versus the pre-registered 10% benefit threshold (met across the whole swept range). The binding viability condition is the hybrid tail < 10%, the table's 'vs 10% bar' column." metric="Benefit = 1 − hybrid/pure-ML tail, both relative L2 tail error over [t_s, 2], plotted against switch time t_s." deduction="The later you wait, the more damaged the handed-over state, so benefit falls monotonically (93% at t_s = 1.0 down to 20% at 1.8). Switch early for the biggest gain." script="make_figures.py" />
         </div>
 
         <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
@@ -789,6 +796,7 @@ export default function CouplingPage() {
             Error over the extrapolation window [1, 2] on the {cmp.n} held-out waves, with the fraction of steps solved numerically.
             Source: <span className="font-mono text-[11px]">trust_hardswitch_compare.json</span>.
           </p>
+          <p className="text-[11px] text-teal-600 dark:text-teal-400 font-medium mb-3">Metric: relative L2 error over the extrapolation window, same definition as the sweep table.</p>
           <div className="space-y-1.5">
             {BASELINES.map((b) => (
               <div key={b.m} className="grid grid-cols-[1fr_auto_auto] items-center gap-4 rounded-xl border border-slate-100 dark:border-slate-700 px-3 py-2">
@@ -824,6 +832,7 @@ export default function CouplingPage() {
               array changes, the coupling code does not. Hand-off at t_s = 1.0, mean over {transfer.n_waves} held-out waves.
               Source: <span className="font-mono text-[11px]">transfer_models.py → transfer_models_results.json</span>.
             </p>
+            <p className="text-[11px] text-teal-600 dark:text-teal-400 font-medium mb-3">Metric: state error at hand-off is the ML's own relative L2 error at t_s; tail and benefit columns as in the sweep table.</p>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead><tr className="text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500 text-left">
