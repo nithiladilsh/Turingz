@@ -238,7 +238,7 @@ function SafetyChart({ data, cross }) {
   );
 }
 
-function FigCard({ src, title, note, script }) {
+function FigCard({ src, title, note, deduction, script }) {
   return (
     <figure className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
       <img src={src} alt={title} loading="lazy"
@@ -246,6 +246,11 @@ function FigCard({ src, title, note, script }) {
       <figcaption className="mt-3">
         <div className="text-sm font-semibold text-slate-800 dark:text-slate-100">{title}</div>
         <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-snug">{note}</div>
+        {deduction && (
+          <div className="mt-2 text-[11px] leading-snug text-indigo-700 dark:text-indigo-300 bg-indigo-50/60 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 rounded-lg px-2.5 py-1.5">
+            <span className="font-bold">→ Deduction: </span>{deduction}
+          </div>
+        )}
         {script && <div className="text-[10px] font-mono text-slate-400 dark:text-slate-500 mt-1.5">{script}</div>}
       </figcaption>
     </figure>
@@ -253,19 +258,18 @@ function FigCard({ src, title, note, script }) {
 }
 
 const EVAL_CORE = [
-  { src: "/module2_figures/fig1_error_over_time.png", title: "Error over time, FNO vs numerical vs hybrid", note: "Hand-off at t = 1, mean ± std over 100 held-out ICs. After the switch the hybrid tracks the numerical solution instead of drifting with the ML.", script: "make_figures.py" },
-  { src: "/module2_figures/fig2_switch_time_vs_benefit.png", title: "Hand-off benefit vs when we switch", note: "Benefit = 1 − hybrid/FNO across switch times; the 10% viability threshold is pre-registered (frozen before results).", script: "make_figures.py" },
-  { src: "/module2_figures/fig4_hybrid_vs_upper_bound.png", title: "Oracle decomposition, the coupling adds almost nothing", note: "Restarting from the TRUE state (upper bound) is negligibly better than from the FNO state (~10⁻⁶). All remaining hybrid error is inherited from the ML hand-off state.", script: "make_figures.py" },
-  { src: "/module2_figures/fig5_accuracy_vs_cost.png", title: "Accuracy vs cost", note: "Earlier hand-off = more numerical work, lower error. The cost proxy is the fraction of steps solved numerically (machine-independent).", script: "make_figures.py" },
+  { src: "/module2_figures/fig1_error_over_time.png", title: "Error over time, FNO vs numerical vs hybrid", note: "Hand-off at t = 1, mean ± std over 100 held-out ICs. After the switch the hybrid tracks the numerical solution instead of drifting with the ML.", deduction: "Switching to the numerical solver halts the ML's continued extrapolation drift. It prevents further error growth, it does not undo error already present at the switch.", script: "make_figures.py" },
+  { src: "/module2_figures/fig4_hybrid_vs_upper_bound.png", title: "Oracle decomposition, the coupling adds almost nothing", note: "Restarting from the TRUE state (upper bound) is negligibly better than from the FNO state (~10⁻⁶). All remaining hybrid error is inherited from the ML hand-off state.", deduction: "Given the true state, the same solver's error is ~10⁻⁶, so the continuation itself adds almost nothing. The remaining hybrid error is inherited from the handed-over ML state, which sets the accuracy ceiling.", script: "make_figures.py" },
+  { src: "/module2_figures/fig5_accuracy_vs_cost.png", title: "Accuracy vs cost", note: "Earlier hand-off = more numerical work, lower error. The cost proxy is the fraction of steps solved numerically (machine-independent).", deduction: "Earlier switch = more numerical work but lower error; later = cheaper but less accurate. This is the trade-off curve Module 3 chooses a point on; Module 2 measures it.", script: "make_figures.py" },
 ];
 
 const EVAL_ROBUST = [
-  { src: "/module2_figures/fig8_ood_error_over_time.png", title: "Out-of-distribution wave", note: "A higher-frequency wave sin(6πx), beyond the trained band (modes 1–4). The hybrid still limits the damage after the hand-off, but cannot recover a state the ML has already lost.", script: "ood_experiment.py" },
+  { src: "/module2_figures/fig8_ood_error_over_time.png", title: "Out-of-distribution wave", note: "A higher-frequency wave sin(6πx), beyond the trained band (modes 1–4). The hybrid still limits the damage after the hand-off, but cannot recover a state the ML has already lost.", deduction: "The coupling is corrective, not reconstructive: it faithfully continues the state it receives, but cannot rebuild information the ML has already lost. This is exactly why switching early matters.", script: "ood_experiment.py" },
 ];
 
 const EVAL_FIDELITY = [
-  { src: "/module2_figures/handoff_stability_diagnostic.png", title: "Continuity across the switch", note: "State jump ≈ 0 and the Burgers PDE residual stays stable across the hand-off, vs a deliberately careless-restart negative control.", script: "handoff_stability_diagnostic.py" },
-  { src: "/module2_figures/restart_safety_boundary.png", title: "Restart-safety boundary (Re_cell ≈ 3.2)", note: "The careless restart fails past cell Reynolds number Re_cell ≈ 3.2. Includes a grid-refinement control (N = 1024/2048) and a reference-free high-k diagnostic.", script: "restart_safety_boundary.py" },
+  { src: "/module2_figures/handoff_stability_diagnostic.png", title: "Continuity across the switch", note: "State jump ≈ 0 and the Burgers PDE residual stays stable across the hand-off, vs a deliberately careless-restart negative control.", deduction: "The hand-off adds no discontinuity (jump = 0) and the continuation is more PDE-consistent than the ML (the residual drops, no spike). The seam is physically clean, not just numerically continuous.", script: "handoff_stability_diagnostic.py" },
+  { src: "/module2_figures/restart_safety_boundary.png", title: "Restart-safety boundary (Re_cell ≈ 3.2)", note: "The careless restart fails past cell Reynolds number Re_cell ≈ 3.2. Includes a grid-refinement control (N = 1024/2048) and a reference-free high-k diagnostic.", deduction: "A restartable solver must keep the production scheme's safeguards: drop the 2/3 de-aliasing and it fails past Re_cell ≈ 3.2; the verified restart preserves them and stays ~10⁻¹¹. This proves the restart is faithful, not that it beats spectral methods.", script: "restart_safety_boundary.py" },
 ];
 
 export default function CouplingPage() {
@@ -447,6 +451,26 @@ export default function CouplingPage() {
             </p>
           </div>
         </div>
+                {/* FRONTIER ENDS, accuracy vs cost, both from the committed sweep */}
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
+          <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Two ends of the same trade-off</div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+            The hand-off time trades accuracy against cost. Switch early = most accurate but most numerical work.
+            Switch near the viability boundary (≈ {AGG.boundary}) = the least work that still meets the 10% error bar.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="rounded-xl border border-emerald-100 dark:border-emerald-500/20 bg-emerald-50 dark:bg-emerald-500/10 p-3">
+              <div className="text-[10px] uppercase tracking-wide text-emerald-600 dark:text-emerald-400">Accuracy end · t_s = 1.0</div>
+              <div className="text-sm mt-1 text-slate-700 dark:text-slate-200"><b>{AGG.hybTail2}%</b> error · <b>{AGG.reduction}%</b> benefit</div>
+              <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{AGG_COST.work10}% of the run solved numerically</div>
+            </div>
+            <div className="rounded-xl border border-indigo-100 dark:border-indigo-500/20 bg-indigo-50 dark:bg-indigo-500/10 p-3">
+              <div className="text-[10px] uppercase tracking-wide text-indigo-600 dark:text-indigo-400">Cost end · t_s = {AGG_COST.ts} (latest viable)</div>
+              <div className="text-sm mt-1 text-slate-700 dark:text-slate-200"><b>{AGG_COST.hyb}%</b> error · <b>{AGG_COST.ben}%</b> benefit</div>
+              <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{AGG_COST.work}% numerical, ~40% less work, still under 10%</div>
+            </div>
+          </div>
+        </div>
 
         {/* aggregate headline, pins the real result to the Story tab so it stands alone
       <div className="rounded-2xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50/60 dark:bg-emerald-500/10 px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-1.5">
@@ -490,26 +514,7 @@ export default function CouplingPage() {
           </Card>
         </div>
 
-        {/* FRONTIER ENDS, accuracy vs cost, both from the committed sweep */}
-        <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
-          <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Two ends of the same trade-off</div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
-            The hand-off time trades accuracy against cost. Switch early = most accurate but most numerical work.
-            Switch near the viability boundary (≈ {AGG.boundary}) = the least work that still meets the 10% error bar.
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="rounded-xl border border-emerald-100 dark:border-emerald-500/20 bg-emerald-50 dark:bg-emerald-500/10 p-3">
-              <div className="text-[10px] uppercase tracking-wide text-emerald-600 dark:text-emerald-400">Accuracy end · t_s = 1.0</div>
-              <div className="text-sm mt-1 text-slate-700 dark:text-slate-200"><b>{AGG.hybTail2}%</b> error · <b>{AGG.reduction}%</b> benefit</div>
-              <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{AGG_COST.work10}% of the run solved numerically</div>
-            </div>
-            <div className="rounded-xl border border-indigo-100 dark:border-indigo-500/20 bg-indigo-50 dark:bg-indigo-500/10 p-3">
-              <div className="text-[10px] uppercase tracking-wide text-indigo-600 dark:text-indigo-400">Cost end · t_s = {AGG_COST.ts} (latest viable)</div>
-              <div className="text-sm mt-1 text-slate-700 dark:text-slate-200"><b>{AGG_COST.hyb}%</b> error · <b>{AGG_COST.ben}%</b> benefit</div>
-              <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{AGG_COST.work}% numerical, ~40% less work, still under 10%</div>
-            </div>
-          </div>
-        </div>
+
 
       </div>)}
       {tab === "evidence" && (<div className="space-y-6">
@@ -739,6 +744,7 @@ export default function CouplingPage() {
           ))}
         </div>
 
+        <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-4 items-stretch">
         <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
           <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Hand-off sweep, the numbers behind the curves</div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
@@ -773,6 +779,8 @@ export default function CouplingPage() {
           <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-3">
             Earlier hand-off gives more accuracy but more numerical work. Every measured switch still beats pure ML, but after t_s = 1.4 the hybrid tail error crosses the 10% acceptance bar. <span className="font-medium text-slate-700 dark:text-slate-200">Measured latest viable point = 1.4; interpolated boundary ≈ {AGG.boundary}.</span>
           </p>
+        </div>
+        <FigCard src="/module2_figures/fig2_switch_time_vs_benefit.png" title="Hand-off benefit vs when we switch" note="Benefit = 1 − hybrid/FNO across switch times, versus the pre-registered 10% benefit threshold (met across the whole swept range). The binding viability condition is the hybrid tail < 10%, the table's 'vs 10% bar' column." deduction="The later you wait, the more damaged the handed-over state, so benefit falls monotonically (93% at t_s = 1.0 down to 20% at 1.8). Switch early for the biggest gain." script="make_figures.py" />
         </div>
 
         <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
@@ -838,10 +846,9 @@ export default function CouplingPage() {
                 </tbody>
               </table>
             </div>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-3">
-              Same pattern for all three: the worse the handed-over state, the smaller the benefit, a property of the coupling,
-              not of any one model.
-            </p>
+            <div className="mt-3 text-[11px] leading-snug text-indigo-700 dark:text-indigo-300 bg-indigo-50/60 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 rounded-lg px-2.5 py-1.5">
+              <span className="font-bold">→ Deduction: </span>Same coupling, three architectures: the better the state handed over, the better the hybrid. This relationship was observed across all three tested ML models (FNO, PINN, DeepONet), so it is a property of the coupling, not of one model.
+            </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
             {EVAL_ROBUST.map((f) => <FigCard key={f.src} {...f} />)}
