@@ -38,6 +38,10 @@ export default function DatasetModal({ open, onClose }) {
   }, [open]);
 
   const clampIndex = (v) => Math.max(0, Math.min(999, v));
+  // filled-track look: colored up to the thumb, plain track after it
+  const rangeStyle = (pct) => ({
+    background: `linear-gradient(to right, currentColor ${pct}%, var(--chart-grid) ${pct}%)`,
+  });
 
   if (!open) return null;
 
@@ -89,7 +93,8 @@ export default function DatasetModal({ open, onClose }) {
               <input
                 type="range" min="0" max="999" value={index}
                 onChange={(e) => setIndex(+e.target.value)}
-                className="w-full mt-2.5 accent-indigo-600"
+                className="w-full mt-2.5 text-indigo-600 dark:text-indigo-400"
+                style={rangeStyle((index / 999) * 100)}
               />
             </div>
 
@@ -108,7 +113,8 @@ export default function DatasetModal({ open, onClose }) {
                 <input
                   type="range" min="0" max={data ? data.nt - 1 : 199} value={tIndex}
                   onChange={(e) => { setPlaying(false); setTIndex(+e.target.value); }}
-                  className="flex-1 accent-indigo-600"
+                  className="flex-1 text-indigo-600 dark:text-indigo-400"
+                  style={rangeStyle((tIndex / (data ? data.nt - 1 : 199)) * 100)}
                 />
                 <button className={iconBtn} disabled={data && tIndex >= data.nt - 1} onClick={() => setTIndex((t) => Math.min((data ? data.nt : 200) - 1, t + 1))}><ChevronRight size={14} /></button>
               </div>
