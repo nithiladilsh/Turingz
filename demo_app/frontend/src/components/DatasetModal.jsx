@@ -4,20 +4,6 @@ import { X, Table2, Waves, Minus, Plus, ChevronLeft, ChevronRight, Play, Pause }
 import { datasetSample } from "../api.js";
 import { LineChart } from "./Charts.jsx";
 
-const splitTone = {
-  train: "bg-indigo-50 dark:bg-indigo-500/15 text-indigo-700 dark:text-indigo-300",
-  val: "bg-amber-50 dark:bg-amber-500/15 text-amber-700 dark:text-amber-300",
-  test: "bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
-};
-
-// quick-jump chips: first train / first val / first test / last sample
-const IC_JUMPS = [
-  { label: "First (train)", value: 0 },
-  { label: "First val", value: 800 },
-  { label: "First test", value: 900 },
-  { label: "Last", value: 999 },
-];
-
 const iconBtn = "w-8 h-8 grid place-items-center rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 dark:hover:border-indigo-500 disabled:opacity-40 disabled:pointer-events-none transition";
 
 export default function DatasetModal({ open, onClose }) {
@@ -52,6 +38,10 @@ export default function DatasetModal({ open, onClose }) {
   }, [open]);
 
   const clampIndex = (v) => Math.max(0, Math.min(999, v));
+  // filled-track look: colored up to the thumb, plain track after it
+  const rangeStyle = (pct) => ({
+    background: `linear-gradient(to right, currentColor ${pct}%, var(--track) ${pct}%)`,
+  });
 
   if (!open) return null;
 
@@ -86,10 +76,9 @@ export default function DatasetModal({ open, onClose }) {
           {/* LEFT */}
           <div className="w-120 shrink-0 border-r border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-900/30 overflow-y-auto px-6 py-4 space-y-4">
             {/* IC INDEX */}
-            <div>
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
               <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-1.5">
                 <span>Initial condition</span>
-                {data && <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${splitTone[data.split]}`}>{data.split}</span>}
               </div>
               <div className="flex items-center gap-2">
                 <button className={iconBtn} disabled={index <= 0} onClick={() => setIndex(clampIndex(index - 1))}><Minus size={14} /></button>
@@ -104,30 +93,13 @@ export default function DatasetModal({ open, onClose }) {
               <input
                 type="range" min="0" max="999" value={index}
                 onChange={(e) => setIndex(+e.target.value)}
-                className="w-full mt-2.5 accent-indigo-600"
+                className="w-full mt-2.5 text-indigo-600 dark:text-indigo-400"
+                style={rangeStyle((index / 999) * 100)}
               />
-              {/* split-proportion position bar */}
-              <div className="relative h-2 mt-1.5 rounded-full overflow-hidden flex">
-                <div className="bg-indigo-300 dark:bg-indigo-500/50" style={{ width: "80%" }} />
-                <div className="bg-amber-300 dark:bg-amber-500/50" style={{ width: "10%" }} />
-                <div className="bg-emerald-300 dark:bg-emerald-500/50" style={{ width: "10%" }} />
-                <div className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-white border-2 border-indigo-600 dark:border-indigo-400 shadow"
-                  style={{ left: `calc(${(index / 999) * 100}% - 5px)` }} />
-              </div>
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {IC_JUMPS.map((j) => (
-                  <button key={j.label} onClick={() => setIndex(j.value)}
-                    className={`text-[11px] font-medium px-2 py-1 rounded-lg border transition ${index === j.value
-                      ? "bg-indigo-600 text-white border-indigo-600"
-                      : "bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-500"}`}>
-                    {j.label} · #{j.value}
-                  </button>
-                ))}
-              </div>
             </div>
 
             {/* TIME STEP */}
-            <div>
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
               <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-1.5">
                 <span>Time step</span>
                 <span className="font-medium text-slate-600 dark:text-slate-300">t = {data ? data.t.toFixed(3) : "—"}</span>
@@ -141,7 +113,8 @@ export default function DatasetModal({ open, onClose }) {
                 <input
                   type="range" min="0" max={data ? data.nt - 1 : 199} value={tIndex}
                   onChange={(e) => { setPlaying(false); setTIndex(+e.target.value); }}
-                  className="flex-1 accent-indigo-600"
+                  className="flex-1 text-indigo-600 dark:text-indigo-400"
+                  style={rangeStyle((tIndex / (data ? data.nt - 1 : 199)) * 100)}
                 />
                 <button className={iconBtn} disabled={data && tIndex >= data.nt - 1} onClick={() => setTIndex((t) => Math.min((data ? data.nt : 200) - 1, t + 1))}><ChevronRight size={14} /></button>
               </div>
@@ -151,10 +124,6 @@ export default function DatasetModal({ open, onClose }) {
                 <span>t = 2</span>
               </div>
             </div>
-
-            <p className="text-[11px] text-slate-400 dark:text-slate-500">
-              train = first 800 samples · val = next 100 · test = last 100 (held out)
-            </p>
 
             {/* WAVE PREVIEW */}
             {data && (
