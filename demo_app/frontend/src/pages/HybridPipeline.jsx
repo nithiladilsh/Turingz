@@ -76,7 +76,7 @@ export default function HybridPipeline() {
   const faint = "text-slate-400 dark:text-slate-500";
   const ood = model !== "PINN" && modes > 4;
   const switched = frame && !frame.ok;
-  const pct = (v) => `${Math.round((v || 0) * 100)}%`;
+  const pct = (v) => `${((v || 0) * 100).toFixed(1)}%`;
   const errMax = summary ? Math.max(summary.err_ml, summary.err_hybrid, 0.001) : 1;
   const costMax = summary ? summary.cost_num : 1;
 
@@ -148,8 +148,8 @@ export default function HybridPipeline() {
           <Card title="3. Accuracy target (Module 3)"
             subtitle="the accuracy you ask for — the controller turns it into when to correct">
             <div className={`flex justify-between text-xs ${muted}`}><span>loose 0.30</span><span>tight 0.01</span></div>
-            <input type="range" min="0.01" max="0.30" step="0.01" value={target}
-              onChange={(e) => setTarget(+e.target.value)} className="w-full" />
+            <input type="range" min="0.01" max="0.30" step="0.01" value={(0.31 - target).toFixed(2)}
+              onChange={(e) => setTarget(+(0.31 - +e.target.value).toFixed(2))} className="w-full" />
             <div className={`text-xs mt-1 ${faint}`}>target {target.toFixed(2)}</div>
           </Card>
 
@@ -239,6 +239,10 @@ export default function HybridPipeline() {
                 <p className="text-sm text-slate-600 dark:text-slate-300">
                   Pure ML is cheap but drifts; the pure pseudo-spectral solver is accurate but slow. The hybrid sits between them, at the accuracy and cost measured above.
                 </p>
+                <Banner ok={summary.err_hybrid <= target}
+                  text={summary.err_hybrid <= target
+                    ? `Target ${target.toFixed(2)} met — hybrid error ${pct(summary.err_hybrid)}`
+                    : `Target ${target.toFixed(2)} missed — hybrid error ${pct(summary.err_hybrid)}`} />
               </div>
             ) : <p className={`text-sm ${faint}`}>Run the pipeline to see the head-to-head.</p>}
           </Card>

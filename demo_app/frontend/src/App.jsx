@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { Sun, Moon } from "lucide-react";
 import Overview from "./pages/Overview.jsx";
-import ResearchContribution from "./pages/ResearchContribution.jsx";
 import TrustPage from "./pages/TrustPage.jsx";
 import FDMPage from "./pages/FDMPage.jsx";
 import Placeholder from "./pages/Placeholder.jsx";
@@ -16,7 +15,6 @@ import ReliabilityPage from "./pages/ReliabilityPage.jsx";
 
 const SECTIONS = [
   { id: "overview", label: "Overview", group: "Project" },
-  { id: "contribution", label: "Research & Contribution", group: "Project" },
 
   { id: "fdm", label: "Finite Difference (FDM)", group: "Numerical solvers" },
   { id: "colehopf", label: "Cole–Hopf", group: "Numerical solvers" },
@@ -118,7 +116,6 @@ export default function App() {
 
       <main className="ml-72 mx-10 p-8">
         {active === "overview" && <Overview go={setActive} />}
-        {active === "contribution" && <ResearchContribution go={setActive} />}
         {active === "trust" && <TrustPage />}
         {active === "hybrid" && <HybridPipeline />}
         {active === "costcontrol" && <CostControl />}
@@ -131,7 +128,6 @@ export default function App() {
         {active === "reliability" && <ReliabilityPage />}
         {![
           "overview",
-          "contribution",
           "trust",
           "hybrid",
           "costcontrol",

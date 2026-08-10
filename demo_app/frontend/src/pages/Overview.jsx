@@ -107,7 +107,7 @@ function Family({ icon: Icon, color, title, tag }) {
   );
 }
 
-function ModuleCard({ n, icon: Icon, name, owner, one, tone }) {
+function ModuleCard({ n, icon: Icon, name, owner, one, anim, tone }) {
   return (
     <div className={`${cardCls} p-4 hover:shadow-md hover:-translate-y-0.5 transition-all`}>
       <div className="flex items-center gap-2.5">
@@ -118,6 +118,101 @@ function ModuleCard({ n, icon: Icon, name, owner, one, tone }) {
         </div>
       </div>
       <p className="text-xs text-slate-500 dark:text-slate-400 mt-3">{one}</p>
+      <div className="mt-2 pt-2 border-t border-dashed border-slate-200 dark:border-slate-700">{anim}</div>
+    </div>
+  );
+}
+
+function useLoop(period) {
+  const [p, setP] = useState(0);
+  useEffect(() => {
+    let raf, start;
+    const loop = (ts) => {
+      if (!start) start = ts;
+      setP(((ts - start) / period) % 1);
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, [period]);
+  return p;
+}
+
+function miniPath(f, x0, x1, sx, sy) {
+  let d = "";
+  for (let x = x0; x <= x1 + 1e-6; x += 0.02) d += `${d ? "L" : "M"}${sx(x).toFixed(1)} ${sy(f(x)).toFixed(1)} `;
+  return d;
+}
+
+function TrustMini() {
+  const p = useLoop(2600);
+  const W = 260, H = 78, padX = 10, padY = 10;
+  const sx = (x) => padX + x * (W - 2 * padX);
+  const sy = (v) => H - padY - v * (H - 2 * padY);
+  const thresh = 0.32;
+  const trust = (x) => Math.max(0.02, 1 - Math.max(0, x - 0.35) * 2.2 - 0.05 * Math.sin(x * 26));
+  const flagged = trust(p) < thresh;
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-[70px]">
+      <line x1={sx(0)} x2={sx(1)} y1={sy(thresh)} y2={sy(thresh)} stroke="#e11d48" strokeDasharray="3 3" strokeWidth="1" opacity="0.55" />
+      <path d={miniPath(trust, 0, 1, sx, sy)} fill="none" stroke="#cbd5e1" strokeWidth="1.3" />
+      <path d={miniPath(trust, 0, p, sx, sy)} fill="none" stroke={flagged ? "#e11d48" : "#4f46e5"} strokeWidth="2.4" strokeLinecap="round" />
+      <circle cx={sx(p)} cy={sy(trust(p))} r="4" fill={flagged ? "#e11d48" : "#4f46e5"} />
+    </svg>
+  );
+}
+
+function CouplingMini() {
+  const p = useLoop(2600);
+  const W = 260, H = 78, padX = 10, padY = 12;
+  const sx = (x) => padX + x * (W - 2 * padX);
+  const sy = (v) => H - padY - v * (H - 2 * padY);
+  const xs = 0.55;
+  const mlCurve = (x) => 0.5 + 0.32 * Math.sin(x * 5.5) * Math.min(1, x * 3);
+  const handoffY = mlCurve(xs);
+  const numCurve = (x) => handoffY + (x - xs) * 0.04;
+  const mlUp = Math.min(p, xs);
+  const pulseT = Math.max(0, Math.min(1, (p - xs) / 0.18));
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-[70px]">
+      <path d={miniPath(mlCurve, 0, mlUp, sx, sy)} fill="none" stroke="#059669" strokeWidth="2" strokeDasharray="4 3" strokeLinecap="round" />
+      {p > xs && <path d={miniPath(numCurve, xs, p, sx, sy)} fill="none" stroke="#e11d48" strokeWidth="2.4" strokeLinecap="round" />}
+      {p >= xs && pulseT < 1 && (
+        <circle cx={sx(xs)} cy={sy(handoffY)} r={4 + 10 * pulseT} fill="none" stroke="#6366f1" strokeWidth="1.4" opacity={1 - pulseT} />
+      )}
+      {p >= xs && <circle cx={sx(xs)} cy={sy(handoffY)} r="3" fill="#6366f1" />}
+    </svg>
+  );
+}
+
+function CostMini() {
+  const p = useLoop(3200);
+  const W = 260, H = 78, barX = 20, barW = W - 40, barY = 52, barH = 10;
+  const knobX = barX + (Math.sin(p * 2 * Math.PI) * 0.5 + 0.5) * barW;
+  const tightness = (knobX - barX) / barW;
+  const corrPct = 15 + tightness * 55;
+  const mlPct = 100 - corrPct;
+  const splitX = barX + (mlPct / 100) * barW;
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-[70px]">
+      <line x1={barX} x2={barX + barW} y1="20" y2="20" stroke="#cbd5e1" strokeWidth="3" strokeLinecap="round" />
+      <circle cx={knobX} cy="20" r="6" fill="#a21caf" />
+      <text x={barX} y="12" fontSize="8" fill="#94a3b8">loose target</text>
+      <text x={barX + barW} y="12" fontSize="8" fill="#94a3b8" textAnchor="end">tight target</text>
+      <rect x={barX} y={barY} width={barW} height={barH} rx="5" fill="#e2e8f0" />
+      <rect x={barX} y={barY} width={Math.max(0, splitX - barX)} height={barH} rx="5" fill="#059669" opacity="0.85" />
+      <rect x={splitX} y={barY} width={Math.max(0, barX + barW - splitX)} height={barH} rx="5" fill="#e11d48" opacity="0.85" />
+      <text x={barX} y={barY + barH + 10} fontSize="8" fill="#64748b">ML steps</text>
+      <text x={barX + barW} y={barY + barH + 10} fontSize="8" fill="#64748b" textAnchor="end">correction</text>
+    </svg>
+  );
+}
+
+function StatBlock({ big, label }) {
+  return (
+    <div className={`${cardCls} p-4 flex flex-col items-center justify-center text-center`}>
+      <div className="text-2xl font-extrabold text-indigo-600 dark:text-indigo-400">{big}</div>
+      <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">{label}</div>
     </div>
   );
 }
@@ -362,11 +457,14 @@ export default function Overview({ go }) {
         <H2>Three research modules</H2>
         <div className="grid grid-cols-3 gap-4">
           <ModuleCard n="1" icon={Gauge} name="Trust" owner="Sandeepa D.S." tone="bg-indigo-600"
-            one="Knows when to stop trusting the ML model — with no true answer." />
+            one="Knows when to stop trusting the ML model — with no true answer."
+            anim={<TrustMini />} />
           <ModuleCard n="2" icon={Link2} name="Coupling" owner="Dharmapala R.D." tone="bg-violet-600"
-            one="Hands over to the numerical solver smoothly, at minimum cost." />
+            one="Hands over to the numerical solver smoothly, at minimum cost."
+            anim={<CouplingMini />} />
           <ModuleCard n="3" icon={SlidersHorizontal} name="Cost control" owner="Mendis B.N.D." tone="bg-fuchsia-600"
-            one="Spends numerical effort only where it pays off, for a target accuracy." />
+            one="Spends numerical effort only where it pays off, for a target accuracy."
+            anim={<CostMini />} />
         </div>
       </div>
 

@@ -322,8 +322,8 @@ export default function TrustPage() {
   // rule (estimated error > 10% for 3 steps), which maps to trust < 0.5 — not
   // the reference-free calibration. Show the threshold that actually applies.
   const coarseMode = model === "FNO" && fnoMode === "coarse";
-  const cut = coarseMode ? 0.5 : (p?.CUT ?? 0.5);
-  const kSteps = coarseMode ? 3 : (p?.K ?? 4);
+  const cut = coarseMode ? 0.9 : (p?.CUT ?? 0.5);
+  const kSteps = coarseMode ? 7 : (p?.K ?? 4);
   const ood = model !== "PINN" && modes > 4;
   const muted = "text-slate-500 dark:text-slate-400";
   const faint = "text-slate-400 dark:text-slate-500";
@@ -441,9 +441,7 @@ export default function TrustPage() {
             </Card>
           </div>
 
-          <Card title="Trust and true error over time" subtitle={coarseMode
-            ? `cheap reference: switch fires when trust stays below ${cut} for ${kSteps} steps (est. error > 10%)`
-            : `switch fires when trust stays below ${cut} for ${kSteps} steps`}>
+          <Card title="Trust and true error over time" subtitle={`switch fires when trust stays below ${cut} for ${kSteps} steps`}>
             <LineChart h={200} xr={[0, 2]} yr={[0, 1]} hline={coarseMode ? null : cut} vline={frame?.switch_t ?? null} xlabel="time t"
               series={[
                 { x: hist.map((f) => f.t), y: hist.map((f) => f.trust), color: "#4f46e5", width: 2.5 },
