@@ -207,6 +207,15 @@ function CostMini() {
   );
 }
 
+function StatBlock({ big, label }) {
+  return (
+    <div className={`${cardCls} p-4 flex flex-col items-center justify-center text-center`}>
+      <div className="text-2xl font-extrabold text-indigo-600 dark:text-indigo-400">{big}</div>
+      <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">{label}</div>
+    </div>
+  );
+}
+
 function Stage({ icon: Icon, chip, step, title, sub }) {
   return (
     <div className="flex flex-col items-center text-center w-[112px]">
@@ -364,6 +373,19 @@ export default function Overview({ go }) {
             Beyond their training window, ML solvers drift and <span className="font-semibold text-rose-600 dark:text-rose-400">fail silently</span> — and at
             deployment there is <span className="font-semibold">no true answer</span> to catch it. The hybrid must decide, on its own, when to trust ML and when to compute.
           </p>
+        </div>
+      </div>
+
+      {/* DATASET */}
+      <div>
+        <H2>The dataset</H2>
+        <div className="grid grid-cols-6 gap-3">
+          <StatBlock big="1000" label="initial conditions" />
+          <StatBlock big="200" label="timesteps each" />
+          <StatBlock big="512" label="spatial points" />
+          <StatBlock big="102.4M" label="data points total" />
+          <StatBlock big="[-1, 1]" label="space domain (x)" />
+          <StatBlock big="[0, 2]" label="time domain (t)" />
         </div>
       </div>
 
