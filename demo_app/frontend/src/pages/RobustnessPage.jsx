@@ -288,7 +288,7 @@ export default function RobustnessPage() {
           <p className="text-sm text-slate-700 dark:text-slate-200 mt-1">
             The ML solvers are <span className="font-medium">fast but not robust</span>, they fail beyond the training
             horizon and on unfamiliar inputs, and that failure is <span className="font-medium">measured, not assumed</span>.
-            We push these cases <span className="font-medium">on purpose</span> to identify exactly <span className="font-medium">where and how</span>
+            We push these cases <span className="font-medium">on purpose</span> to identify exactly <span className="font-medium">where and how </span>
             the prediction degrades. This matters because the hybrid can only continue from the state it is given, if that
             state is already severely corrupted, even an accurate numerical restart cannot fully recover it. So robustness both
             <span className="font-semibold"> motivates the hand-off and sets its limit</span>, the trust and control layers must trigger

@@ -754,7 +754,7 @@ export default function CouplingPage() {
         <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
           <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Hand-off sweep, the numbers behind the curves</div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
-            Mean over the {AGG.nIC} held-out waves at each switch time. Viable = benefit ≥ 10% <b>and</b> hybrid tail &lt; 10% (frozen a priori). The <b>vs 10% bar</b> column is the hybrid tail&apos;s headroom under that 10% bar, in percentage points; it goes negative exactly when the hand-off stops being viable. Source: <span className="font-mono text-[11px]">handoff_sweep_results.json</span>.
+            Mean over {AGG.nIC} held-out waves per switch time. Viable = benefit ≥ 10% <b>and</b> hybrid tail &lt; 10% (frozen a priori). <b>vs 10% bar</b> = headroom under that bar; negative once no longer viable. Source: <span className="font-mono text-[11px]">handoff_sweep_results.json</span>.
           </p>
           <p className="text-[11px] text-teal-600 dark:text-teal-400 font-medium mb-3">Metric: tail columns are relative L2 error over [t_s, 2]; benefit = 1 − hybrid/pure-ML tail; numerical work = fraction of steps solved numerically.</p>
           <div className="overflow-x-auto">
@@ -826,11 +826,10 @@ export default function CouplingPage() {
           <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Robustness &amp; transfer</div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Better handed-over state → better hybrid, for every architecture tested; in the OOD stress cases the continuation reduces subsequent error but cannot recover a severely corrupted hand-off state.</p>
           <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
-            <div className="text-sm font-semibold text-slate-800 dark:text-slate-100">Model-agnostic demonstrated; numerical backend decoupled by interface design</div>
+            <div className="text-sm font-semibold text-slate-800 dark:text-slate-100">Works the same for any ML model</div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 mb-3">
-              The identical <span className="font-mono text-[11px]">solve_from()</span> hand-off runs for FNO, PINN and DeepONet, only the ML
-              array changes, the coupling code does not. Hand-off at t_s = 1.0, mean over {transfer.n_waves} held-out waves.
-              Source: <span className="font-mono text-[11px]">transfer_models.py → transfer_models_results.json</span>.
+              Same hand-off code for FNO, PINN and DeepONet, only the ML prediction changes. Hand-off at t_s = 1.0, mean over {transfer.n_waves} held-out waves.
+              Source: <span className="font-mono text-[11px]">transfer_models.py</span>.
             </p>
             <p className="text-[11px] text-teal-600 dark:text-teal-400 font-medium mb-3">Metric: state error at hand-off is the ML's own relative L2 error at t_s; tail and benefit columns as in the sweep table.</p>
             <div className="overflow-x-auto">
