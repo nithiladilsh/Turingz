@@ -40,7 +40,7 @@ export default function DatasetModal({ open, onClose }) {
   const clampIndex = (v) => Math.max(0, Math.min(999, v));
   // filled-track look: colored up to the thumb, plain track after it
   const rangeStyle = (pct) => ({
-    background: `linear-gradient(to right, currentColor ${pct}%, var(--chart-grid) ${pct}%)`,
+    background: `linear-gradient(to right, currentColor ${pct}%, var(--track) ${pct}%)`,
   });
 
   if (!open) return null;
@@ -76,7 +76,7 @@ export default function DatasetModal({ open, onClose }) {
           {/* LEFT */}
           <div className="w-120 shrink-0 border-r border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-900/30 overflow-y-auto px-6 py-4 space-y-4">
             {/* IC INDEX */}
-            <div>
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
               <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-1.5">
                 <span>Initial condition</span>
               </div>
@@ -99,7 +99,7 @@ export default function DatasetModal({ open, onClose }) {
             </div>
 
             {/* TIME STEP */}
-            <div>
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
               <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-1.5">
                 <span>Time step</span>
                 <span className="font-medium text-slate-600 dark:text-slate-300">t = {data ? data.t.toFixed(3) : "—"}</span>
