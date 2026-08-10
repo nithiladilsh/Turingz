@@ -407,6 +407,12 @@ export default function CostAnalysis() {
   const win = rows.find((x) => x.ok);
   const bestML = rows.find((x) => x.ok && ML.includes(x.m));
   const cheapGap = !bestML;
+  // cheapGap only means "no ML surrogate qualifies" -- it says nothing about whether the
+  // cheapest solver that DOES qualify (win, which can be a numerical solver like FDM) is
+  // already cheaper than the controller itself. Without this check the "gap my module
+  // fills" copy kept firing even when e.g. FDM already qualified at 0.09s, undercutting
+  // the controller's own 0.85s reference point by ~9x -- the opposite of a gap.
+  const controllerWins = cheapGap && tol >= fnoFloor && win != null && staircaseMarker != null && win.cost > staircaseMarker.cost;
 
   // live-feel polish: count the headline cost smoothly toward the new winner instead of
   // snapping, and briefly pulse the winning row/number the moment the cheapest qualifying
@@ -598,14 +604,21 @@ export default function CostAnalysis() {
 
           <div className={`rounded-2xl p-5 border-2 transition-all duration-300 ${
             cheapGap ? "border-indigo-400 bg-indigo-50 dark:bg-indigo-500/10" : "border-transparent bg-slate-50 dark:bg-slate-800/40"}`}>
-            {cheapGap && tol >= fnoFloor ? (
+            {controllerWins ? (
               <>
                 <div className="text-sm font-bold text-indigo-800 dark:text-indigo-300">This is the gap my module fills</div>
                 <p className="text-sm text-slate-700 dark:text-slate-200 mt-1">
                   Nothing cheap qualifies here — every surrogate is too wrong, so you are forced onto a numerical solver
-                  at <b>{win ? win.cost.toFixed(2) : "—"} s</b>. My controller reaches <b>{staircaseMarker ? `${(staircaseMarker.error * 100).toFixed(1)}%` : "3.6%"}</b> for
-                  about <b>{staircaseMarker ? `${staircaseMarker.cost.toFixed(2)} s` : "0.85 s"}</b>,
-                  which clears this bar at roughly a third of the price.
+                  at <b>{win.cost.toFixed(2)} s</b>. My controller reaches <b>{(staircaseMarker.error * 100).toFixed(1)}%</b> for
+                  about <b>{staircaseMarker.cost.toFixed(2)} s</b> — roughly <b>{(win.cost / staircaseMarker.cost).toFixed(1)}x cheaper</b> than that forced fallback.
+                </p>
+              </>
+            ) : cheapGap && tol >= fnoFloor ? (
+              <>
+                <div className="text-sm font-bold text-slate-700 dark:text-slate-200">No gap here — a numerical solver already wins</div>
+                <p className="text-sm text-slate-600 dark:text-slate-300 mt-1">
+                  No ML surrogate is accurate enough at {tolPct.toFixed(2)}%, but{win ? <> <b>{win.m}</b> already covers it for <b>{win.cost.toFixed(2)} s</b></> : " a numerical solver already covers it"}
+                  {staircaseMarker ? <> — cheaper than my controller's own {staircaseMarker.cost.toFixed(2)} s reference point</> : ""}, so there's nothing left for the controller to add here.
                 </p>
               </>
             ) : cheapGap ? (
