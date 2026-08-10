@@ -390,7 +390,7 @@ export default function CouplingPage() {
           <div className="flex items-center justify-between mb-3">
             <div className="text-sm font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
               <GitCommitHorizontal size={16} className="text-indigo-500" />
-              Who carries the wave, drag the handoff t_s = {sw.ts.toFixed(1)}
+              Who carries the wave · drag to set the hand-off, t_s = {sw.ts.toFixed(1)}
             </div>
             <span className={`text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${vChip}`}>
               {verdict}{verdict === "exceeds 10% error criterion" && ", still improves, but the state was already too degraded"}
@@ -428,11 +428,11 @@ export default function CouplingPage() {
           {/* consequences of the chosen handoff, updates instantly */}
           <div className="grid grid-cols-4 gap-3 mt-3">
             <div className="rounded-xl bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 px-3 py-2 text-center">
-              <div className="text-[10px] uppercase tracking-wide text-rose-500">pure-ML error · never hand off</div>
+              <div className="text-[10px] uppercase tracking-wide text-rose-500">pure-ML tail error · never hand off</div>
               <div className="text-xl font-extrabold text-rose-600 dark:text-rose-400">{(cm.mlTail * 100).toFixed(1)}%</div>
             </div>
             <div className="rounded-xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 px-3 py-2 text-center">
-              <div className="text-[10px] uppercase tracking-wide text-indigo-500">hybrid error · hand off here</div>
+              <div className="text-[10px] uppercase tracking-wide text-indigo-500">hybrid tail error · hand off here</div>
               <div className="text-xl font-extrabold text-indigo-600 dark:text-indigo-400">{(cm.hyTail * 100).toFixed(cm.hyTail < 0.1 ? 2 : 1)}%</div>
             </div>
             <div className="rounded-xl bg-slate-50 dark:bg-slate-700/40 border border-slate-100 dark:border-slate-600/40 px-3 py-2 text-center">
