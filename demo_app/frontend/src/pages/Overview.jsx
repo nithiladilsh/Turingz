@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import {
   Zap, ShieldCheck, GitMerge, Gauge, Link2, SlidersHorizontal, ArrowRight,
-  AlertTriangle, ArrowLeftRight, Rocket, Layers, CheckCircle2,
+  AlertTriangle, ArrowLeftRight, Rocket, Layers, CheckCircle2, Table2,
 } from "lucide-react";
+import DatasetModal from "../components/DatasetModal.jsx";
 
 /* ---- animated concept chart: ML diverges, hybrid stays accurate ---- */
 function ConceptChart() {
@@ -121,6 +122,15 @@ function ModuleCard({ n, icon: Icon, name, owner, one, tone }) {
   );
 }
 
+function StatTile({ value, label }) {
+  return (
+    <div className={`${cardCls} p-4 text-center`}>
+      <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{value}</div>
+      <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">{label}</div>
+    </div>
+  );
+}
+
 function Stage({ icon: Icon, chip, step, title, sub }) {
   return (
     <div className="flex flex-col items-center text-center w-[112px]">
@@ -143,8 +153,10 @@ const H2 = ({ children }) => (
 );
 
 export default function Overview({ go }) {
+  const [showDataset, setShowDataset] = useState(false);
   return (
     <div className="space-y-8">
+      <DatasetModal open={showDataset} onClose={() => setShowDataset(false)} />
       {/* RESEARCH TOPIC */}
       <div className="text-center rounded-3xl bg-gradient-to-b from-indigo-50 dark:from-indigo-500/10 to-transparent border border-indigo-100 dark:border-indigo-500/20 px-6 pt-7 pb-8">
         <div className="inline-flex items-center gap-2 text-xs font-medium text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-500/15 px-3 py-1 rounded-full">
@@ -278,6 +290,25 @@ export default function Overview({ go }) {
             Beyond their training window, ML solvers drift and <span className="font-semibold text-rose-600 dark:text-rose-400">fail silently</span> — and at
             deployment there is <span className="font-semibold">no true answer</span> to catch it. The hybrid must decide, on its own, when to trust ML and when to compute.
           </p>
+        </div>
+      </div>
+
+      {/* THE DATASET */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <H2>The dataset</H2>
+          <button onClick={() => setShowDataset(true)}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold cursor-pointer text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/15 px-3 py-1.5 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-500/25 transition">
+            <Table2 size={14} /> View dataset
+          </button>
+        </div>
+        <div className="grid grid-cols-6 gap-3">
+          <StatTile value="1000" label="initial conditions" />
+          <StatTile value="200" label="timesteps each" />
+          <StatTile value="512" label="spatial points" />
+          <StatTile value="102.4M" label="data points total" />
+          <StatTile value="[-1, 1]" label="space domain (x)" />
+          <StatTile value="[0, 2]" label="time domain (t)" />
         </div>
       </div>
 

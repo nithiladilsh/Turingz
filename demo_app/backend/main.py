@@ -48,6 +48,13 @@ def real_test_ic(index: int):
     return {"x": core.X.round(4).tolist(), "ic": ic.round(4).tolist()}
 
 
+@app.get("/api/dataset_sample/{index}")
+def dataset_sample(index: int, t_index: int = 0):
+    """Raw (x, u) values for one sample / one time step of the 1000x200x512
+    training dataset -- used by the 'View dataset' modal on the Overview page."""
+    return core.dataset_sample(index, t_index)
+
+
 @app.websocket("/ws/reliability")
 async def ws_reliability(ws: WebSocket):
     await ws.accept()

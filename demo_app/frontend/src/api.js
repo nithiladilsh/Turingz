@@ -27,6 +27,13 @@ export async function realTestIC(index) {
   return r.json();
 }
 
+// raw (x, u) values for one dataset sample at one time step -- backs the
+// "View dataset" modal on the Overview page
+export async function datasetSample(index, tIndex = 0) {
+  const r = await fetch(`${API}/api/dataset_sample/${index}?t_index=${tIndex}`);
+  return r.json();
+}
+
 export async function pinnRegime() {
   const r = await fetch(`${API}/api/m3/pinn_regime`);
   return r.json();

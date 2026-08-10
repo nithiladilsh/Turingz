@@ -33,6 +33,53 @@ PARAMS = {m: load_params(os.path.join(ROOT, "results", "trust", "trust_params_%s
 COEFF = shock_coeff(_pred["u_true_seen"], X, T)
 
 
+# -------- raw training dataset (the 1000 ICs x 200 steps x 512 points cube) --------
+# Same file and same train/val/test split as hybrid_pde/common/split.py.
+_RAW_DS = None
+N_DATASET = 1000
+N_TRAIN, N_VAL = 800, 100
+
+
+def _load_raw_dataset():
+    global _RAW_DS
+    if _RAW_DS is None:
+        import torch
+        d = torch.load(os.path.join(ROOT, "data", "colehopf", "burgers_colehopf.pt"),
+                        map_location="cpu", weights_only=False)
+        u = d["u"].numpy()
+        ics = d["ICs"].numpy() if "ICs" in d else u[:, 0, :].copy()
+        _RAW_DS = {"u": u, "ICs": ics, "x": d["x"].numpy().astype(float), "t": d["t"].numpy().astype(float)}
+    return _RAW_DS
+
+
+def dataset_split(i):
+    if i < N_TRAIN:
+        return "train"
+    if i < N_TRAIN + N_VAL:
+        return "val"
+    return "test"
+
+
+def dataset_sample(index, t_index=0):
+    """Raw values for one dataset sample at one time step -- the actual
+    (x, u(x,t)) pairs stored in data/colehopf/burgers_colehopf.pt, for
+    displaying the real dataset in a table rather than a summary."""
+    ds = _load_raw_dataset()
+    i = int(index) % N_DATASET
+    nt = len(ds["t"])
+    ti = max(0, min(nt - 1, int(t_index)))
+    return {
+        "index": i,
+        "split": dataset_split(i),
+        "nt": nt,
+        "nx": len(ds["x"]),
+        "t_index": ti,
+        "t": float(ds["t"][ti]),
+        "x": np.round(ds["x"], 4).tolist(),
+        "u": np.round(ds["u"][i, ti], 5).tolist(),
+    }
+
+
 def build_ic(modes=4, amplitude=1.0, phase=0.0, seed=0):
     rng = np.random.default_rng(int(seed))
     u = sum(rng.standard_normal() * np.sin(2 * np.pi * m * X / L + phase + rng.uniform(0, 2 * np.pi))
