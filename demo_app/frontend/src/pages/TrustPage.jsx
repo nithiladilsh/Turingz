@@ -444,12 +444,12 @@ export default function TrustPage() {
           <Card title="Trust and true error over time" subtitle={coarseMode
             ? `cheap reference: switch fires when trust stays below ${cut} for ${kSteps} steps (est. error > 10%)`
             : `switch fires when trust stays below ${cut} for ${kSteps} steps`}>
-            <LineChart h={200} xr={[0, 2]} yr={[0, 1]} hline={cut} vline={frame?.switch_t ?? null} xlabel="time t"
+            <LineChart h={200} xr={[0, 2]} yr={[0, 1]} hline={coarseMode ? null : cut} vline={frame?.switch_t ?? null} xlabel="time t"
               series={[
                 { x: hist.map((f) => f.t), y: hist.map((f) => f.trust), color: "#4f46e5", width: 2.5 },
                 { x: hist.map((f) => f.t), y: hist.map((f) => Math.min(1, f.true_error)), color: "#94a3b8", dashed: true, width: 1.5 },
               ]} />
-            <div className={`text-xs mt-1 ${faint}`}>indigo = trust · grey dashed = true error · dashed line = cutoff · red line = switch</div>
+            <div className={`text-xs mt-1 ${faint}`}>indigo = trust · grey dashed = true error{coarseMode ? "" : " · dashed line = cutoff"} · red line = switch</div>
           </Card>
 
           <Card title="How the trust score is built (live)">
