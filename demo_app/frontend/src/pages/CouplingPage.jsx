@@ -53,7 +53,10 @@ function committedAt(ts) {
   return { mlTail: lerp("fno_tail"), hyTail: lerp("hybrid_tail"), work: lerp("numerical_fraction") };
 }
 
-/* "How it's built", the hand-off mechanism, each step with the design reason (grounded in the code). */
+/* "How it's built", the hand-off mechanism, each step with the design reason (grounded in the code).
+   WORDING LOCK: say "verified" / "shows", never "proved" / "proven" / "guarantees" anywhere below.
+   The viva Q&A explicitly answers "is this a mathematical proof?" with "no, verified empirically",
+   so this file must not contradict that. If you're re-typing this after a revert, keep it this way. */
 const COUPLING_BUILD = [
   {
     n: 1, color: "#4f46e5", title: "Run the ML solver",
@@ -71,7 +74,7 @@ const COUPLING_BUILD = [
     n: 3, color: "#7c3aed", title: "Continue under the production scheme",
     what: "Advance with the team's verified pseudo-spectral solver, same grid, 2/3 de-aliasing, Nyquist zeroing, integrating-factor RK4.",
     chips: [{ label: "verified restart", color: "#7c3aed" }, { label: "= production solver", color: "#7c3aed" }],
-    why: "It's the scheme everyone already trusts. The restart is verified identical in the tested production equivalence check with a relative difference 0.0, so continuing changes nothing about the numerics."
+    why: "It's the scheme everyone already trusts. The restart is verified identical against it, relative difference 0.0, so continuing changes nothing about the numerics."
   },
   {
     n: 4, color: "#e11d48", title: "Switch once, never hand back",
@@ -83,7 +86,7 @@ const COUPLING_BUILD = [
     n: 5, color: "#059669", title: "Verify & decompose the error",
     what: "Automated behavioural tests, plus an oracle restart from the TRUE state to separate the coupling's own error from the inherited ML error.",
     detail: "E_coupling ≈ 10⁻⁶  ≪  E_inherited  (dominates)",
-    why: "The oracle proves the coupling itself adds almost nothing, all remaining hybrid error is inherited from the ML hand-off state, not produced by the switch."
+    why: "The oracle shows the coupling itself adds almost nothing, all remaining hybrid error is inherited from the ML hand-off state, not produced by the switch."
   },
 ];
 
@@ -272,9 +275,12 @@ const EVAL_ROBUST = [
   { src: "/module2_figures/fig8_ood_error_over_time.png", title: "Out-of-distribution wave", note: "A higher-frequency wave sin(6πx), beyond the trained band (modes 1–4). The hybrid still limits the damage after the hand-off, but cannot recover a state the ML has already lost.", metric: "Relative L2 error against the true Cole–Hopf solution, on an out-of-distribution input.", deduction: "The coupling is corrective, not reconstructive: it faithfully continues the state it receives, but cannot rebuild information the ML has already lost. This is exactly why switching early matters.", script: "ood_experiment.py" },
 ];
 
+/* WORDING LOCK: "shows", not "proves" — matches the viva Q&A defense (verified, not a mathematical proof).
+   Also keep the restart-safety note free of unexplained jargon (no "reference-free high-k diagnostic" etc.),
+   the evaluator reads this caption directly, don't hand him a term to interrogate. */
 const EVAL_FIDELITY = [
   { src: "/module2_figures/handoff_stability_diagnostic.png", title: "Continuity across the switch", note: "State jump ≈ 0 and the Burgers PDE residual stays stable across the hand-off, vs a deliberately careless-restart negative control.", metric: "State jump = L2 norm of the discontinuity at switch. Residual = r = u_t + u·u_x − ν·u_xx, a physical-consistency check, not an error-vs-truth metric.", deduction: "The hand-off adds no discontinuity (jump = 0) and the continuation is more PDE-consistent than the ML (the residual drops, no spike). The seam is physically clean, not just numerically continuous.", script: "handoff_stability_diagnostic.py" },
-  { src: "/module2_figures/restart_safety_boundary.png", title: "Restart-safety boundary (Re_cell ≈ 3.2)", note: "The careless restart fails past cell Reynolds number Re_cell ≈ 3.2. Includes a grid-refinement control (N = 1024/2048) and a reference-free high-k diagnostic.", metric: "Tail error vs cell Reynolds number Re_cell (a grid-resolution diagnostic), against a 1% error threshold.", deduction: "A restartable solver must keep the production scheme's safeguards: drop the 2/3 de-aliasing and it fails past Re_cell ≈ 3.2; the verified restart preserves them and stays ~10⁻¹¹. This proves the restart is faithful, not that it beats spectral methods.", script: "restart_safety_boundary.py" },
+  { src: "/module2_figures/restart_safety_boundary.png", title: "Restart-safety boundary (Re_cell ≈ 3.2)", note: "The careless restart fails past cell Reynolds number Re_cell ≈ 3.2. Also checked at a finer grid, and with a second diagnostic that doesn't need the true answer, same result.", metric: "Tail error vs cell Reynolds number Re_cell (a grid-resolution diagnostic), against a 1% error threshold.", deduction: "A restartable solver must keep the production scheme's safeguards: drop the 2/3 de-aliasing and it fails past Re_cell ≈ 3.2; the verified restart preserves them and stays ~10⁻¹¹. This shows the restart is faithful, not that it beats spectral methods.", script: "restart_safety_boundary.py" },
 ];
 
 export default function CouplingPage() {
@@ -523,12 +529,13 @@ export default function CouplingPage() {
 
       </div>)}
       {tab === "evidence" && (<div className="space-y-6">
-        {/* NOVELTY + KEY NUMBERS, the first thing the examiner sees on this tab */}
+        {/* NOVELTY + KEY NUMBERS, the first thing the examiner sees on this tab.
+            WORDING LOCK: "verified", not "proved" — matches the viva Q&A defense. */}
         <div className="rounded-2xl border-2 border-indigo-300 dark:border-indigo-500/40 bg-indigo-50/60 dark:bg-indigo-500/10 p-5">
           <div className="text-xs font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 mb-1">My contribution</div>
           <p className="text-sm text-slate-800 dark:text-slate-100 font-medium">
             I made the numerical solver able to <span className="text-indigo-600 dark:text-indigo-400">restart from the ML solver&apos;s state mid-run</span>,
-            proved that restart is <span className="text-indigo-600 dark:text-indigo-400">identical to the original solver</span>, and measured{" "}
+            verified that restart is <span className="text-indigo-600 dark:text-indigo-400">identical to the original solver</span>, and measured{" "}
             <span className="text-indigo-600 dark:text-indigo-400">when the hand-off is still worth doing</span>.
           </p>
           <div className="flex flex-wrap gap-2 mt-3 text-[11px] font-semibold">
@@ -608,7 +615,9 @@ export default function CouplingPage() {
           </p>
         </div>
 
-        {/* NOVELTY IN CODE, mirrors the Cost page's card, with M2's receipts */}
+        {/* NOVELTY IN CODE, mirrors the Cost page's card, with M2's receipts.
+            WORDING LOCK: this card is already fine, "reproduces" / "confirms", no "proves" or "guarantees".
+            Reviewed, don't rephrase it into an overclaim if this file gets re-touched. */}
         <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
           {/* <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2 flex items-center gap-2">
           <Code2 size={14} /> Why this is trustworthy (in code)
@@ -664,7 +673,7 @@ export default function CouplingPage() {
           <h2 className="text-2xl font-bold mt-1 text-slate-800 dark:text-slate-100">How the hand-off is built</h2>
           <p className="text-sm text-slate-600 dark:text-slate-300 mt-2 leading-relaxed">
             The ML solver runs while it&apos;s trusted; at the switch, the production numerical solver is re-seeded with the exact
-            ML state and continues to the end. The restart is proven identical to the trusted solver, and the hand-off adds no
+            ML state and continues to the end. The restart is verified identical to the trusted solver, and the hand-off adds no
             discontinuity, every step below is a control or a check, not a convenience.
           </p>
         </div>
@@ -710,11 +719,12 @@ export default function CouplingPage() {
           ))}
         </div>
 
+        {/* WORDING LOCK: "verified" not "proved/proven", "delivers" not "guarantees" — matches the viva Q&A defense. */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="rounded-2xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 p-5">
             <div className="text-sm font-bold text-emerald-800 dark:text-emerald-300">Verified, not assumed</div>
             <p className="text-sm text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
-              The restart isn&apos;t &ldquo;close&rdquo; to the production solver, it&apos;s verified identical in the tested production equivalence check with a relative difference 0.0, and
+              The restart isn&apos;t &ldquo;close&rdquo; to the production solver, it&apos;s verified identical against it, relative difference 0.0, and
               the zero-jump property is a test, not a claim. Every headline number has a passing test behind it.
             </p>
           </div>
@@ -722,7 +732,7 @@ export default function CouplingPage() {
             <div className="text-sm font-bold text-slate-700 dark:text-slate-200">It times the hand-off, it doesn&apos;t fix the ML</div>
             <p className="text-sm text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
               The oracle decomposition shows the coupling adds ~10⁻⁶; the rest is inherited from the ML state. So the module
-              guarantees a faithful, well-timed hand-off, it can&apos;t repair a bad ML prediction, and it doesn&apos;t claim to.
+              delivers a faithful, well-timed hand-off, it can&apos;t repair a bad ML prediction, and it doesn&apos;t claim to.
             </p>
           </div>
         </div>
