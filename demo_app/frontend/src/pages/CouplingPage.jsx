@@ -71,7 +71,7 @@ const COUPLING_BUILD = [
     n: 3, color: "#7c3aed", title: "Continue under the production scheme",
     what: "Advance with the team's verified pseudo-spectral solver, same grid, 2/3 de-aliasing, Nyquist zeroing, integrating-factor RK4.",
     chips: [{ label: "verified restart", color: "#7c3aed" }, { label: "= production solver", color: "#7c3aed" }],
-    why: "It's the scheme everyone already trusts. The restart is proven bit-identical to it (rel diff 0.0 in verify_restart.py), so continuing changes nothing about the numerics."
+    why: "It's the scheme everyone already trusts. The restart is verified identical in the tested production equivalence check with a relative difference 0.0, so continuing changes nothing about the numerics."
   },
   {
     n: 4, color: "#e11d48", title: "Switch once, never hand back",
@@ -81,7 +81,7 @@ const COUPLING_BUILD = [
   },
   {
     n: 5, color: "#059669", title: "Verify & decompose the error",
-    what: "12 automated tests, plus an oracle restart from the TRUE state to separate the coupling's own error from the inherited ML error.",
+    what: "Automated behavioural tests, plus an oracle restart from the TRUE state to separate the coupling's own error from the inherited ML error.",
     detail: "E_coupling ≈ 10⁻⁶  ≪  E_inherited  (dominates)",
     why: "The oracle proves the coupling itself adds almost nothing, all remaining hybrid error is inherited from the ML hand-off state, not produced by the switch."
   },
@@ -714,7 +714,7 @@ export default function CouplingPage() {
           <div className="rounded-2xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 p-5">
             <div className="text-sm font-bold text-emerald-800 dark:text-emerald-300">Verified, not assumed</div>
             <p className="text-sm text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
-              The restart isn&apos;t &ldquo;close&rdquo; to the production solver, it&apos;s proven bit-identical (rel diff 0.0), and
+              The restart isn&apos;t &ldquo;close&rdquo; to the production solver, it&apos;s verified identical in the tested production equivalence check with a relative difference 0.0, and
               the zero-jump property is a test, not a claim. Every headline number has a passing test behind it.
             </p>
           </div>
