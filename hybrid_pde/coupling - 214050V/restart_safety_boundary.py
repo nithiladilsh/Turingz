@@ -119,6 +119,7 @@ def crossings():
     r = _load()
     rows = sorted(r["boundary"].values(), key=lambda x: x["re_cell"])
     res = {}
+    # threshold
     for thr, name in ((0.01, "1pct"), (0.05, "5pct")):
         rc = None
         for a, b in zip(rows, rows[1:]):

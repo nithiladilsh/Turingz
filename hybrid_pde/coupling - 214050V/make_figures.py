@@ -71,7 +71,8 @@ def compute():
                  benefit=float(b[s].mean()), ics_improved=int((hyb[s] < fno[s]).sum()))
             for s in range(len(SWITCH_TIMES))]
     # a-priori viability rule (frozen BEFORE looking at results):
-    #   viable if mean benefit >= 10% AND mean absolute hybrid tail error < E_MAX
+    # viable if mean benefit >= 10% AND mean absolute hybrid tail error < E_MAX
+    # threshold
     E_MAX = 0.10
     bmean = b.mean(1); hmean = hyb.mean(1)
     viable = [(bmean[s] >= 0.10 and hmean[s] < E_MAX) for s in range(len(SWITCH_TIMES))]

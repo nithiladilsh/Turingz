@@ -87,7 +87,7 @@ export default function ColeHopfPage() {
         <span className="text-xs font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Numerical solvers</span>
         <h1 className="text-3xl font-extrabold text-slate-800 dark:text-slate-100 mt-1">Cole–Hopf, the exact reference</h1>
         <span className="inline-block mt-2 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300">
-          Evaluation reference, not the runtime corrector
+          Used to check answers, not used live to fix them
         </span>
         <p className="text-slate-500 dark:text-slate-400 mt-1">
           Every number in this project is measured against one reference solution. So we asked:{" "}
@@ -102,11 +102,11 @@ export default function ColeHopfPage() {
           How Cole–Hopf works, three steps
         </div>
         <div className="flex items-stretch gap-2 flex-wrap">
-          <Step n="1" icon={Wand2} tone="indigo" title="Transform" sub="the nonlinear Burgers equation becomes the linear heat equation" />
+          <Step n="1" icon={Wand2} tone="indigo" title="Turn it into an easy problem" sub="the hard equation becomes a simple, well-known one" />
           <ArrowRight size={18} className="self-center shrink-0 text-slate-300 dark:text-slate-600" />
-          <Step n="2" icon={Thermometer} tone="violet" title="Solve heat exactly" sub="one heat-kernel convolution, no time marching" />
+          <Step n="2" icon={Thermometer} tone="violet" title="Solve it in one shot" sub="no repeated steps, no error building up" />
           <ArrowRight size={18} className="self-center shrink-0 text-slate-300 dark:text-slate-600" />
-          <Step n="3" icon={Undo2} tone="fuchsia" title="Transform back" sub="recover the Burgers solution, exact in time" />
+          <Step n="3" icon={Undo2} tone="fuchsia" title="Convert back" sub="get the original answer back, with no error added" />
         </div>
 
         <div className="mt-5 rounded-xl bg-slate-50 dark:bg-slate-700/40 p-4">
@@ -139,7 +139,7 @@ export default function ColeHopfPage() {
               <div>
                 <div className="text-sm font-semibold text-slate-800 dark:text-slate-100">The exact solution steepening into the viscous shock</div>
                 <div className="text-xs text-slate-500 dark:text-slate-400">
-                  a real held-out wave, the trajectory every model trains on and is measured against
+                  a representative wave, the kind of trajectory every model trains on and is measured against
                 </div>
               </div>
               <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full ${shockPct > 60
@@ -180,11 +180,11 @@ export default function ColeHopfPage() {
           <Metric icon={Timer} tone="indigo" tag="Exactness" value="0"
             label="time-stepping error, the heat kernel gives the whole trajectory in one shot" />
           <Metric icon={ShieldCheck} tone="emerald" tag="Cross-check" value={`${S.agreePct}%`}
-            label={`agreement with the independent spectral solver (max gap ${eToSup(S.maxDis)})`} />
-          <Metric icon={Scale} tone="indigo" tag="Vs FDM" value={`${S.timesWorse}×`}
-            label={`FDM is ${S.fdmVsExact}% off this reference, a cheap baseline, not a truth source`} />
+            label={`agreement with the team's spectral solver (max gap ${eToSup(S.maxDis)})`} />
+          <Metric icon={Scale} tone="indigo" tag="Vs. a rough method" value={`${S.timesWorse}×`}
+            label={`a quick, rougher method is ${S.fdmVsExact}% off from this exact answer, fast but not trustworthy`} />
           <Metric icon={Target} tone="indigo" tag="Role" value="Reference"
-            label="generates the reference dataset and scores every model; the runtime hand-off continues with the pseudo-spectral solver" />
+            label="creates the trusted answers used to test every model; the live system continues with a different, faster reliable method" />
         </div>
       </div>
 
@@ -192,7 +192,7 @@ export default function ColeHopfPage() {
       <div className="rounded-2xl p-5 bg-gradient-to-r from-emerald-50 via-white to-white dark:from-emerald-500/10 dark:via-slate-800 dark:to-slate-800 border border-emerald-200 dark:border-emerald-500/30">
         <div className="text-sm font-semibold text-emerald-800 dark:text-emerald-300 flex items-center gap-2"><CheckCircle2 size={16} /> Answer</div>
           <p className="text-sm text-slate-700 dark:text-slate-200 mt-1">
-          Cole–Hopf is the <span className="font-medium">the ground truth reference</span>. It provides the trusted solution used to measure the error of the ML, numerical and hybrid methods. Its implementation was cross-checked against the spectral solver for consistency.
+          Cole–Hopf is <span className="font-medium">the ground truth reference</span>. It provides the trusted solution used to measure the error of the ML, numerical and hybrid methods. Its implementation was cross-checked against the spectral solver for consistency.
         </p>
       </div>
     </div>
