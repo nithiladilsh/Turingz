@@ -13,7 +13,7 @@ const fmtTick = (v) => {
 const ticks = (r, n) =>
   Array.from({ length: n + 1 }, (_, i) => r[0] + (i / n) * (r[1] - r[0]));
 
-export function LineChart({ series, xr, yr, w = 460, h = 200, hline, vline, xlabel, ylabel, xticks = 5, yticks = 4 }) {
+export function LineChart({ series, xr, yr, w = 460, h = 200, hline, vline, vlineColor = "#e11d48", vlineLabel, xlabel, ylabel, xticks = 5, yticks = 4 }) {
   const padL = 46, padR = 14, padT = 12, padB = 34;
   const sx = (v) => padL + ((v - xr[0]) / (xr[1] - xr[0])) * (w - padL - padR);
   const sy = (v) => h - padB - ((v - yr[0]) / (yr[1] - yr[0])) * (h - padT - padB);
@@ -44,7 +44,12 @@ export function LineChart({ series, xr, yr, w = 460, h = 200, hline, vline, xlab
         <line x1={padL} x2={w - padR} y1={sy(hline)} y2={sy(hline)} stroke="#f59e0b" strokeDasharray="4 3" />
       )}
       {vline != null && (
-        <line x1={sx(vline)} x2={sx(vline)} y1={padT} y2={h - padB} stroke="#e11d48" strokeWidth="1.5" />
+        <>
+          <line x1={sx(vline)} x2={sx(vline)} y1={padT} y2={h - padB} stroke={vlineColor} strokeWidth="1.5" strokeDasharray={vlineLabel ? "4 3" : "0"} />
+          {vlineLabel && (
+            <text x={sx(vline) + 4} y={padT + 9} fontSize="9" fontWeight="700" fill={vlineColor}>{vlineLabel}</text>
+          )}
+        </>
       )}
       {series.map((s, i) =>
         s.x.length > 1 ? (
