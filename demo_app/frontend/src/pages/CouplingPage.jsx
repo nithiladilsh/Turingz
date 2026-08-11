@@ -591,6 +591,26 @@ export default function CouplingPage() {
           ))}
         </div>
 
+        {/* WORDING LOCK: "verified" not "proved/proven", "delivers" not "guarantees" — matches the viva Q&A defense. */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="rounded-2xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 p-5">
+            <div className="text-sm font-bold text-emerald-800 dark:text-emerald-300">Tested, not assumed</div>
+            <p className="text-sm text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
+              The restart isn&apos;t just &ldquo;close enough&rdquo; to the trusted method, we compared them directly and got an
+              exact match. And &ldquo;no glitch at the switch&rdquo; isn&apos;t something we assume either, we tested it. Every number
+              on this page has a test behind it, proving it&apos;s true.
+            </p>
+          </div>
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30 p-5">
+            <div className="text-sm font-bold text-slate-700 dark:text-slate-200">It times the hand-off, it doesn&apos;t fix the ML</div>
+            <p className="text-sm text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
+              Our checks show my switch adds almost no error of its own, whatever error is left over came from the ML model.
+              So my module makes sure the switch happens cleanly and at the right time, it can&apos;t fix a bad ML
+              prediction, and it was never meant to.
+            </p>
+          </div>
+        </div>
+
       </div>)}
 
       {tab === "eval" && (<div className="space-y-6">
