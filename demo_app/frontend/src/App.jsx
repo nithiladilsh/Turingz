@@ -76,10 +76,21 @@ export default function App() {
     <div className="min-h-screen">
       <aside className="fixed top-0 left-0 h-screen w-64 overflow-y-auto bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 p-4 z-20 flex flex-col">
         <div className="px-2 py-3">
-          <div className="text-lg font-bold text-slate-800 dark:text-slate-100">
-            Team Turingz
+          <div className="flex items-center gap-2">
+            <div
+              className="w-8 h-8 rounded-full overflow-hidden shrink-0 bg-[#15122b]"
+              style={{
+                backgroundImage: "url(/turingz-logo.png.png)",
+                backgroundSize: "100%",
+                backgroundPosition: "50% 50%",
+                backgroundRepeat: "no-repeat",
+              }}
+            />
+            <div className="text-lg font-bold text-slate-800 dark:text-slate-100">
+              Team Turingz
+            </div>
           </div>
-          <div className="text-xs text-slate-500 dark:text-slate-400">
+          <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             Hybrid ML + Numerical PDE Solver
           </div>
         </div>
