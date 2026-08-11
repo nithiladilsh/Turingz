@@ -294,7 +294,10 @@ export default function RobustnessPage() {
             fix it. So this page does two things: it&apos;s <span className="font-semibold">the reason a hand-off is needed at all, and it shows
             the limit of how late that hand-off can happen</span>, the switch has to happen before the ML&apos;s prediction is too damaged to recover.
           </p>
-
+          <p className="text-sm text-slate-600 dark:text-slate-300 mt-3 pt-3 border-t border-rose-200/60 dark:border-rose-500/20">
+            <span className="font-semibold text-slate-800 dark:text-slate-100">Next → the Coupling module:</span> this failure is exactly what my
+            module catches and hands off from, taking the wave over to the reliable method before it&apos;s too late.
+          </p>
         </div>
       </>)}
 

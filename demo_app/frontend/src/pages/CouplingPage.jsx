@@ -5,7 +5,7 @@ import { getMeta, buildIC, pinnIC, realTestIC, runCoupling } from "../api.js";
 import {
   RL_XS, RL_T, RL_FRAMES, RL_ERR_ML, RL_SWITCHES, RL_META,
 } from "../couplingData.js";
-import { Play, GitCommitHorizontal, Microscope, Code2, CheckCircle2 } from "lucide-react";
+import { Play, GitCommitHorizontal } from "lucide-react";
 // committed source of truth: written by make_figures.py from the 100 held-out predictions
 import sweep from "../../../../results/module2/figures/handoff_sweep_results.json";
 // committed final-integration comparison (trust-triggered hard switch vs baselines)
@@ -59,35 +59,43 @@ function committedAt(ts) {
    so this file must not contradict that. If you're re-typing this after a revert, keep it this way. */
 const COUPLING_BUILD = [
   {
-    n: 1, color: "#4f46e5", title: "Run the fast model first",
-    what: "Run the fast ML model (one of three types tried) to predict the whole result quickly.",
-    chips: [{ label: "ML prediction stream", color: "#4f46e5" }],
-    why: "It's cheap and fast, so we let it do the work while it's still reliable. We only replace it once, at the switch."
+    n: 1, color: "#4f46e5", title: "ML produces a state",
+    what: "One of three ML models (FNO / PINN / DeepONet) predicts the wave, all behind one shared interface.",
+    detail: "No architecture detail matters here, whichever model runs, my module sees the same thing: a predicted state at time t.",
+    why: "The ML model is a swappable dependency. Coupling code doesn't care which one produced the state."
   },
   {
-    n: 2, color: "#0d9488", title: "Hand over cleanly",
-    what: "Give the trusted method the ML model's exact last prediction as its starting point.",
-    detail: "solve_from(u_ML(t_s)):  first numerical frame = u_ML(t_s)  →  jump = 0",
-    why: "This makes the switch seamless by design, no blending, no guessing. The trusted method's first step picks up exactly where the ML model left off."
+    n: 2, color: "#0d9488", title: "Take u_ML(t_s)",
+    what: "At the switch time, take the ML model's exact predicted state, nothing else.",
+    detail: "solve_from(u_ML(t_s), i_start)  →  first numerical frame = u_ML(t_s)  →  jump = 0",
+    why: "The last ML state becomes the first numerical state. No blending, no re-deriving, so there's nothing new to go wrong at the seam."
   },
   {
-    n: 3, color: "#7c3aed", title: "Keep going with the trusted method",
-    what: "Continue with the team's verified, reliable method, the exact same one trusted everywhere else in this project.",
-    chips: [{ label: "verified restart", color: "#7c3aed" }, { label: "= production solver", color: "#7c3aed" }],
-    why: "It's the scheme everyone already trusts. The restart is verified identical against it, relative difference 0.0, so continuing changes nothing about the numerics."
+    n: 3, color: "#7c3aed", title: "restart_spectral.py · solve_from()",
+    what: "The file and function that make the production solver restartable from any given state, not just from t = 0.",
+    detail: "restart_spectral.py → def solve_from(u0, i_start, nu):  verified identical to solve_full() when i_start = 0",
+    why: "Verified two ways: run from t = 0 it reproduces the original solver exactly, and the handed-over state survives the switch unchanged."
   },
   {
-    n: 4, color: "#e11d48", title: "Switch once, never go back",
-    what: "Once we switch to the trusted method, we stay on it for good, we never switch back to the ML model.",
-    detail: "if trust fires: switch once, never hand back",
-    why: "Going back to the ML model would bring its errors back. The trusted method is a swappable part, not hardwired in, so this same design works no matter what triggers the switch."
+    n: 4, color: "#e11d48", title: "m2_coupling.py · M2Coupling",
+    what: "The class that actually performs the hand-off.",
+    detail: "class M2Coupling:  rollout(ic, x, t, ml, num, trigger)  → one-way hard switch    correct(state, x, t0, t1, num)  → single-interval numerical continuation",
+    why: "rollout() decides nothing, it executes a switch once and never reverses it. correct() is the reusable primitive Module 3 calls to run numerics over any interval it chooses."
   },
   {
-    n: 5, color: "#059669", title: "Check where the error comes from",
-    what: "Automated tests, plus a check against the perfect answer, to prove any leftover error came from the ML model, not from my switch.",
-    detail: "E_coupling ≈ 10⁻⁶  ≪  E_inherited  (dominates)",
-    why: "This shows my switch adds almost no error of its own. Whatever error is left over was already in the ML model's prediction before I even touched it."
+    n: 5, color: "#059669", title: "Integration",
+    what: "Module 1 or Module 3 decide when. M2Coupling is the only place the ML model and the numerical solver actually touch.",
+    detail: "Module 1 / Module 3  →  M2Coupling  →  restartable numerical solver (restart_spectral.py)",
+    why: "The switch decision is external. Module 2 executes the requested hand-off, it doesn't decide when to trigger it."
   },
+];
+
+/* the 4 short reasons behind the design, kept as bullets, not paragraphs */
+const WHY_CHOICES = [
+  { t: "Same state", d: "prevents an artificial discontinuity at the switch" },
+  { t: "Production numerical scheme preserved", d: "the fallback stays the one everyone already trusts" },
+  { t: "One-way hard switch", d: "avoids re-introducing ML drift by switching back" },
+  { t: "Coupling interface", d: "separates switching logic from model internals" },
 ];
 
 /* Final-integration baselines, read live from trust_hardswitch_compare.json. */
@@ -104,26 +112,8 @@ const MODEL_ROWS = ["FNO", "PINN", "DeepONet"].map((m) => {
   return { m, es: (r.state_err * 100).toFixed(1), pml: (r.pureML_tail * 100).toFixed(1), hyb: (r.hybrid_tail * 100).toFixed(1), ben: (r.benefit * 100).toFixed(0) };
 });
 
-/* "Evaluation at a glance", the five strongest numbers, each from a committed file. */
+/* State-jump/residual diagnostic at t_s = 1.0, used in Evaluation Q3 (continuity check). */
 const _STAB0 = stab.rows.find((r) => Math.abs(r.t_s - 1.0) < 1e-9) || stab.rows[0];
-const GLANCE = [
-  { v: `${AGG.reduction}%`, label: "Error reduction", cap: `${AGG.fnoTail1}% → ${AGG.hybTail2}% at t_s = 1.0 · ${AGG.nIC} waves`, metric: "relative L2 tail error", c: "#059669" },
-  { v: `≈ ${AGG.boundary}`, label: "Viability boundary", cap: "latest switch meeting the pre-set rule", metric: "interpolated switch time t_s", c: "#7c3aed" },
-  { v: `~${ORACLE_STR}`, label: "Oracle restart error", cap: "true-state restart adds ~nothing", metric: "relative L2 tail error, true-state restart", c: "#4f46e5" },
-  { v: _STAB0.state_jump.toFixed(1), label: "State jump at switch", cap: "continuous hand-off, by construction", metric: "L2 norm of state discontinuity", c: "#0d9488" },
-  { v: "0.0", label: "Restart verification", cap: "rel diff vs production solver", metric: "max relative diff vs full production trajectory", c: "#d97706" },
-];
-
-/* Cost end of the frontier, the latest viable measured switch (near the boundary ≈1.49). */
-const _R14 = sweep.results.find((r) => Math.abs(r.t_s - 1.4) < 1e-9) || sweep.results[2];
-const _R10n = (sweep.results.find((r) => Math.abs(r.t_s - 1.0) < 1e-9) || sweep.results[0]).numerical_fraction;
-const AGG_COST = {
-  ts: "1.4",
-  hyb: (_R14.hybrid_tail * 100).toFixed(1),   // 6.8
-  ben: (_R14.benefit * 100).toFixed(0),       // 66
-  work: (_R14.numerical_fraction * 100).toFixed(0), // 31
-  work10: (_R10n * 100).toFixed(0),           // 50
-};
 
 /* ---- the wave, carried by whoever owns it at the playhead ---- */
 function RelayWave({ frame, hyField, switched }) {
@@ -265,22 +255,8 @@ function FigCard({ src, title, note, metric, deduction, script }) {
   );
 }
 
-const EVAL_CORE = [
-  { src: "/module2_figures/fig1_error_over_time.png", title: "Error over time, FNO vs numerical vs hybrid", note: "Hand-off at t = 1, mean ± std over 100 held-out ICs. After the switch the hybrid tracks the numerical solution instead of drifting with the ML.", metric: "Relative L2 error at each time t, mean ± std over 100 held-out waves, the full curve over time, not just the tail scalar.", deduction: "Switching to the numerical solver halts the ML's continued extrapolation drift. It prevents further error growth, it does not undo error already present at the switch.", script: "make_figures.py" },
-  { src: "/module2_figures/fig4_hybrid_vs_upper_bound.png", title: "Oracle decomposition, the coupling adds almost nothing", note: "Restarting from the TRUE state (upper bound) is negligibly better than from the FNO state (~10⁻⁶). All remaining hybrid error is inherited from the ML hand-off state.", metric: "Relative L2 tail error over [t_s, 2], comparing a restart from the ML state against a restart from the true state.", deduction: "Given the true state, the same solver's error is ~10⁻⁶, so the continuation itself adds almost nothing. The remaining hybrid error is inherited from the handed-over ML state, which sets the accuracy ceiling.", script: "make_figures.py" },
-  { src: "/module2_figures/fig5_accuracy_vs_cost.png", title: "Accuracy vs cost", note: "Earlier hand-off = more numerical work, lower error. The cost proxy is the fraction of steps solved numerically (machine-independent).", metric: "Relative L2 tail error vs numerical work (fraction of steps solved numerically).", deduction: "Earlier switch = more numerical work but lower error; later = cheaper but less accurate. This is the trade-off curve Module 3 chooses a point on; Module 2 measures it.", script: "make_figures.py" },
-];
-
 const EVAL_ROBUST = [
   { src: "/module2_figures/fig8_ood_error_over_time.png", title: "Out-of-distribution wave", note: "A higher-frequency wave sin(6πx), beyond the trained band (modes 1–4). The hybrid still limits the damage after the hand-off, but cannot recover a state the ML has already lost.", metric: "Relative L2 error against the true Cole–Hopf solution, on an out-of-distribution input.", deduction: "The coupling is corrective, not reconstructive: it faithfully continues the state it receives, but cannot rebuild information the ML has already lost. This is exactly why switching early matters.", script: "ood_experiment.py" },
-];
-
-/* WORDING LOCK: "shows", not "proves" — matches the viva Q&A defense (verified, not a mathematical proof).
-   Also keep the restart-safety note free of unexplained jargon (no "reference-free high-k diagnostic" etc.),
-   the evaluator reads this caption directly, don't hand him a term to interrogate. */
-const EVAL_FIDELITY = [
-  { src: "/module2_figures/handoff_stability_diagnostic.png", title: "Continuity across the switch", note: "State jump ≈ 0 and the Burgers PDE residual stays stable across the hand-off, vs a deliberately careless-restart negative control.", metric: "State jump = L2 norm of the discontinuity at switch. Residual = r = u_t + u·u_x − ν·u_xx, a physical-consistency check, not an error-vs-truth metric.", deduction: "The hand-off adds no discontinuity (jump = 0) and the continuation is more PDE-consistent than the ML (the residual drops, no spike). The seam is physically clean, not just numerically continuous.", script: "handoff_stability_diagnostic.py" },
-  { src: "/module2_figures/restart_safety_boundary.png", title: "Restart-safety boundary (Re_cell ≈ 3.2)", note: "The careless restart fails past cell Reynolds number Re_cell ≈ 3.2. Also checked at a finer grid, and with a second diagnostic that doesn't need the true answer, same result.", metric: "Tail error vs cell Reynolds number Re_cell (a grid-resolution diagnostic), against a 1% error threshold.", deduction: "A restartable solver must keep the production scheme's safeguards: drop the 2/3 de-aliasing and it fails past Re_cell ≈ 3.2; the verified restart preserves them and stays ~10⁻¹¹. This shows the restart is faithful, not that it beats spectral methods.", script: "restart_safety_boundary.py" },
 ];
 
 export default function CouplingPage() {
@@ -290,6 +266,10 @@ export default function CouplingPage() {
   const [tsIdx, setTsIdx] = useState(1);            // index into RL_SWITCHES (default t_s = 1.0)
   const [ph, setPh] = useState(0);                  // playhead frame
   const [playing, setPlaying] = useState(true);
+  const [robustView, setRobustView] = useState("normal");   // Story §2 toggle: normal held-out wave vs severe OOD wave
+  const [openStep, setOpenStep] = useState(1);               // How it's built: which pipeline step is expanded
+  const [showNumerics, setShowNumerics] = useState(false);    // How it's built: "View numerical details" accordion
+  const [showDeepVal, setShowDeepVal] = useState(false);      // Evaluation: "Deep technical validation" accordion
   useEffect(() => {
     if (!playing) return;
     const id = setInterval(() => setPh((k) => (k + 1) % RL_FRAMES.length), 110);
@@ -384,7 +364,7 @@ export default function CouplingPage() {
 
       {/* TABS */}
       <div className="flex gap-2">
-        {[["story", "Story"], ["evidence", "Evidence"], ["built", "How it's built"], ["eval", "Evaluation"], ["live", "Try it live"]].map(([v, label]) => (
+        {[["story", "Story"], ["built", "How it's built"], ["eval", "Evaluation"], ["live", "Try it live"]].map(([v, label]) => (
           <button key={v} onClick={() => setTab(v)}
             className={`px-4 py-2 rounded-xl text-sm font-medium border transition ${tab === v
               ? "bg-indigo-600 text-white border-indigo-600"
@@ -395,6 +375,46 @@ export default function CouplingPage() {
       </div>
 
       {tab === "story" && (<div className="space-y-6">
+        {/* ===== SECTION 2 · ROBUSTNESS, AS A STRIP — not a page. One toggle, one deduction.
+            Reuses only committed numbers/figures already defined above (AGG, EVAL_ROBUST). ===== */}
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 p-5">
+          <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Why a fallback is needed</span>
+            <div className="flex gap-1.5">
+              {[["normal", "Held-out wave"], ["ood", "Severe OOD wave"]].map(([v, label]) => (
+                <button key={v} onClick={() => setRobustView(v)}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition ${robustView === v
+                    ? "bg-indigo-600 text-white border-indigo-600" : inactiveBtn}`}>{label}</button>
+              ))}
+            </div>
+          </div>
+          {/* trained region vs future, a simple two-segment timeline */}
+          <div className="relative h-7 rounded-lg overflow-hidden flex text-[11px] font-bold text-white select-none">
+            <div className="bg-slate-400 dark:bg-slate-500 grid place-items-center" style={{ width: "50%" }}>trained region</div>
+            <div className="bg-rose-500/90 grid place-items-center flex-1">future · extrapolation</div>
+          </div>
+          <div className="flex justify-between text-[10px] text-slate-400 dark:text-slate-500 mt-1 mb-3">
+            <span>t = 0</span><span>t = 1</span><span>t = 2</span>
+          </div>
+          {robustView === "normal" ? (
+            <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+              On an ordinary held-out wave, the ML model is accurate inside the trained region. Push it past t = 1 with
+              no fallback and, by t = 2, its own error alone reaches <b className="text-rose-600 dark:text-rose-400">{AGG.fnoTail1}%</b>.
+            </p>
+          ) : (
+            <div className="flex flex-col md:flex-row gap-4 items-start">
+              <img src={EVAL_ROBUST[0].src} alt={EVAL_ROBUST[0].title} loading="lazy"
+                className="w-full md:w-64 rounded-lg border border-slate-200 dark:border-slate-700 bg-white shrink-0" />
+              <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                On a shape it has never seen, the ML model is already badly wrong before the hand-off point. Numerical
+                continuation can limit further damage after the switch, but it cannot reconstruct state that&apos;s already lost.
+              </p>
+            </div>
+          )}
+          <p className="text-xs font-medium text-slate-700 dark:text-slate-200 mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
+            → This is why the system needs a fallback.
+          </p>
+        </div>
         <div className="flex items-center gap-2"><Badge kind="rep" /><span className="text-xs text-slate-400 dark:text-slate-500">the wave shape is one representative held-out wave; the numbers are the n = {AGG.nIC} committed aggregate at each hand-off time</span></div>
         {/* ===== THE RELAY TIMELINE, the page's centrepiece ===== */}
         <div className="rounded-2xl border-2 border-indigo-200 dark:border-indigo-500/30 bg-white dark:bg-slate-800 p-5">
@@ -455,42 +475,36 @@ export default function CouplingPage() {
               <div className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400">{sw.jump === 0 ? "0" : eToSup(sw.jump)}</div>
             </div>
             <p className="col-span-4 text-[11px] text-slate-500 dark:text-slate-400 mt-2">
-              Later hand-offs are <span className="font-medium">cheaper</span> (less numerical work) but{" "}
-              <span className="font-medium">less accurate</span>, the state handed over is already degraded.
-              The criterion above is about <span className="font-medium">accuracy</span>, not cost: how much that
-              accuracy is worth paying for is Module 3&apos;s decision.
+              {verdict === "meets 10% accuracy criterion"
+                ? "The ML state is still good here, so numerical continuation gives a large improvement."
+                : verdict === "diminishing benefit"
+                  ? "Less numerical work at this point, but the handed-over ML state is already more degraded."
+                  : "Numerics can stop further drift from here, but they can't undo error already present at the switch."}
             </p>
           </div>
         </div>
-                {/* FRONTIER ENDS, accuracy vs cost, both from the committed sweep */}
-        <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
-          <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Two ends of the same trade-off</div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
-            Switching earlier gives the best accuracy but costs the most computation. Switching later costs less,
-            but the result gets worse, until it's not worth doing anymore, that limit is around t = {AGG.boundary}.
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="rounded-xl border border-emerald-100 dark:border-emerald-500/20 bg-emerald-50 dark:bg-emerald-500/10 p-3">
-              <div className="text-[10px] uppercase tracking-wide text-emerald-600 dark:text-emerald-400">Accuracy end · t_s = 1.0</div>
-              <div className="text-sm mt-1 text-slate-700 dark:text-slate-200"><b>{AGG.hybTail2}%</b> error · <b>{AGG.reduction}%</b> benefit</div>
-              <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{AGG_COST.work10}% of the run solved numerically</div>
-            </div>
-            <div className="rounded-xl border border-indigo-100 dark:border-indigo-500/20 bg-indigo-50 dark:bg-indigo-500/10 p-3">
-              <div className="text-[10px] uppercase tracking-wide text-indigo-600 dark:text-indigo-400">Cost end · t_s = {AGG_COST.ts} (latest viable)</div>
-              <div className="text-sm mt-1 text-slate-700 dark:text-slate-200"><b>{AGG_COST.hyb}%</b> error · <b>{AGG_COST.ben}%</b> benefit</div>
-              <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{AGG_COST.work}% numerical, ~40% less work, still under 10%</div>
-            </div>
-          </div>
-        </div>
 
-        {/* aggregate headline, pins the real result to the Story tab so it stands alone
-      <div className="rounded-2xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50/60 dark:bg-emerald-500/10 px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-1.5">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">Aggregate · n = {AGG.nIC} held-out</span>
-        <span className="text-sm text-slate-700 dark:text-slate-200">tail error <b className="text-rose-600 dark:text-rose-400">{AGG.fnoTail1}%</b> → <b className="text-indigo-600 dark:text-indigo-400">{AGG.hybTail2}%</b></span>
-        <span className="text-sm text-slate-700 dark:text-slate-200"><b className="text-emerald-600 dark:text-emerald-400">{AGG.reduction}%</b> reduction</span>
-        <span className="text-sm text-slate-700 dark:text-slate-200"><b>{AGG.icsImproved}/{AGG.nIC}</b> waves improved</span>
-        <span className="text-[11px] text-slate-400 dark:text-slate-500 ml-auto">hand-off tₛ = 1.0 · the animation above is one representative wave</span>
-      </div> */}
+        {/* ===== SECTION 4 · WHAT PHYSICALLY GETS HANDED OVER ===== */}
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
+          <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-3">What physically gets handed over</div>
+          <div className="flex items-center justify-between gap-2 flex-wrap text-center">
+            {[
+              { label: "ML predicted state at t_s", c: "#e11d48" },
+              { label: "SAME STATE", c: "#64748b" },
+              { label: "Numerical solver starts from it", c: "#4f46e5" },
+              { label: "Continuation to t = 2", c: "#4f46e5" },
+            ].map((s, i, arr) => (
+              <div key={s.label} className="flex items-center">
+                <div className="rounded-xl px-3 py-2 text-[11px] font-bold" style={{ background: s.c + "1A", color: s.c }}>{s.label}</div>
+                {i < arr.length - 1 && <span className="mx-2 text-slate-300 dark:text-slate-600">→</span>}
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-3">No blending. No replacement with ground truth.</p>
+          <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400 mt-1">
+            First numerical state = handed-over ML state → state jump = {sw.jump === 0 ? "0" : eToSup(sw.jump)}
+          </p>
+        </div>
 
         {/* wave + error, reacting to the same t_s */}
         <div className="grid grid-cols-2 gap-4">
@@ -525,145 +539,29 @@ export default function CouplingPage() {
           </Card>
         </div>
 
-
-
-      </div>)}
-      {tab === "evidence" && (<div className="space-y-6">
-        {/* NOVELTY + KEY NUMBERS, the first thing the examiner sees on this tab.
-            WORDING LOCK: "verified", not "proved" — matches the viva Q&A defense. */}
-        <div className="rounded-2xl border-2 border-indigo-300 dark:border-indigo-500/40 bg-indigo-50/60 dark:bg-indigo-500/10 p-5">
-          <div className="text-xs font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 mb-1">My contribution</div>
-          <p className="text-sm text-slate-800 dark:text-slate-100 font-medium">
-            I made the numerical solver able to <span className="text-indigo-600 dark:text-indigo-400">restart from the ML solver&apos;s state mid-run</span>,
-            verified that restart is <span className="text-indigo-600 dark:text-indigo-400">identical to the original solver</span>, and measured{" "}
-            <span className="text-indigo-600 dark:text-indigo-400">when the hand-off is still worth doing</span>.
-          </p>
-          <div className="flex flex-wrap gap-2 mt-3 text-[11px] font-semibold">
-            {["restart vs original = 0.0", "jump at switch = 0", `${AGG.fnoTail1}% → ${AGG.hybTail2}% (mean)`, `improved on all ${AGG.nIC} held-out ICs`, `last useful switch ≈ ${AGG.boundary}`].map((t) => (
-              <span key={t} className="px-2.5 py-1 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200">{t}</span>
-            ))}
-          </div>
-        </div>
-        {/* AGGREGATE RESULT, the report headline, kept distinct from the single-wave animation */}
-        <div className="rounded-2xl border-2 border-indigo-200 dark:border-indigo-500/30 bg-white dark:bg-slate-800 p-5">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">Primary result, hand-off at t_s = 1.0</span>
-            <Badge kind="agg" /><Badge kind="committed" />
-          </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
-            Mean over the full {AGG.nIC}-IC held-out test set (1,000 trajectories total: 800 train / 100 validation / 100 test).
-          </p>
-          <div className="grid grid-cols-4 gap-3">
-            <div className="rounded-xl bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 px-3 py-2 text-center">
-              <div className="text-[10px] uppercase tracking-wide text-rose-500">pure ML tail error</div>
-              <div className="text-2xl font-extrabold text-rose-600 dark:text-rose-400">{AGG.fnoTail2}%</div>
-            </div>
-            <div className="rounded-xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 px-3 py-2 text-center">
-              <div className="text-[10px] uppercase tracking-wide text-indigo-500">hybrid tail error</div>
-              <div className="text-2xl font-extrabold text-indigo-600 dark:text-indigo-400">{AGG.hybTail2}%</div>
-            </div>
-            <div className="rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 px-3 py-2 text-center">
-              <div className="text-[10px] uppercase tracking-wide text-emerald-600">error reduction</div>
-              <div className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">{AGG.reduction}%</div>
-            </div>
-            <div className="rounded-xl bg-slate-50 dark:bg-slate-700/40 border border-slate-100 dark:border-slate-600/40 px-3 py-2 text-center">
-              <div className="text-[10px] uppercase tracking-wide text-slate-400">held-out ICs improved</div>
-              <div className="text-2xl font-extrabold text-slate-700 dark:text-slate-200">{AGG.icsImproved} / {AGG.nIC}</div>
-            </div>
-          </div>
-        </div>
-
-        {/* THE FINDING, pinned to the committed n=100 aggregate (not the slider) */}
+        {/* ===== SECTION 7 · TINY SOFTWARE-SYSTEM MAP — who calls whom, inputs/output.
+            Particularly important for a software-engineering evaluator. ===== */}
         <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
-          <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-3 flex items-center gap-2">
-            <Microscope size={14} /> The finding: hybrid error ≈ the ML state error at hand-off
+          <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-3">Where this module sits</div>
+          <div className="flex items-center justify-center gap-2 flex-wrap text-center">
+            <div className="rounded-xl px-3 py-2.5 text-[11px] font-semibold bg-slate-50 dark:bg-slate-700/40 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300">Module 1<br /><span className="font-normal text-slate-400 dark:text-slate-500">&ldquo;Can ML still be trusted?&rdquo;</span></div>
+            <span className="text-slate-300 dark:text-slate-600">→</span>
+            <div className="rounded-xl px-3 py-2.5 text-[11px] font-semibold bg-slate-50 dark:bg-slate-700/40 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300">Module 3<br /><span className="font-normal text-slate-400 dark:text-slate-500">&ldquo;Spend numerical work now?&rdquo;</span></div>
+            <span className="text-slate-300 dark:text-slate-600">→</span>
+            <div className="rounded-xl px-3 py-2.5 text-[11px] font-bold bg-indigo-600 text-white">MODULE 2 · MY PART<br /><span className="font-normal text-indigo-100">Execute the takeover</span></div>
+            <span className="text-slate-300 dark:text-slate-600">→</span>
+            <div className="rounded-xl px-3 py-2.5 text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-300">Hybrid trajectory</div>
           </div>
-          <div className="flex items-center justify-center gap-6 flex-wrap">
-            <div className="text-center">
-              <div className="text-[11px] text-slate-500 dark:text-slate-400">ML state error at hand-off</div>
-              <div className="text-4xl font-extrabold text-rose-600 dark:text-rose-400">{AGG.stateErr}%</div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4 text-xs">
+            <div className="rounded-lg bg-indigo-50/50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 px-3 py-2">
+              <span className="font-bold text-indigo-600 dark:text-indigo-400">Inputs: </span>
+              <span className="text-slate-600 dark:text-slate-300">current ML state · switch time / trigger · numerical solver</span>
             </div>
-            <div className="text-4xl font-black text-slate-300 dark:text-slate-600">≈</div>
-            <div className="text-center">
-              <div className="text-[11px] text-slate-500 dark:text-slate-400">mean hybrid tail error over [t_s, 2]</div>
-              <div className="text-4xl font-extrabold text-indigo-600 dark:text-indigo-400">{AGG.hybTail2}%</div>
-            </div>
-            <div className="max-w-sm text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-              Aggregate over {AGG.nIC} held-out waves at the t_s = 1.0 hand-off. Two different metrics, yet they
-              match: the numerical continuation adds only ~{ORACLE_STR} of its own error (oracle control), so the
-              handed-over ML state <span className="font-semibold text-slate-700 dark:text-slate-200">sets the accuracy ceiling</span> and the
-              restart adds negligible additional error on this benchmark. The tail is slightly lower because viscosity damps the inherited error.
+            <div className="rounded-lg bg-emerald-50/50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 px-3 py-2">
+              <span className="font-bold text-emerald-600 dark:text-emerald-400">Output: </span>
+              <span className="text-slate-600 dark:text-slate-300">one continuous hybrid trajectory</span>
             </div>
           </div>
-        </div>
-
-        {/* ORACLE DECOMPOSITION, visualises where the error comes from (was text-only) */}
-        <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
-          <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1 flex items-center gap-2">
-            <Microscope size={14} /> Where the error comes from, oracle decomposition
-          </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
-            Each bar is the error against the true answer, over the tail. Same numerical continuation, different starting states, the ML state vs the true state (log scale).
-          </p>
-          <OracleBars mlTail={_AGG_R0.fno_tail} hyTail={_AGG_R0.hybrid_tail} oracle={_ORACLE} />
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-            Committed n = {AGG.nIC} aggregate at the t_s = 1.0 hand-off. Restarting from the{" "}
-            <span className="font-semibold">true</span> state collapses to ~{ORACLE_STR}, the continuation
-            is near-perfect. So the hybrid&apos;s error is{" "}
-            <span className="font-medium text-slate-700 dark:text-slate-200">inherited from the ML state you hand over, not created
-              by the switch</span>, which is why hybrid error tracks the ML state error at hand-off (the relationship pinned on the Story tab).
-          </p>
-        </div>
-
-        {/* NOVELTY IN CODE, mirrors the Cost page's card, with M2's receipts.
-            WORDING LOCK: this card is already fine, "reproduces" / "confirms", no "proves" or "guarantees".
-            Reviewed, don't rephrase it into an overclaim if this file gets re-touched. */}
-        <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
-          {/* <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2 flex items-center gap-2">
-          <Code2 size={14} /> Why this is trustworthy (in code)
-        </div> */}
-          <p className="text-sm text-slate-700 dark:text-slate-200">
-            The team&apos;s production spectral solver only ran <span className="font-mono text-[13px]">solve(u0)</span> from t = 0.
-            My part is making it restartable from an arbitrary ML state, and verifying it two ways:
-          </p>
-          <div className="mt-2 rounded-lg bg-slate-50 dark:bg-slate-700/40 px-3 py-2 font-mono text-[13px] text-slate-700 dark:text-slate-200">
-            solve_from(u_ML(tₛ), i_start)
-          </div>
-          <p className="text-xs text-slate-600 dark:text-slate-300 mt-2">
-            Run from t = 0, the restart <span className="font-semibold text-emerald-600 dark:text-emerald-400">reproduces the production scheme</span> (relative difference &lt; 10⁻¹⁰); a separate seam test confirms it preserves the handed state exactly, so the <span className="font-semibold">jump is 0</span>.
-          </p>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
-            The spectral scheme is the team&apos;s; the restartable wrapper <span className="font-mono">solve_from</span> and its
-            verification are my contribution. The exact adapter this page calls is the one Module 3&apos;s runtime executes.
-          </p>
-        </div>
-
-        {/* RESTART-SAFETY BOUNDARY, visualises the stress-test claim (was text-only) */}
-        <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
-          <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1 flex items-center gap-2">
-            <Microscope size={14} /> Why the restart is verified, it holds where a shortcut breaks
-          </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
-            Push to sharper waves (higher cell Reynolds number). The verified restart stays accurate (~10<sup>−11</sup>); a shortcut restart that
-            drops the de-aliasing climbs past the target and finally goes unstable.
-          </p>
-          <SafetyChart data={SAFETY} cross={SAFETY_CROSS} />
-          <div className="flex gap-4 flex-wrap text-[11px] text-slate-400 dark:text-slate-500 mt-1">
-            <span className="text-emerald-600 dark:text-emerald-400">verified restart, error ≈ 0 (stays ~10<sup>−11</sup>)</span>
-            <span className="text-rose-500">shortcut restart (no de-aliasing)</span>
-            <span className="text-amber-500">-- 1% target · shortcut crosses at Re≈3.2</span>
-          </div>
-        </div>
-
-        {/* CONCLUSION, mirrors the Trust and Cost pages' closing verdict */}
-        <div className="rounded-2xl p-5 bg-gradient-to-r from-emerald-50 via-white to-white dark:from-emerald-500/10 dark:via-slate-800 dark:to-slate-800 border border-emerald-200 dark:border-emerald-500/30">
-          <div className="text-sm font-semibold text-emerald-800 dark:text-emerald-300 flex items-center gap-2"><CheckCircle2 size={16} /> Conclusion</div>
-          <p className="text-sm text-slate-700 dark:text-slate-200 mt-1">
-            Switching this way cuts the error from <b>{AGG.fnoTail1}% down to {AGG.hybTail2}%</b>, and it helps in <b>every one of the {AGG.nIC} test cases</b>. The switch
-            itself matches the trusted method exactly, and creates <b>no visible glitch</b>, so it doesn&apos;t add any new error, whatever error is
-            left over was already in the ML model&apos;s prediction. This only works if you switch in time (before roughly <b>t = {RL_META.boundary}</b>);
-            wait too long and even a perfect switch can&apos;t fix a prediction that&apos;s already too far gone. <span className="font-semibold">In short: this module makes the switch safe and well-timed, it doesn&apos;t fix a bad ML prediction.</span>
-          </p>
         </div>
 
       </div>)}
@@ -679,45 +577,62 @@ export default function CouplingPage() {
           </p>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-5 py-4">
-          <div className="flex flex-wrap items-center gap-y-2">
+        {/* ===== ONE HORIZONTAL PIPELINE, click a step to expand it. Replaces 5 separate cards. ===== */}
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
+          <div className="flex flex-wrap items-center gap-y-2 mb-4">
             {COUPLING_BUILD.map((s, i) => (
               <div key={s.n} className="flex items-center">
-                <div className="flex items-center gap-2">
+                <button onClick={() => setOpenStep(s.n)}
+                  className={`flex items-center gap-2 rounded-lg px-2 py-1.5 border transition ${openStep === s.n ? "border-current" : "border-transparent"}`}
+                  style={openStep === s.n ? { background: s.color + "14", color: s.color, borderColor: s.color + "55" } : {}}>
                   <span className="w-6 h-6 rounded-lg text-[11px] font-bold flex items-center justify-center shrink-0" style={{ background: s.color + "1A", color: s.color }}>{s.n}</span>
-                  <span className="text-xs font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap">{s.title}</span>
-                </div>
-                {i < COUPLING_BUILD.length - 1 && <span className="mx-2.5 text-slate-300 dark:text-slate-600 text-xs">→</span>}
+                  <span className={`text-xs font-medium whitespace-nowrap ${openStep === s.n ? "" : "text-slate-600 dark:text-slate-300"}`}>{s.title}</span>
+                </button>
+                {i < COUPLING_BUILD.length - 1 && <span className="mx-1.5 text-slate-300 dark:text-slate-600 text-xs">→</span>}
               </div>
             ))}
           </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {COUPLING_BUILD.map((s) => (
-            <div key={s.n} className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 shadow-sm hover:shadow-md transition flex flex-col">
-              <div className="flex items-center gap-3">
-                <span className="w-9 h-9 rounded-xl text-sm font-bold flex items-center justify-center shrink-0" style={{ background: s.color + "1A", color: s.color }}>{s.n}</span>
-                <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 leading-tight">{s.title}</h3>
-              </div>
-              <p className="text-sm text-slate-600 dark:text-slate-300 mt-3">{s.what}</p>
-              {s.chips ? (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {s.chips.map((cp) => (
-                    <span key={cp.label} className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold" style={{ color: cp.color, background: cp.color + "14", border: `1px solid ${cp.color}33` }}>
-                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: cp.color }} />{cp.label}
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                <div className="mt-3 rounded-xl px-3 py-2.5 font-mono text-[12.5px] text-slate-700 dark:text-slate-100 text-center overflow-x-auto" style={{ background: s.color + "0D", border: `1px solid ${s.color}26` }}>{s.detail}</div>
-              )}
-              <div className="mt-auto pt-3">
+          {COUPLING_BUILD.filter((s) => s.n === openStep).map((s) => (
+            <div key={s.n} className="rounded-xl p-4" style={{ background: s.color + "0D", border: `1px solid ${s.color}26` }}>
+              <p className="text-sm text-slate-700 dark:text-slate-200">{s.what}</p>
+              <div className="mt-2 rounded-lg bg-white/70 dark:bg-slate-800/60 px-3 py-2 font-mono text-[12.5px] text-slate-700 dark:text-slate-100 overflow-x-auto">{s.detail}</div>
+              <div className="mt-2">
                 <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: s.color }}>Why</span>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">{s.why}</p>
               </div>
             </div>
           ))}
+        </div>
+
+        {/* WHY THESE DESIGN CHOICES, four bullets, not paragraphs */}
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
+          <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-3">Why these design choices</div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            {WHY_CHOICES.map((w) => (
+              <div key={w.t} className="rounded-lg bg-slate-50 dark:bg-slate-700/30 border border-slate-100 dark:border-slate-700 px-3 py-2 text-xs">
+                <span className="font-semibold text-slate-700 dark:text-slate-200">{w.t}</span>
+                <span className="text-slate-500 dark:text-slate-400"> → {w.d}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* OPTIONAL, COLLAPSED: numerical scheme jargon, doesn't dominate the page */}
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
+          <button onClick={() => setShowNumerics((v) => !v)}
+            className="w-full text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide flex items-center justify-between">
+            View numerical details
+            <span className="text-slate-400 dark:text-slate-500">{showNumerics ? "▾" : "▸"}</span>
+          </button>
+          {showNumerics && (
+            <ul className="text-xs text-slate-600 dark:text-slate-300 mt-3 space-y-1.5 list-disc pl-4">
+              <li>Same spatial grid as the production solver, so the restart isn&apos;t running on an easier problem.</li>
+              <li>Same viscosity constant, the physics being solved doesn&apos;t change at the switch.</li>
+              <li>2/3 de-aliasing rule, preserved from the production scheme (dropping it is exactly what makes the careless-restart negative control fail).</li>
+              <li>Nyquist-safe handling of the highest resolved mode.</li>
+              <li>Integrating-factor RK4 time-stepping, same as the rest of the pipeline.</li>
+            </ul>
+          )}
         </div>
 
         {/* WORDING LOCK: "verified" not "proved/proven", "delivers" not "guarantees" — matches the viva Q&A defense. */}
@@ -726,8 +641,8 @@ export default function CouplingPage() {
             <div className="text-sm font-bold text-emerald-800 dark:text-emerald-300">Tested, not assumed</div>
             <p className="text-sm text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
               The restart isn&apos;t just &ldquo;close enough&rdquo; to the trusted method, we compared them directly and got an
-              exact match. And &ldquo;no glitch at the switch&rdquo; isn&apos;t something we assume either, we tested it. Every number
-              on this page has a test behind it, proving it&apos;s true.
+              exact match. And &ldquo;no glitch at the switch&rdquo; isn&apos;t something we assume either, we tested it. Every
+              number on this page has a test behind it, confirmed, not just claimed.
             </p>
           </div>
           <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30 p-5">
@@ -743,144 +658,231 @@ export default function CouplingPage() {
 
       {tab === "eval" && (<div className="space-y-6">
         <div className="rounded-2xl p-6 bg-gradient-to-r from-indigo-50 via-white to-white dark:from-indigo-500/10 dark:via-slate-800 dark:to-slate-800 border border-slate-200 dark:border-slate-700">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">How the module is evaluated</div>
-          <h2 className="text-2xl font-bold mt-1 text-slate-800 dark:text-slate-100">The actual figures behind the results</h2>
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Evaluation</div>
+          <h2 className="text-2xl font-bold mt-1 text-slate-800 dark:text-slate-100">Did the hand-off work, and how do I know?</h2>
           <p className="text-sm text-slate-600 dark:text-slate-300 mt-2 leading-relaxed">
-            Every figure is generated by my own scripts from committed held-out data, scored against the exact
-            Cole–Hopf answer <b>in analysis only</b>, the coupling itself never uses the true answer at runtime.
-            The source script is named under each figure.
+            Every number below is scored offline against the exact Cole–Hopf answer, on held-out data. The coupling
+            itself never sees the true answer at runtime, this is a check afterwards, not part of the switch.
           </p>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          {GLANCE.map((g) => (
-            <div key={g.label} className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
-              <div className="text-2xl font-extrabold" style={{ color: g.c }}>{g.v}</div>
-              <div className="text-xs font-semibold text-slate-700 dark:text-slate-200 mt-1">{g.label}</div>
-              <div className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 leading-snug">{g.cap}</div>
-              <div className="text-[10px] text-teal-600 dark:text-teal-400 mt-1 font-medium">Metric: {g.metric}</div>
+        {/* ===== Q1 · DOES SWITCHING ACTUALLY HELP? ===== */}
+        <div className="rounded-2xl border-2 border-indigo-200 dark:border-indigo-500/30 bg-white dark:bg-slate-800 p-5">
+          <div className="text-sm font-bold text-indigo-700 dark:text-indigo-300 mb-1">Q1 · Does switching actually help?</div>
+          <div className="text-[11px] text-slate-400 dark:text-slate-500 mb-3">FNO, hand-off at t_s = 1.0, full held-out test set (n = {AGG.nIC})</div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+            <div className="rounded-xl bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 px-3 py-2 text-center">
+              <div className="text-[10px] uppercase tracking-wide text-rose-500">pure ML tail error</div>
+              <div className="text-2xl font-extrabold text-rose-600 dark:text-rose-400">{AGG.fnoTail2}%</div>
             </div>
-          ))}
+            <div className="rounded-xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 px-3 py-2 text-center">
+              <div className="text-[10px] uppercase tracking-wide text-indigo-500">hybrid tail error</div>
+              <div className="text-2xl font-extrabold text-indigo-600 dark:text-indigo-400">{AGG.hybTail2}%</div>
+            </div>
+            <div className="rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 px-3 py-2 text-center">
+              <div className="text-[10px] uppercase tracking-wide text-emerald-600">error reduction</div>
+              <div className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">{AGG.reduction}%</div>
+            </div>
+            <div className="rounded-xl bg-slate-50 dark:bg-slate-700/40 border border-slate-100 dark:border-slate-600/40 px-3 py-2 text-center">
+              <div className="text-[10px] uppercase tracking-wide text-slate-400">held-out cases improved</div>
+              <div className="text-2xl font-extrabold text-slate-700 dark:text-slate-200">{AGG.icsImproved} / {AGG.nIC}</div>
+            </div>
+          </div>
+          <FigCard src="/module2_figures/fig1_error_over_time.png" title="Error over time, FNO vs numerical vs hybrid" note="Mean ± std over 100 held-out ICs. After the switch the hybrid tracks the numerical solution instead of drifting with the ML." metric="Relative L2 error at each time t, mean ± std over 100 held-out waves." deduction="Switching halts the ML's continued drift and holds the error flat. Nothing more." script="make_figures.py" />
+          <details className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+            <summary className="cursor-pointer font-medium text-slate-600 dark:text-slate-300">Same result with the real Module 1 trust trigger, not just a manual t_s</summary>
+            <div className="space-y-1.5 mt-2">
+              {BASELINES.map((b) => (
+                <div key={b.m} className="grid grid-cols-[1fr_auto_auto] items-center gap-4 rounded-xl border border-slate-100 dark:border-slate-700 px-3 py-2">
+                  <span className="text-sm text-slate-700 dark:text-slate-200 flex items-center gap-2"><span className="w-2 h-2 rounded-full" style={{ background: b.c }} />{b.m}</span>
+                  <span className="text-sm font-bold w-16 text-right" style={{ color: b.c }}>{b.err}</span>
+                  <span className="text-xs text-slate-400 dark:text-slate-500 w-28 text-right">{b.work} numerical</span>
+                </div>
+              ))}
+            </div>
+          </details>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-4 items-stretch">
+        {/* ===== Q2 · HOW LATE CAN I WAIT? ===== */}
         <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
-          <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Hand-off sweep, the numbers behind the curves</div>
+          <div className="text-sm font-bold text-indigo-700 dark:text-indigo-300 mb-1">Q2 · How late can I wait?</div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
-            Mean over {AGG.nIC} held-out waves per switch time. Viable = benefit ≥ 10% <b>and</b> hybrid tail &lt; 10% (frozen a priori). <b>vs 10% bar</b> = headroom under that bar; negative once no longer viable. Source: <span className="font-mono text-[11px]">handoff_sweep_results.json</span>.
+            A switch is worth doing only if it helps enough <b>and</b> the result is still accurate enough: benefit ≥ 10%{" "}
+            <b>and</b> hybrid tail &lt; 10% (both frozen before the experiment ran). &ldquo;vs 10% bar&rdquo; is the headroom
+            under that accuracy limit, positive is fine, negative means too late.
           </p>
-          <p className="text-[11px] text-teal-600 dark:text-teal-400 font-medium mb-3">Metric: tail columns are relative L2 error over [t_s, 2]; benefit = 1 − hybrid/pure-ML tail; numerical work = fraction of steps solved numerically.</p>
+          <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-4 items-stretch">
+            <div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead><tr className="text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500 text-left">
+                    <th className="py-1.5 pr-3">t_s</th>
+                    <th className="py-1.5 px-3 text-right">pure-ML tail</th>
+                    <th className="py-1.5 px-3 text-right">hybrid tail</th>
+                    <th className="py-1.5 px-3 text-right">vs 10% bar</th>
+                    <th className="py-1.5 px-3 text-right">benefit</th>
+                    <th className="py-1.5 px-3 text-right">numerical work</th>
+                    <th className="py-1.5 pl-3 text-center">viable?</th>
+                  </tr></thead>
+                  <tbody>
+                    {sweep.results.map((r) => (
+                      <tr key={r.t_s} className="border-t border-slate-100 dark:border-slate-700">
+                        <td className="py-2 pr-3 font-semibold text-slate-700 dark:text-slate-200">{r.t_s.toFixed(1)}</td>
+                        <td className="py-2 px-3 text-right text-rose-600 dark:text-rose-400">{(r.fno_tail * 100).toFixed(1)}%</td>
+                        <td className="py-2 px-3 text-right font-bold text-indigo-600 dark:text-indigo-400">{(r.hybrid_tail * 100).toFixed(r.hybrid_tail < 0.1 ? 2 : 1)}%</td>
+                        <td className={`py-2 px-3 text-right font-medium ${r.hybrid_tail < 0.10 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-500"}`}>{10 - r.hybrid_tail * 100 >= 0 ? "+" : "−"}{Math.abs(10 - r.hybrid_tail * 100).toFixed(1)}</td>
+                        <td className="py-2 px-3 text-right text-emerald-600 dark:text-emerald-400">{(r.benefit * 100).toFixed(1)}%</td>
+                        <td className="py-2 px-3 text-right text-slate-500 dark:text-slate-400">{(r.numerical_fraction * 100).toFixed(0)}%</td>
+                        <td className={`py-2 pl-3 text-center font-bold ${r.viable ? "text-emerald-600 dark:text-emerald-400" : "text-rose-500"}`}>{r.viable ? "✓" : "✗"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-3">
+                Latest measured viable point = <b>1.4</b>. Interpolated boundary ≈ <b>{AGG.boundary}</b>. Earlier = more
+                accurate but more numerical work; later = cheaper but the state has already degraded more.
+              </p>
+            </div>
+            <FigCard src="/module2_figures/fig2_switch_time_vs_benefit.png" title="Hand-off benefit vs when we switch" note="Benefit = 1 − hybrid/FNO across switch times, versus the pre-registered 10% benefit threshold (met across the whole swept range)." metric="Benefit = 1 − hybrid/pure-ML tail, both relative L2 tail error over [t_s, 2]." deduction="The later you wait, the more damaged the handed-over state, so benefit falls monotonically. Switch early for the biggest gain." script="make_figures.py" />
+          </div>
+        </div>
+
+        {/* ===== Q3 · DID MY TAKEOVER ITSELF BREAK ANYTHING? ===== */}
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
+          <div className="text-sm font-bold text-indigo-700 dark:text-indigo-300 mb-1">Q3 · Did my takeover itself break anything?</div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Three independent checks, all on the same hand-off.</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="rounded-xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30 p-4">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">A · Numerical consistency</div>
+              <div className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">0.0</div>
+              <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">relative difference, restart vs the original solver run from t = 0</div>
+              <div className="text-[10px] font-mono text-slate-400 dark:text-slate-500 mt-2">verify_restart.py</div>
+            </div>
+            <div className="rounded-xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30 p-4">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">B · State continuity</div>
+              <div className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">{_STAB0.state_jump.toFixed(1)}</div>
+              <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">L2 norm of the state discontinuity at the switch</div>
+              <div className="text-[10px] font-mono text-slate-400 dark:text-slate-500 mt-2">handoff_stability_diagnostic.py</div>
+            </div>
+            <div className="rounded-xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30 p-4">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">C · Physical consistency</div>
+              <div className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">no spike, drops after the switch</div>
+              <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1" title="How well the state satisfies the Burgers PDE itself, r = u_t + u·u_x − ν·u_xx. A physics-consistency check, not an error-vs-ground-truth metric.">PDE residual (hover for what this means)</div>
+              <div className="text-[10px] font-mono text-slate-400 dark:text-slate-500 mt-2">handoff_stability_diagnostic.py</div>
+            </div>
+          </div>
+          <p className="text-xs font-medium text-slate-700 dark:text-slate-200 mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
+            → Numerically faithful, continuous, and physically consistent.
+          </p>
+        </div>
+
+        {/* ===== Q4 · WHERE DOES THE REMAINING HYBRID ERROR COME FROM? ===== */}
+        <div className="rounded-2xl border-2 border-indigo-200 dark:border-indigo-500/30 bg-white dark:bg-slate-800 p-5">
+          <div className="text-sm font-bold text-indigo-700 dark:text-indigo-300 mb-1">Q4 · Where does the remaining hybrid error come from?</div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+            REAL HYBRID (ML state at t_s) vs ORACLE CONTROL (true state at the same t_s), same solver · same grid · same time · only the starting state changes.
+          </p>
+          <OracleBars mlTail={_AGG_R0.fno_tail} hyTail={_AGG_R0.hybrid_tail} oracle={_ORACLE} />
+          <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 mt-3">
+            The remaining hybrid error is mainly inherited from the ML state, not created by the hand-off.
+          </p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+            ML state error at hand-off ≈ {AGG.stateErr}% is close to the mean hybrid tail error {AGG.hybTail2}%, two different metrics that needn&apos;t match exactly, but both point the same way.
+          </p>
+        </div>
+
+        {/* ===== Q5 · DOES THE SAME PATTERN APPEAR WHEN INPUT STATE QUALITY CHANGES? ===== */}
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
+          <div className="text-sm font-bold text-indigo-700 dark:text-indigo-300 mb-1">Q5 · Does the same pattern hold when the input state quality changes?</div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+            Same hand-off code, three ML models, only the incoming state changes. Hand-off at t_s = 1.0, mean over {transfer.n_waves} held-out waves.
+          </p>
+          <div className="flex items-center justify-center gap-2 flex-wrap text-center mb-3">
+            <div className="rounded-lg px-3 py-1.5 text-[11px] font-bold bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-100 dark:border-rose-500/20">STATE QUALITY AT HAND-OFF</div>
+            <span className="text-slate-300 dark:text-slate-600">→</span>
+            <div className="rounded-lg px-3 py-1.5 text-[11px] font-bold bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-500/20">RESULT AFTER NUMERICAL CONTINUATION</div>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead><tr className="text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500 text-left">
-                <th className="py-1.5 pr-3">t_s</th>
+                <th className="py-1.5 pr-3">model</th>
+                <th className="py-1.5 px-3 text-right">state error at hand-off</th>
                 <th className="py-1.5 px-3 text-right">pure-ML tail</th>
                 <th className="py-1.5 px-3 text-right">hybrid tail</th>
-                <th className="py-1.5 px-3 text-right">vs 10% bar</th>
-                <th className="py-1.5 px-3 text-right">benefit</th>
-                <th className="py-1.5 px-3 text-right">numerical work</th>
-                <th className="py-1.5 pl-3 text-center">viable?</th>
+                <th className="py-1.5 pl-3 text-right">benefit</th>
               </tr></thead>
               <tbody>
-                {sweep.results.map((r) => (
-                  <tr key={r.t_s} className="border-t border-slate-100 dark:border-slate-700">
-                    <td className="py-2 pr-3 font-semibold text-slate-700 dark:text-slate-200">{r.t_s.toFixed(1)}</td>
-                    <td className="py-2 px-3 text-right text-rose-600 dark:text-rose-400">{(r.fno_tail * 100).toFixed(1)}%</td>
-                    <td className="py-2 px-3 text-right font-bold text-indigo-600 dark:text-indigo-400">{(r.hybrid_tail * 100).toFixed(r.hybrid_tail < 0.1 ? 2 : 1)}%</td>
-                    <td className={`py-2 px-3 text-right font-medium ${r.hybrid_tail < 0.10 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-500"}`}>{10 - r.hybrid_tail * 100 >= 0 ? "+" : "−"}{Math.abs(10 - r.hybrid_tail * 100).toFixed(1)}</td>
-                    <td className="py-2 px-3 text-right text-emerald-600 dark:text-emerald-400">{(r.benefit * 100).toFixed(1)}%</td>
-                    <td className="py-2 px-3 text-right text-slate-500 dark:text-slate-400">{(r.numerical_fraction * 100).toFixed(0)}%</td>
-                    <td className={`py-2 pl-3 text-center font-bold ${r.viable ? "text-emerald-600 dark:text-emerald-400" : "text-rose-500"}`}>{r.viable ? "✓" : "✗"}</td>
+                {MODEL_ROWS.map((r) => (
+                  <tr key={r.m} className="border-t border-slate-100 dark:border-slate-700">
+                    <td className="py-2 pr-3 font-semibold text-slate-700 dark:text-slate-200">{r.m}</td>
+                    <td className="py-2 px-3 text-right text-slate-500 dark:text-slate-400">{r.es}%</td>
+                    <td className="py-2 px-3 text-right text-rose-600 dark:text-rose-400">{r.pml}%</td>
+                    <td className="py-2 px-3 text-right text-indigo-600 dark:text-indigo-400">{r.hyb}%</td>
+                    <td className="py-2 pl-3 text-right font-bold text-emerald-600 dark:text-emerald-400">{r.ben}%</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-3">
-            Earlier hand-off gives more accuracy but more numerical work. Every measured switch still beats pure ML, but after t_s = 1.4 the hybrid tail error crosses the 10% acceptance bar. <span className="font-medium text-slate-700 dark:text-slate-200">Measured latest viable point = 1.4; interpolated boundary ≈ {AGG.boundary}.</span>
-          </p>
-        </div>
-        <FigCard src="/module2_figures/fig2_switch_time_vs_benefit.png" title="Hand-off benefit vs when we switch" note="Benefit = 1 − hybrid/FNO across switch times, versus the pre-registered 10% benefit threshold (met across the whole swept range). The binding viability condition is the hybrid tail < 10%, the table's 'vs 10% bar' column." metric="Benefit = 1 − hybrid/pure-ML tail, both relative L2 tail error over [t_s, 2], plotted against switch time t_s." deduction="The later you wait, the more damaged the handed-over state, so benefit falls monotonically (93% at t_s = 1.0 down to 20% at 1.8). Switch early for the biggest gain." script="make_figures.py" />
+          <div className="mt-3 text-[11px] leading-snug text-indigo-700 dark:text-indigo-300 bg-indigo-50/60 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 rounded-lg px-2.5 py-1.5">
+            <span className="font-bold">→ Deduction: </span>Better state handed over → better hybrid result, true for all three tested architectures.
+          </div>
+          <div className="mt-4 flex flex-col md:flex-row gap-4 items-start rounded-xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30 p-4">
+            <img src={EVAL_ROBUST[0].src} alt={EVAL_ROBUST[0].title} loading="lazy"
+              className="w-full md:w-56 rounded-lg border border-slate-200 dark:border-slate-700 bg-white shrink-0" />
+            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+              On a severely out-of-distribution wave, the ML state is already badly corrupted before the hand-off.{" "}
+              <span className="font-medium text-slate-700 dark:text-slate-200">Numerical continuation can limit further damage, but it cannot reconstruct information the ML has already lost.</span>
+            </p>
+          </div>
         </div>
 
+        {/* ===== DEEP TECHNICAL VALIDATION, collapsed by default, not the headline ===== */}
         <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
-          <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Final integration, the hand-off vs baselines</div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
-            Error over the extrapolation window [1, 2] on the {cmp.n} held-out waves, with the fraction of steps solved numerically.
-            Source: <span className="font-mono text-[11px]">trust_hardswitch_compare.json</span>.
-          </p>
-          <p className="text-[11px] text-teal-600 dark:text-teal-400 font-medium mb-3">Metric: relative L2 error over the extrapolation window, same definition as the sweep table.</p>
-          <div className="space-y-1.5">
-            {BASELINES.map((b) => (
-              <div key={b.m} className="grid grid-cols-[1fr_auto_auto] items-center gap-4 rounded-xl border border-slate-100 dark:border-slate-700 px-3 py-2">
-                <span className="text-sm text-slate-700 dark:text-slate-200 flex items-center gap-2"><span className="w-2 h-2 rounded-full" style={{ background: b.c }} />{b.m}</span>
-                <span className="text-sm font-bold w-16 text-right" style={{ color: b.c }}>{b.err}</span>
-                <span className="text-xs text-slate-400 dark:text-slate-500 w-28 text-right">{b.work} numerical</span>
+          <button onClick={() => setShowDeepVal((v) => !v)}
+            className="w-full text-left text-sm font-bold text-slate-700 dark:text-slate-200 flex items-center justify-between">
+            Deep technical validation
+            <span className="text-slate-400 dark:text-slate-500 text-xs">{showDeepVal ? "▾" : "▸"}</span>
+          </button>
+          {showDeepVal && (
+            <div className="mt-4">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
+                A restart-safety stress test, run on a deliberately weakened restart (drops the production scheme&apos;s
+                de-aliasing). Pushed to sharper waves (higher cell Reynolds number), the verified restart stays accurate;
+                the weakened one climbs past a 1% target and eventually goes unstable.
+              </p>
+              <SafetyChart data={SAFETY} cross={SAFETY_CROSS} />
+              <div className="flex gap-4 flex-wrap text-[11px] text-slate-400 dark:text-slate-500 mt-1">
+                <span className="text-emerald-600 dark:text-emerald-400">verified restart, stays ~10<sup>−11</sup></span>
+                <span className="text-rose-500">weakened restart (no de-aliasing)</span>
+                <span className="text-amber-500">-- 1% target · crosses at Re≈{SAFETY_CROSS.toFixed(1)}</span>
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2" title="Cell Reynolds number is a difficulty indicator combining wave strength, grid spacing and viscosity.">
+                Re_cell ≈ {SAFETY_CROSS.toFixed(1)} is a difficulty indicator (hover), not a physical constant.
+              </p>
+              <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1 font-medium">
+                This is the weakened restart&apos;s measured failure boundary on this experiment, not a universal limit of the verified solver.
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* ===== FOOTER · CONCISE RESULT MAP ===== */}
+        <div className="rounded-2xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50/60 dark:bg-emerald-500/10 p-5">
+          <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 text-center">
+            {[
+              { q: "Does it help?", a: `${AGG.fnoTail1}% → ${AGG.hybTail2}%` },
+              { q: "Can I restart faithfully?", a: "diff 0.0" },
+              { q: "Is the seam continuous?", a: "jump 0" },
+              { q: "Where does error come from?", a: "ML state" },
+              { q: "How late can I switch?", a: `≈ ${AGG.boundary}` },
+            ].map((c) => (
+              <div key={c.q}>
+                <div className="text-[10px] text-slate-500 dark:text-slate-400 leading-snug">{c.q}</div>
+                <div className="text-sm font-bold text-emerald-700 dark:text-emerald-300 mt-0.5">✓ {c.a}</div>
               </div>
             ))}
-          </div>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-3 leading-relaxed">
-            This baseline feeds the raw trust flag straight in; it fires early (mean ≈ {Number(cmp.mean_trigger).toFixed(2)}), so it
-            reaches {(cmp.means.trust * 100).toFixed(1)}% error but does ~{(cmp.trust_workload * 100).toFixed(0)}% of the work numerically.
-            In the full system Module 3 turns a requested accuracy into the switch point, so the cost is a deliberate choice. Module 2&apos;s
-            job is only to keep the hand-off faithful wherever it happens.
-          </p>
-        </div>
-
-        <div>
-          <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Core hand-off results</div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Earlier hand-offs give the largest gains; once the ML state is too inaccurate, numerical continuation halts further error growth but cannot undo error already present.</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {EVAL_CORE.map((f) => <FigCard key={f.src} {...f} />)}
-          </div>
-        </div>
-
-        <div>
-          <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Robustness &amp; transfer</div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Better handed-over state → better hybrid, for every architecture tested; in the OOD stress cases the continuation reduces subsequent error but cannot recover a severely corrupted hand-off state.</p>
-          <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
-            <div className="text-sm font-semibold text-slate-800 dark:text-slate-100">Works the same for any ML model</div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 mb-3">
-              Same hand-off code for FNO, PINN and DeepONet, only the ML prediction changes. Hand-off at t_s = 1.0, mean over {transfer.n_waves} held-out waves.
-              Source: <span className="font-mono text-[11px]">transfer_models.py</span>.
-            </p>
-            <p className="text-[11px] text-teal-600 dark:text-teal-400 font-medium mb-3">Metric: state error at hand-off is the ML's own relative L2 error at t_s; tail and benefit columns as in the sweep table.</p>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead><tr className="text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500 text-left">
-                  <th className="py-1.5 pr-3">model</th>
-                  <th className="py-1.5 px-3 text-right">state error at hand-off</th>
-                  <th className="py-1.5 px-3 text-right">pure-ML tail</th>
-                  <th className="py-1.5 px-3 text-right">hybrid tail</th>
-                  <th className="py-1.5 pl-3 text-right">benefit</th>
-                </tr></thead>
-                <tbody>
-                  {MODEL_ROWS.map((r) => (
-                    <tr key={r.m} className="border-t border-slate-100 dark:border-slate-700">
-                      <td className="py-2 pr-3 font-semibold text-slate-700 dark:text-slate-200">{r.m}</td>
-                      <td className="py-2 px-3 text-right text-slate-500 dark:text-slate-400">{r.es}%</td>
-                      <td className="py-2 px-3 text-right text-rose-600 dark:text-rose-400">{r.pml}%</td>
-                      <td className="py-2 px-3 text-right text-indigo-600 dark:text-indigo-400">{r.hyb}%</td>
-                      <td className="py-2 pl-3 text-right font-bold text-emerald-600 dark:text-emerald-400">{r.ben}%</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="mt-3 text-[11px] leading-snug text-indigo-700 dark:text-indigo-300 bg-indigo-50/60 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 rounded-lg px-2.5 py-1.5">
-              <span className="font-bold">→ Deduction: </span>Same coupling, three architectures: the better the state handed over, the better the hybrid. This relationship was observed across all three tested ML models (FNO, PINN, DeepONet), so it is a property of the coupling, not of one model.
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-            {EVAL_ROBUST.map((f) => <FigCard key={f.src} {...f} />)}
-          </div>
-        </div>
-
-        <div>
-          <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Continuity, fidelity &amp; safety</div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">The switch is continuous and physically stable, the Burgers residual falls after the hand-off, and the verified restart holds where an approximate one fails.</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {EVAL_FIDELITY.map((f) => <FigCard key={f.src} {...f} />)}
           </div>
         </div>
       </div>)}
