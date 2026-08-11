@@ -377,7 +377,7 @@ export default function CouplingPage() {
       {tab === "story" && (<div className="space-y-6">
         {/* ===== SECTION 2 · ROBUSTNESS, AS A STRIP — not a page. One toggle, one deduction.
             Reuses only committed numbers/figures already defined above (AGG, EVAL_ROBUST). ===== */}
-        <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 p-5">
+        {/* <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 p-5">
           <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Why a fallback is needed</span>
             <div className="flex gap-1.5">
@@ -388,7 +388,6 @@ export default function CouplingPage() {
               ))}
             </div>
           </div>
-          {/* trained region vs future, a simple two-segment timeline */}
           <div className="relative h-7 rounded-lg overflow-hidden flex text-[11px] font-bold text-white select-none">
             <div className="bg-slate-400 dark:bg-slate-500 grid place-items-center" style={{ width: "50%" }}>trained region</div>
             <div className="bg-rose-500/90 grid place-items-center flex-1">future · extrapolation</div>
@@ -418,7 +417,7 @@ export default function CouplingPage() {
         </div>
         <p className="text-xs text-slate-500 dark:text-slate-400">
           Module 1 detects, Module 3 decides, and my Module 2 executes the takeover.
-        </p>
+        </p> */}
         <div className="flex items-center gap-2"><Badge kind="rep" /><span className="text-xs text-slate-400 dark:text-slate-500">the wave shape is one representative held-out wave; the numbers are the n = {AGG.nIC} committed aggregate at each hand-off time</span></div>
         {/* ===== THE RELAY TIMELINE, the page's centrepiece ===== */}
         <div className="rounded-2xl border-2 border-indigo-200 dark:border-indigo-500/30 bg-white dark:bg-slate-800 p-5">
