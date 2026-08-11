@@ -824,9 +824,18 @@ export default function CostControl() {
               </Card>
               <Card title="Error so far: corrected vs. pure ML" subtitle="green = the actual (corrected) trajectory · red dashed = what pure ML alone would show, same problem">
                 <ErrorCompareTrace hist={hist} target={sel?.target} />
+                <div className="flex items-center justify-center gap-4 mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                  <span className="flex items-center gap-1"><span className="w-2.5 h-1 rounded-full bg-emerald-600" /> hybrid (actual)</span>
+                  <span className="flex items-center gap-1"><span className="w-2.5 h-1 rounded-full bg-rose-500" /> pure ML</span>
+                </div>
               </Card>
               <Card title="Cost so far: hybrid vs. running it alone" subtitle="green = actual spend · red dashed = pure ML the whole way · grey dotted = pure numerical the whole way">
                 <CostCompareTrace hist={hist} />
+                <div className="flex items-center justify-center gap-4 mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                  <span className="flex items-center gap-1"><span className="w-2.5 h-1 rounded-full bg-emerald-600" /> hybrid (actual)</span>
+                  <span className="flex items-center gap-1"><span className="w-2.5 h-1 rounded-full bg-rose-500" /> pure ML</span>
+                  <span className="flex items-center gap-1"><span className="w-2.5 h-1 rounded-full bg-slate-400" /> pure numerical</span>
+                </div>
               </Card>
             </div>
           </div>
