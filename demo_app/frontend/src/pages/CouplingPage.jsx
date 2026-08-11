@@ -84,7 +84,7 @@ const COUPLING_BUILD = [
   },
   {
     n: 5, color: "#059669", title: "Verify & decompose the error",
-    what: "10 automated tests (tests/test_coupling.py), plus an oracle restart from the TRUE state to separate the coupling's own error from the inherited ML error.",
+    what: "Automated tests plus an oracle restart from the TRUE state to separate the coupling's own error from the inherited ML error.",
     detail: "E_coupling ≈ 10⁻⁶  ≪  E_inherited  (dominates)",
     why: "The oracle shows the coupling itself adds almost nothing, all remaining hybrid error is inherited from the ML hand-off state, not produced by the switch."
   },
