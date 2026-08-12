@@ -304,13 +304,6 @@ export default function RobustnessPage() {
       {tab === "live" && (<>
         {/* RUN IT YOURSELF */}
         <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
-          <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1 flex items-center gap-2">
-            <Play size={14} /> Run it yourself, live <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300">LIVE BACKEND</span>
-          </div>
-          <p className={`text-xs ${muted} mb-4`}>
-            Pick a model and an input; the backend runs the real model and streams the failure as it happens.
-            (PINN is trained per wave, so OOD inputs don&apos;t apply to it.)
-          </p>
           {err && <div className="mb-3 text-sm text-rose-600 dark:text-rose-300 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 rounded-lg px-3 py-2">{err}</div>}
           <div className="grid grid-cols-[300px_1fr] gap-5">
             <div className="space-y-3">
@@ -361,7 +354,8 @@ export default function RobustnessPage() {
               )}
             </div>
             <div className="space-y-3">
-              <Card title={lf ? `t = ${lf.t.toFixed(2)}${lf.t > 1 ? ", extrapolating" : ", in training window"}` : "run to start"}>
+              <Card title={lf ? `t = ${lf.t.toFixed(2)}${lf.t > 1 ? ", extrapolating" : ", in training window"}` : "run to start"}
+                subtitle="grey dashed = true solution · red = model's prediction">
                 <LineChart
                   series={[
                     { x, y: lf ? lf.true : [], color: "#94a3b8", dashed: true },
@@ -369,14 +363,15 @@ export default function RobustnessPage() {
                   ]}
                   xr={[-1, 1]} yr={lyr} h={190} xlabel="x" ylabel="u(x, t)" />
               </Card>
-              <Card title="error (red) and spectral distance (blue)">
+              <Card title="Error and spectral distance over time"
+                subtitle="red = relative L2 error vs the true solution · blue = spectral distance, the same drift seen in frequency space · dotted line = 10% error mark · dashed line = training horizon t = 1">
                 <LineChart
                   series={[
                     { x: hist.map((f) => f.t), y: hist.map((f) => f.err), color: "#e11d48", width: 2 },
                     { x: hist.map((f) => f.t), y: hist.map((f) => f.sd), color: "#2563eb", width: 2 },
                   ]}
                   xr={[0, 2]} yr={[0, Math.max(0.35, ...hist.map((f) => f.err), ...hist.map((f) => f.sd))]}
-                  vline={1.0} hline={0.1} h={160} xlabel="t" />
+                  vline={1.0} vlineColor="#1e293b" vlineLabel="t = 1" hline={0.1} h={160} xlabel="t" />
               </Card>
             </div>
           </div>

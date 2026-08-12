@@ -60,33 +60,33 @@ function committedAt(ts) {
 const COUPLING_BUILD = [
   {
     n: 1, color: "#4f46e5", title: "Run the ML solver",
-    what: "Roll out the fast ML surrogate (FNO / PINN / DeepONet) across the whole window.",
+    what: "Run the fast ML model (FNO / PINN / DeepONet) across the whole time window.",
     chips: [{ label: "ML prediction stream", color: "#4f46e5" }],
-    why: "The ML is cheap, so we let it carry the wave while it can be trusted, we only replace it once, at the switch."
+    why: "The ML is cheap, so it carries the wave while it can still be trusted. It only gets replaced once, at the switch."
   },
   {
     n: 2, color: "#0d9488", title: "Re-anchor at the switch",
-    what: "Seed the team's pseudo-spectral solver with the ML model's last reliable state, the step before the switch time t_s, and start there.",
+    what: "Give the numerical solver the ML model's last reliable state, the step right before the switch, and start it from there.",
     detail: "solve_from(u_ML(t_s), i_start):  first numerical frame = u_ML(t_s)  →  jump = 0",
-    why: "This makes the hand-off jump zero by construction, no blending, no interpolation. The first numerical frame is the handed-over state, so the seam is continuous."
+    why: "This makes the jump at the hand-off zero. No blending, no interpolation. The numerical solver's first frame is exactly the state it was handed, so there's no seam."
   },
   {
     n: 3, color: "#7c3aed", title: "Continue under the production scheme",
-    what: "Advance with the team's verified pseudo-spectral solver (restart_spectral.py): same grid, 2/3 de-aliasing, Nyquist zeroing, integrating-factor RK4.",
+    what: "Keep advancing with the team's own trusted numerical solver, same grid and method as always, nothing special about the restart.",
     chips: [{ label: "verified restart", color: "#7c3aed" }, { label: "= production solver", color: "#7c3aed" }],
-    why: "It's the scheme everyone already trusts. The restart is verified bit-identical to it (rel diff 0.0, verify_restart.py), so continuing changes nothing about the numerics."
+    why: "It's the method everyone already trusts. The restart version was checked bit-identical to it, so nothing about the numerics changes."
   },
   {
     n: 4, color: "#e11d48", title: "Switch once, never hand back",
-    what: "M2Coupling.rollout() does a one-way hard switch at the first trust trigger, then stays on the numerical solver to the end.",
+    what: "At the first trust trigger, switch once and stay on the numerical solver for the rest of the run.",
     detail: "if trust fires: switch once, never hand back",
-    why: "Returning to ML would re-inject ML error. The numerical solver is injected, not hardcoded, so the same verified restart works with any trigger and any numerical backend."
+    why: "Switching back would re-introduce ML error. The numerical solver is plugged in, not hardcoded, so the same restart works with any trigger or backend."
   },
   {
     n: 5, color: "#059669", title: "Verify & decompose the error",
-    what: "Automated tests plus an oracle restart from the TRUE state to separate the coupling's own error from the inherited ML error.",
+    what: "Run automated tests, plus a restart from the true state, to see how much error the hand-off adds versus how much it inherits from the ML.",
     detail: "E_coupling ≈ 10⁻⁶  ≪  E_inherited  (dominates)",
-    why: "The oracle shows the coupling itself adds almost nothing, all remaining hybrid error is inherited from the ML hand-off state, not produced by the switch."
+    why: "This shows the hand-off itself adds almost nothing. Almost all the remaining error comes from the ML state it started from, not from the switch."
   },
 ];
 
@@ -270,6 +270,7 @@ export default function CouplingPage() {
   const [robustView, setRobustView] = useState("normal");   // Story §2 toggle: normal held-out wave vs severe OOD wave
   const [showNumerics, setShowNumerics] = useState(false);    // How it's built: "View numerical details" accordion
   const [showDeepVal, setShowDeepVal] = useState(false);      // Evaluation: "Deep technical validation" accordion
+  const [showDesignChoices, setShowDesignChoices] = useState(false); // How it's built: "Why these choices" accordion
   useEffect(() => {
     if (!playing) return;
     const id = setInterval(() => setPh((k) => (k + 1) % RL_FRAMES.length), 110);
@@ -591,6 +592,30 @@ export default function CouplingPage() {
           ))}
         </div>
 
+        {/* ===== WHY THESE CHOICES + HOW IT COMPARES, collapsed by default, only explained if asked ===== */}
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
+          <button onClick={() => setShowDesignChoices((v) => !v)}
+            className="w-full text-left text-sm font-bold text-slate-700 dark:text-slate-200 flex items-center justify-between">
+            Why these design choices
+            <span className="text-slate-400 dark:text-slate-500 text-xs">{showDesignChoices ? "▾" : "▸"}</span>
+          </button>
+          {showDesignChoices && (
+            <div className="mt-4 space-y-5">
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Design choices</div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {WHY_CHOICES.map((w) => (
+                    <div key={w.t} className="rounded-xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30 px-3 py-2.5">
+                      <div className="text-xs font-bold text-slate-700 dark:text-slate-200">{w.t}</div>
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{w.d}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* WORDING LOCK: "verified" not "proved/proven", "delivers" not "guarantees" — matches the viva Q&A defense. */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="rounded-2xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 p-5">
@@ -740,16 +765,9 @@ export default function CouplingPage() {
               </div>
               <div className="rounded-xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-3">
                 <div className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">Across every measured switch time</div>
-                <LineChart
-                  series={[
-                    { x: stab.rows.map((r) => r.t_s), y: stab.rows.map((r) => r.residual_before), color: "#e11d48", width: 2 },
-                    { x: stab.rows.map((r) => r.t_s), y: stab.rows.map((r) => r.residual_after), color: "#059669", width: 2.5 },
-                  ]}
-                  xr={[1.0, 1.8]} yr={[0, Math.max(...stab.rows.map((r) => r.residual_before)) * 1.1]}
-                  w={420} h={140} xlabel="switch time t_s" ylabel="PDE residual" />
-                <div className="flex gap-4 text-[11px] text-slate-400 dark:text-slate-500 mt-1">
-                  <span className="text-rose-500">just before</span>
-                  <span className="text-emerald-600 dark:text-emerald-400">just after</span>
+                <div className="flex items-center justify-center h-[190px]">
+                  <img src="/module2_figures/handoff_stability_diagnostic.png" alt="Handoff stability diagnostic: PDE residual before vs after the switch"
+                    loading="lazy" className="max-w-full max-h-full object-contain rounded-lg border border-slate-100 dark:border-slate-700 bg-white" />
                 </div>
               </div>
             </div>
@@ -766,7 +784,7 @@ export default function CouplingPage() {
           <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
             REAL HYBRID (ML's last reliable state, the step before the switch) vs ORACLE CONTROL (the true state at that same moment), same solver · same grid · same time · only the starting state changes.
           </p>
-          <div className="max-w-lg mx-auto">
+          <div className="max-w-2xl mx-auto">
             <OracleBars mlTail={_AGG_R0.fno_tail} hyTail={_AGG_R0.hybrid_tail} oracle={_ORACLE} />
           </div>
           <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 mt-3">
@@ -813,9 +831,9 @@ export default function CouplingPage() {
           <div className="mt-3 text-[11px] leading-snug text-indigo-700 dark:text-indigo-300 bg-indigo-50/60 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 rounded-lg px-2.5 py-1.5">
             <span className="font-bold">→ Deduction: </span>Better state handed over → better hybrid result, true for all three tested architectures.
           </div>
-          <div className="mt-4 flex flex-col md:flex-row gap-4 items-start rounded-xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30 p-4">
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-5 items-center rounded-xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30 p-4">
             <img src={EVAL_ROBUST[0].src} alt={EVAL_ROBUST[0].title} loading="lazy"
-              className="w-full md:w-72 rounded-lg border border-slate-200 dark:border-slate-700 bg-white shrink-0" />
+              className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white" />
             <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
               On a severely out-of-distribution wave, the ML state is already badly corrupted before the hand-off.{" "}
               <span className="font-medium text-slate-700 dark:text-slate-200">Numerical continuation can limit further damage, but it cannot reconstruct information the ML has already lost.</span>
@@ -837,18 +855,18 @@ export default function CouplingPage() {
                 de-aliasing). Pushed to sharper waves (higher cell Reynolds number), the verified restart stays accurate;
                 the weakened one climbs past a 1% target and eventually goes unstable.
               </p>
-              <div className="max-w-lg mx-auto">
+              <div className="max-w-2xl mx-auto">
                 <SafetyChart data={SAFETY} cross={SAFETY_CROSS} />
               </div>
-              <div className="flex gap-4 flex-wrap text-[11px] text-slate-400 dark:text-slate-500 mt-1">
+              <div className="flex gap-4 flex-wrap justify-center text-center text-[11px] text-slate-400 dark:text-slate-500 mt-1">
                 <span className="text-emerald-600 dark:text-emerald-400">verified restart, stays ~10<sup>−11</sup></span>
                 <span className="text-rose-500">weakened restart (no de-aliasing)</span>
                 <span className="text-amber-500">-- 1% target · crosses at Re≈{SAFETY_CROSS.toFixed(1)}</span>
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2" title="Cell Reynolds number is a difficulty indicator combining wave strength, grid spacing and viscosity.">
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2 text-center" title="Cell Reynolds number is a difficulty indicator combining wave strength, grid spacing and viscosity.">
                 Re_cell ≈ {SAFETY_CROSS.toFixed(1)} is a difficulty indicator (hover), not a physical constant.
               </p>
-              <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1 font-medium">
+              <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1 font-medium text-center">
                 This is the weakened restart&apos;s measured failure boundary on this experiment, not a universal limit of the verified solver.
               </p>
             </div>
