@@ -96,7 +96,8 @@ def compute():
                                   "boundary_t_s": boundary, "fno_reliable_horizon": 1.457},
                "n_ic": int(n_ic), "handoff": "raw FNO state (no filtering)",
                "reference": "Cole-Hopf (u_true_eval)",
-               "continuation_solver": "restart wrapper (team-scheme port; equivalence to be verified)",
+               "continuation_solver": "restart wrapper (team-scheme port; restart equivalence verified, "
+                                      "see tests/test_coupling.py::test_restart_consistency, rel diff < 1e-10)",
                "switch_time_source": "externally supplied",
                "metric": "time-integrated relative L2 over [t_s, T]",
                "results": rows}

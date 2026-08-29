@@ -1,9 +1,14 @@
 """
 Final integration result: trust-triggered hard switch vs baselines (Module 2).
 Compares, over the extrapolation window [1, 2] on the held-out FNO waves:
-  Pure FNO | Fixed switch @ t=1.4 | Real trust-triggered switch | Pure numerical
+  Pure FNO | Fixed switch @ t=1.4 | Real trust-triggered switch
 using the REAL trust monitor (hybrid_pde.trust) and the verified hard-switch handoff.
-Set MODULE2_PRED=results/eval/predictions_ext.npz for n=20.
+Set MODULE2_PRED=results/eval/predictions.npz for n=10 (default) or
+    MODULE2_PRED=results/eval/predictions_ext.npz for n=100.
+The "Pure numerical (ref)" row below is a DISPLAY-ONLY reference line (not
+computed by this script - the Cole-Hopf ground truth is the reference every
+other row is measured against, so its own error is ~0 by definition). It is
+not written to the output JSON.
 """
 import os, sys, json
 import numpy as np
@@ -42,8 +47,11 @@ print("-"*54)
 print("%-26s %10.4f %14s"%("Pure FNO", m(rows["pure_fno"]), "0%"))
 print("%-26s %10.4f %13.0f%%"%("Fixed switch @ t=1.4", m(rows["fixed_1p4"]), 100*wl_fixed))
 print("%-26s %10.4f %13.0f%%"%("Real trust-triggered", m(rows["trust"]), 100*m(wl_trust)))
-print("%-26s %10s %14s"%("Pure numerical (ref)", "~0.001", "100%"))
-print("\nmean trust trigger time: %.3f   (viability boundary 1.47; FNO true-fail ~1.50)"%np.nanmean(trig))
+print("%-26s %10s %14s"%("Pure numerical (ref)", "~0 (def.)", "100%"))
+print("  ^ display-only: this is the Cole-Hopf reference itself, not a measured hybrid")
+print("    run, and is not written to the JSON.")
+print("\nmean trust trigger time: %.3f   (n=%d; see handoff_sweep_results*.json for the "
+      "measured viability boundary at this n; FNO true-fail ~1.50)" % (np.nanmean(trig), n))
 json.dump({"n":n,"means":{k:m(v) for k,v in rows.items()},
            "fixed_workload":wl_fixed,"trust_workload":m(wl_trust),"mean_trigger":float(np.nanmean(trig))},
           open(os.path.join(ROOT,"results","module2","figures","trust_hardswitch_compare.json"),"w"), indent=2)

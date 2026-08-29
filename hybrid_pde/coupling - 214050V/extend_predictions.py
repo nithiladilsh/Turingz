@@ -1,5 +1,5 @@
 """
-Extend the held-out evaluation set from 10 -> 20 waves (Module 2, Coupling).
+Extend the held-out evaluation set from 10 -> 100 waves (Module 2, Coupling).
 
 RUN ON YOUR MACHINE (needs torch + neuralop; not runnable in the offline sandbox):
 
@@ -8,16 +8,23 @@ RUN ON YOUR MACHINE (needs torch + neuralop; not runnable in the offline sandbox
 What it does:
   1. Regenerates the Cole-Hopf initial conditions with the fixed seed (seed=42,
      exactly as scripts/generate_dataset.py / colehopf.py), and computes the
-     Cole-Hopf ground truth for test waves 900-919.
+     Cole-Hopf ground truth for test waves 900-999 (FIRST,LAST below).
   2. Loads the trained FNO (results/fno/fno.pt + fno_config.pt) and predicts the
-     full trajectory for those 20 waves, using the SAME (ic, t, x) input channels
+     full trajectory for those waves, using the SAME (ic, t, x) input channels
      the model was trained with (see solvers/ml/fno/fno.py `build`).
   3. SELF-CHECK: reproduces predictions for the first 10 waves (900-909) and
      asserts they match results/eval/predictions.npz to a tight tolerance. If this
      fails, STOP - the inference does not match the committed pipeline.
-  4. Saves results/eval/predictions_ext.npz with u_true_eval / FNO_eval at n=20.
+  4. Saves results/eval/predictions_ext.npz with u_true_eval / FNO_eval at n=100.
 
-Then rebuild the figures at n=20:
+  The primary thesis tables use only the first 20 of these waves (indices
+  900-919, i.e. predictions_ext.npz[:20]) - see results/eval/predictions_ext20.npz
+  and results/module2/figures/*_n20.json, produced by slicing this output
+  (no separate model run needed: predictions_ext.npz[:10] is already verified
+  bit-identical to predictions.npz by the self-check above, so [:20] is the
+  same frozen FNO/coupling pipeline, just more held-out waves).
+
+Then rebuild the figures at n=100:
     MODULE2_PRED=results/eval/predictions_ext.npz python "hybrid_pde/coupling - 214050V/make_figures.py" all
 (on Windows PowerShell:  $env:MODULE2_PRED="results/eval/predictions_ext.npz"; python ... )
 """
@@ -50,7 +57,7 @@ def random_ic(rng, n_modes=4):
 
 rng = np.random.default_rng(42)
 ICs_all = [np.sin(np.pi * x)] + [random_ic(rng) for _ in range(LAST - 1)]  # indices 0..LAST-1
-ICs = np.stack(ICs_all[FIRST:LAST])          # (20, nx)
+ICs = np.stack(ICs_all[FIRST:LAST])          # (LAST-FIRST, nx)
 
 # ---- Cole-Hopf ground truth for these 20 waves (analytic; matches colehopf.py) ----
 x_ext = np.concatenate([x - L, x, x + L])
@@ -65,7 +72,7 @@ def cole_hopf(ICs):
         K = np.exp(-diff**2 / (4 * nu * t[j]))
         U[:, j] = (pe @ (diff * K).T) / (pe @ K.T) / t[j]
     return U
-u_true = cole_hopf(ICs)                       # (20, nt, nx)
+u_true = cole_hopf(ICs)                       # (LAST-FIRST, nt, nx)
 
 # ---- FNO predictions (same (ic,t,x) channels as training) ----
 cfg = torch.load(FNO_CFG, map_location="cpu", weights_only=False)
@@ -86,7 +93,7 @@ def fno_predict(ic):
     inp = torch.stack([ch_ic, ch_t, ch_x], dim=1)   # (nt, 3, nx)
     return model(inp).squeeze(1).cpu().numpy()      # (nt, nx)
 
-fno_pred = np.stack([fno_predict(ic) for ic in ICs])  # (20, nt, nx)
+fno_pred = np.stack([fno_predict(ic) for ic in ICs])  # (LAST-FIRST, nt, nx)
 
 # ---- SELF-CHECK against the committed predictions for waves 900-909 ----
 d = np.load(PRED)

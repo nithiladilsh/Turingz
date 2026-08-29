@@ -1,0 +1,88 @@
+{
+  "note": "Module 2 handoff continuity & stability diagnostic. Method unchanged (verified hard-switch re-anchor). Negative control = careless restart (no 2/3 de-alias mask, no Nyquist zeroing).",
+  "n_waves": 10,
+  "switches": [
+    1.0,
+    1.2,
+    1.4,
+    1.6,
+    1.8
+  ],
+  "rows": [
+    {
+      "t_s": 1.0,
+      "numerical_work": 0.5,
+      "state_jump": 0.0,
+      "transient_hybrid": 0.09613406419012564,
+      "transient_fno": 0.09632917203604736,
+      "transient_ratio": 0.996500351935475,
+      "residual_before": 0.1057703773580344,
+      "residual_after": 0.03960998644783531,
+      "residual_spike_ratio": 0.4052012682881011,
+      "residual_after_careless": 0.03698119651014266,
+      "energy_before": 0.10842921666581185,
+      "energy_after": 0.10729495681433318,
+      "hybrid_tail": 0.010884612397932421
+    },
+    {
+      "t_s": 1.2,
+      "numerical_work": 0.405,
+      "state_jump": 0.0,
+      "transient_hybrid": 0.07391276207115352,
+      "transient_fno": 0.06926131762146034,
+      "transient_ratio": 1.0749862111842066,
+      "residual_before": 0.12378065042587894,
+      "residual_after": 0.03002160041880044,
+      "residual_spike_ratio": 0.26141046896767206,
+      "residual_after_careless": 0.029438427444934856,
+      "energy_before": 0.08987254226526961,
+      "energy_after": 0.08901301218027254,
+      "hybrid_tail": 0.021584214761292502
+    },
+    {
+      "t_s": 1.4,
+      "numerical_work": 0.305,
+      "state_jump": 0.0,
+      "transient_hybrid": 0.06449075734117037,
+      "transient_fno": 0.04845219162122673,
+      "transient_ratio": 1.4352347089460828,
+      "residual_before": 0.19126709369698242,
+      "residual_after": 0.032063525767638726,
+      "residual_spike_ratio": 0.15647747430340644,
+      "residual_after_careless": 0.03188049952779974,
+      "energy_before": 0.07554455762909659,
+      "energy_after": 0.07480296887022012,
+      "hybrid_tail": 0.05952167805295942
+    },
+    {
+      "t_s": 1.6,
+      "numerical_work": 0.205,
+      "state_jump": 0.0,
+      "transient_hybrid": 0.061007562130917695,
+      "transient_fno": 0.031363114118069225,
+      "transient_ratio": 2.208226616775841,
+      "residual_before": 0.2466237053462609,
+      "residual_after": 0.03146048506923106,
+      "residual_spike_ratio": 0.1232456821386938,
+      "residual_after_careless": 0.03135264634255902,
+      "energy_before": 0.06544584120395001,
+      "energy_after": 0.06478921853472046,
+      "hybrid_tail": 0.10401472739794455
+    },
+    {
+      "t_s": 1.8,
+      "numerical_work": 0.105,
+      "state_jump": 0.0,
+      "transient_hybrid": 0.061448898557616295,
+      "transient_fno": 0.022613692547580503,
+      "transient_ratio": 2.9270319337198534,
+      "residual_before": 0.28920895388098855,
+      "residual_after": 0.029884561042430667,
+      "residual_spike_ratio": 0.1037368986876566,
+      "residual_after_careless": 0.029782352819534775,
+      "energy_before": 0.05853696028236326,
+      "energy_after": 0.05792851574735917,
+      "hybrid_tail": 0.13046664278749381
+    }
+  ]
+}
